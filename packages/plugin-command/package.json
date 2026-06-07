@@ -1,7 +1,7 @@
 {
-  "name": "@monbolc/lowcode-types",
+  "name": "@monbolc/lowcode-plugin-command",
   "version": "2.0.1",
-  "description": "Core type definitions for SapuLowcodeEngine",
+  "description": "Command pattern + undo/redo history for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -13,14 +13,15 @@
       "require": "./lib/index.js"
     }
   },
-  "files": [
-    "lib",
-    "es"
-  ],
+  "files": ["lib", "es"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
     "clean": "rimraf lib es"
+  },
+  "dependencies": {
+    "@monbolc/lowcode-types": "^2.0.0",
+    "@monbolc/lowcode-utils": "^2.0.0"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",
@@ -33,11 +34,7 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
-    "directory": "packages/types"
+    "directory": "packages/plugin-command"
   },
-  "keywords": [
-    "lowcode",
-    "engine",
-    "types"
-  ]
+  "keywords": ["lowcode", "engine", "command", "undo", "redo"]
 }
