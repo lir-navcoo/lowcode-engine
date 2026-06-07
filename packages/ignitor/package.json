@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-ignitor",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "SapuLowcodeEngine bootstrap dev entry (L0)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -22,7 +22,7 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "2.0.0"
+    "@monbolc/lowcode-types": "^2.1.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
