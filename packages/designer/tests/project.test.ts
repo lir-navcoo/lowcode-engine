@@ -67,14 +67,14 @@ describe('Project', () => {
 });
 
 describe('Dragon', () => {
-  it('tracks start / move / end', () => {
+  it('tracks start / move / commit', () => {
     const p = new Project(deepClone(SEED_ROOT));
     expect(p.dragon.isDragging).toBe(false);
     p.dragon.start('A', 0, 0);
     expect(p.dragon.isDragging).toBe(true);
     p.dragon.move(10, 20);
     expect(p.dragon.state.x).toBe(10);
-    p.dragon.end(true);
+    p.dragon.commit();
     expect(p.dragon.isDragging).toBe(false);
   });
 

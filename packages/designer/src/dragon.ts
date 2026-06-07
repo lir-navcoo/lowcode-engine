@@ -1,15 +1,17 @@
 /**
  * @monbolc/lowcode-designer — Dragon
  *
- * Drag state machine. The Dragon is the single source of truth for
- * "is the user currently dragging something?", and provides the
- * hooks (onDragStart / onDrag / onDragEnd) for components that
- * need to react.
+ * Drag state machine. Tracks:
+ *   - which node is being dragged
+ *   - current pointer position
+ *   - current drop target (parent node + insertion index)
  *
- * For the L3 milestone this is a minimal implementation: it tracks
- * a single node id being dragged, plus a current pointer position,
- * and emits events. The designer-host (in a later layer) will
- * render the ghost and decide where to drop.
+ * The host wires pointer events on the canvas and calls
+ * `dragon.move(x, y)` and `dragon.drop()` as appropriate.
+ *
+ * For the L3 milestone this is a self-contained state machine.
+ * Visual feedback (ghost, insertion indicator) is rendered by the
+ * Skeleton layer (L4+).
  */
 
 import { Emitter } from '@monbolc/lowcode-utils';
@@ -21,20 +23,33 @@ export interface DragonState {
   x: number;
   /** Current pointer y in viewport coords. */
   y: number;
+  /** Computed drop target, or null if no valid target under the pointer. */
+  dropTarget: DropTarget | null;
+}
+
+export interface DropTarget {
+  /** id of the parent node that would receive the drop, or null for root. */
+  parentId: string | null;
+  /** Index in the parent's children array where the drop would land. */
+  index: number;
+  /** Whether the drop would go inside the target (vs before/after). */
+  placement: 'before' | 'after' | 'inside';
 }
 
 export interface DragonEvents extends Record<string, unknown> {
   /** A drag just started. */
   start: { nodeId: string };
   /** Pointer moved during a drag. */
-  move: { x: number; y: number };
-  /** A drag ended (committed, cancelled, or otherwise finished). */
-  end: { nodeId: string; committed: boolean };
+  move: { x: number; y: number; dropTarget: DropTarget | null };
+  /** A drag ended without a successful drop. */
+  cancel: { nodeId: string };
+  /** A drag ended with a successful drop. */
+  drop: { nodeId: string; target: DropTarget };
 }
 
 export class Dragon {
   readonly events = new Emitter<DragonEvents>();
-  private _state: DragonState = { draggingNodeId: null, x: 0, y: 0 };
+  private _state: DragonState = { draggingNodeId: null, x: 0, y: 0, dropTarget: null };
 
   get state(): DragonState {
     return this._state;
@@ -45,21 +60,38 @@ export class Dragon {
   }
 
   start(nodeId: string, x: number, y: number): void {
-    if (this._state.draggingNodeId) return; // ignore while another drag is in progress
-    this._state = { draggingNodeId: nodeId, x, y };
+    if (this._state.draggingNodeId) return;
+    this._state = { draggingNodeId: nodeId, x, y, dropTarget: null };
     this.events.emit('start', { nodeId });
   }
 
-  move(x: number, y: number): void {
+  move(x: number, y: number, dropTarget: DropTarget | null = null): void {
     if (!this._state.draggingNodeId) return;
-    this._state = { ...this._state, x, y };
-    this.events.emit('move', { x, y });
+    this._state = { ...this._state, x, y, dropTarget };
+    this.events.emit('move', { x, y, dropTarget });
   }
 
-  end(committed: boolean): void {
+  /** Mark the drag as successful; emits a `drop` event with the
+   * current drop target. The host should commit the actual mutation
+   * (e.g. via Project.document.move) on receipt. */
+  commit(): { nodeId: string; target: DropTarget } | null {
+    const id = this._state.draggingNodeId;
+    const target = this._state.dropTarget;
+    if (!id) return null;
+    this._state = { draggingNodeId: null, x: 0, y: 0, dropTarget: null };
+    if (target) {
+      this.events.emit('drop', { nodeId: id, target });
+    } else {
+      this.events.emit('cancel', { nodeId: id });
+    }
+    return target ? { nodeId: id, target } : null;
+  }
+
+  /** Cancel an in-progress drag (e.g. on Escape). */
+  cancel(): void {
     const id = this._state.draggingNodeId;
     if (!id) return;
-    this._state = { draggingNodeId: null, x: 0, y: 0 };
-    this.events.emit('end', { nodeId: id, committed });
+    this._state = { draggingNodeId: null, x: 0, y: 0, dropTarget: null };
+    this.events.emit('cancel', { nodeId: id });
   }
 }

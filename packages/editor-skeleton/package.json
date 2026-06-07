@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-editor-skeleton",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "3-pane editor layout (outline / canvas / settings) for SapuLowcodeEngine (L4)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -13,27 +13,35 @@
       "require": "./lib/index.js"
     }
   },
-  "files": ["lib", "es"],
+  "files": [
+    "lib",
+    "es"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
     "clean": "rimraf lib es"
   },
   "dependencies": {
+    "@monbolc/lowcode-designer": "^2.0.0",
+    "@monbolc/lowcode-plugin-outline-pane": "^2.0.1",
+    "@monbolc/lowcode-react-renderer": "^2.0.1",
+    "@monbolc/lowcode-renderer-core": "^2.0.0",
     "@monbolc/lowcode-types": "^2.0.0",
     "@monbolc/lowcode-utils": "^2.0.2",
-    "@monbolc/lowcode-renderer-core": "^2.0.0",
-    "@monbolc/lowcode-react-renderer": "^2.0.1",
-    "@monbolc/lowcode-designer": "^2.0.0",
-    "@monbolc/lowcode-plugin-outline-pane": "^2.0.1"
+    "react-resizable-panels": "^2.1.7"
   },
   "peerDependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
@@ -52,5 +60,11 @@
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
     "directory": "packages/editor-skeleton"
   },
-  "keywords": ["lowcode", "engine", "editor", "skeleton", "ui"]
+  "keywords": [
+    "lowcode",
+    "engine",
+    "editor",
+    "skeleton",
+    "ui"
+  ]
 }

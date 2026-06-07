@@ -58,3 +58,46 @@ export function findNodeIdFromElement(el: Element | null): string | null {
 export function tagElementWithNodeId(el: Element, id: string): void {
   el.setAttribute('data-lce-id', id);
 }
+
+/**
+ * Hit test: given a point in viewport coords, return the
+ * `data-lce-id` of the nearest ancestor of that point. Used by
+ * Dragon to find the drop target. Returns null if no such element
+ * exists within `container`.
+ */
+export function hitTest(container: Element, x: number, y: number): string | null {
+  if (typeof container.elementsFromPoint !== 'function') return null;
+  const stack = container.elementsFromPoint(x, y);
+  for (const el of stack) {
+    const id = (el as Element).getAttribute?.('data-lce-id');
+    if (id) return id;
+  }
+  return null;
+}
+
+/**
+ * Compute a DropTarget from a hit-tested id and the pointer position.
+ * The target's vertical position determines whether the drop is
+ * 'before', 'after', or 'inside' the element.
+ */
+export interface HitInfo {
+  /** id of the hit element, or null if no element found. */
+  hitId: string | null;
+  /** y-position relative to the hit element's bounding rect. */
+  relativeY: number;
+  /** height of the hit element. */
+  height: number;
+}
+
+export function getHitInfo(
+  container: Element,
+  x: number,
+  y: number,
+): HitInfo {
+  const hitId = hitTest(container, x, y);
+  if (!hitId) return { hitId: null, relativeY: 0, height: 0 };
+  const el = container.querySelector(`[data-lce-id="${CSS.escape(hitId)}"]`);
+  if (!el) return { hitId: null, relativeY: 0, height: 0 };
+  const r = el.getBoundingClientRect();
+  return { hitId, relativeY: y - r.top, height: r.height };
+}

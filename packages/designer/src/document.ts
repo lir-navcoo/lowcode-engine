@@ -125,10 +125,12 @@ export class DocumentModel implements IDocumentModel {
   move(node: Node, newParent: Node | null, newIndex: number): void {
     const oldParent = node.parent;
     const oldParentSchema = oldParent ? oldParent.schema : this._root;
+    if (!oldParentSchema.children) oldParentSchema.children = [];
     const oldIndex = oldParentSchema.children!.indexOf(node.schema);
     if (oldIndex < 0) return;
     oldParentSchema.children!.splice(oldIndex, 1);
     const newParentSchema = newParent ? newParent.schema : this._root;
+    if (!newParentSchema.children) newParentSchema.children = [];
     const safeIndex = Math.max(0, Math.min(newIndex, newParentSchema.children!.length));
     newParentSchema.children!.splice(safeIndex, 0, node.schema);
 
