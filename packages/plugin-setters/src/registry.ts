@@ -60,6 +60,7 @@ export type SetterType =
   | 'Switch'       // @base-ui-components/react Switch.Root
   | 'Select'       // @base-ui-components/react Select.Root
   | 'Slider'       // @base-ui-components/react Slider.Root
+  | 'RadioGroup'   // @base-ui-components/react RadioGroup (G)
   | 'input'        // raw <input>
   | 'textarea'     // raw <textarea>
   | 'select'       // raw <select>

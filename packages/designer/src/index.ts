@@ -31,7 +31,11 @@ export {
   MoveCommand,
   SetPropCommand,
   RenameCommand,
+  DetectingCommand,
+  ScrollerCommand,
+  ClipboardCommand,
 } from './commands';
+export type { ScrollBlock, ClipboardOp, ClipboardPayload } from './commands';
 
 export {
   getRect,

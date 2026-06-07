@@ -12,3 +12,17 @@ export type { SettingsPanelProps } from './settings-panel';
 
 export { Overlays } from './overlays';
 export type { OverlaysProps } from './overlays';
+
+export {
+  SapuToaster,
+  createToastManager,
+  SapuModal,
+  SapuFloatingPanel,
+} from './widgets';
+export type {
+  SapuToastItem,
+  SapuToastManagerApi,
+  ToastTone,
+  SapuModalProps,
+  SapuFloatingPanelProps,
+} from './widgets';

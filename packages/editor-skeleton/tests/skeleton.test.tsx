@@ -41,4 +41,21 @@ describe('Skeleton', () => {
     // The skeleton subscribes to the document events
     expect(typeof project.document.events.on).toBe('function');
   });
+
+  // P2.3 — selection overlay wiring. The Skeleton must mount the
+  // Overlays component inside the canvas pane so the dashed border
+  // appears on the selected node. happy-dom doesn't actually measure
+  // (no layout), so we can't verify the border's position; we just
+  // verify the Overlays effect runs without throwing and the
+  // selectedIds state flows through.
+  it('mounts the Overlays component (no throw on render with selection)', () => {
+    const project = new Project(deepClone(SEED));
+    const root = project.document.root;
+    const a = project.document.getNode(root.key as string)!.children[0];
+    project.select(a.id);
+
+    // Render should not throw with a non-null selectedIds.
+    expect(() => render(<Skeleton project={project} components={{}} />)).not.toThrow();
+    expect(project.selectedIds).toContain(a.id);
+  });
 });

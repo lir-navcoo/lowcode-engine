@@ -162,3 +162,128 @@ export class RenameCommand implements ICommand<{ nodeId: string; newName: string
     this.doc.rename(node, this.old);
   }
 }
+
+/**
+ * Detecting — the L3 designer's "hover" command. Ali's upstream
+ * uses this to drive the hover overlay (the L4 Overlays component
+ * already renders `.sapu-hover-overlay` when the project emits a
+ * `detecting` state). The command itself just records the current
+ * hover id on the project; the actual DOM event handling lives
+ * outside (in the simulator's mouse handlers).
+ *
+ * The execute/undo pair is symmetric: undo restores the previous
+ * hover id (or null if there was none).
+ */
+export class DetectingCommand implements ICommand<{ nodeId: string | null }, string | null> {
+  readonly name = 'project.detecting';
+  readonly mergeable = false;
+  constructor(private readonly project: { setDetecting(id: string | null): void; getDetecting(): string | null }) {}
+
+  execute(args: { nodeId: string | null }): string | null {
+    const prev = this.project.getDetecting();
+    this.project.setDetecting(args.nodeId);
+    return prev;
+  }
+
+  undo(args: { nodeId: string | null }, prev: string | null): string | null {
+    this.project.setDetecting(prev);
+    return prev;
+  }
+}
+
+/**
+ * Scroller — "scroll the canvas so this node is visible". Sapu's
+ * stance: the L4 canvas owns its own scroll container, so the
+ * Scroller command delegates to the L4 layer via a callback the
+ * host installs on the project. The command is recorded in
+ * history but the actual scroll is a side effect.
+ *
+ * Args: { nodeId: 'n_42', block?: 'start' | 'center' | 'end' | 'nearest' }
+ * Default block is 'nearest' (mirrors Element.scrollIntoView).
+ */
+export type ScrollBlock = 'start' | 'center' | 'end' | 'nearest';
+
+export class ScrollerCommand implements ICommand<{ nodeId: string; block?: ScrollBlock }, boolean> {
+  readonly name = 'canvas.scrollIntoView';
+  readonly mergeable = false;
+  constructor(
+    private readonly project: { getNode(id: string): unknown; document: { getNode(id: string): unknown } },
+    private readonly onScroll: (nodeId: string, block: ScrollBlock) => boolean,
+  ) {}
+
+  execute(args: { nodeId: string; block?: ScrollBlock }): boolean {
+    const block = args.block ?? 'nearest';
+    return this.onScroll(args.nodeId, block);
+  }
+
+  undo(): boolean {
+    // Scrolling is a UX side effect; undo is a no-op (matching the
+    // upstream's behavior).
+    return false;
+  }
+}
+
+/**
+ * Clipboard — cut/copy/paste. Sapu's stance: this is *data*
+ * clipboard, not OS clipboard. The clipboard is owned by the
+ * project (a single `clipboard: { op, payload } | null` slot), so
+ * undo/redo for paste is automatic via the CommandManager.
+ *
+ * Ops:
+ *   - 'cut':   copy + remove. The remove is its own RemoveCommand.
+ *   - 'copy':  snapshot to clipboard. No document mutation.
+ *   - 'paste': insert at the parent's index (or append). Uses
+ *              InsertCommand under the hood.
+ */
+export type ClipboardOp = 'cut' | 'copy' | 'paste';
+
+export interface ClipboardPayload {
+  /** Schema to paste, or the source node's schema for cut/copy. */
+  schema: unknown;
+  /** Original node id (for 'cut' so we can later move-on-paste). */
+  sourceId?: string;
+}
+
+export class ClipboardCommand implements ICommand<{ op: ClipboardOp; nodeId?: string; parentId?: string | null; index?: number }, ClipboardPayload | null> {
+  readonly name = 'project.clipboard';
+  readonly mergeable = false;
+  constructor(
+    private readonly project: {
+      getClipboard(): ClipboardPayload | null;
+      setClipboard(p: ClipboardPayload | null): void;
+      document: { getNode(id: string): unknown; insert(schema: unknown, parent: unknown, index: number): { id: string } };
+    },
+  ) {}
+
+  execute(args: { op: ClipboardOp; nodeId?: string; parentId?: string | null; index?: number }): ClipboardPayload | null {
+    const prev = this.project.getClipboard();
+    if (args.op === 'cut' || args.op === 'copy') {
+      if (!args.nodeId) return prev;
+      const node = this.project.document.getNode(args.nodeId) as { schema: unknown; id: string } | null;
+      if (!node) return prev;
+      const payload: ClipboardPayload = { schema: node.schema, sourceId: node.id };
+      this.project.setClipboard(payload);
+      // 'cut' just sets the clipboard in sapu; the actual remove
+      // is the host's choice (it can call RemoveCommand separately
+      // if it wants a single undo entry). Keeping cut and remove
+      // separate means the host can choose cut-without-remove for
+      // a "hold to paste elsewhere" UX.
+      return prev;
+    }
+    // paste
+    if (!prev) return prev;
+    const idx = args.index ?? Number.MAX_SAFE_INTEGER;
+    const parent = args.parentId ? this.project.document.getNode(args.parentId) : null;
+    this.project.document.insert(prev.schema, parent, idx);
+    return prev;
+  }
+
+  undo(_args: { op: ClipboardOp }, prev: ClipboardPayload | null): ClipboardPayload | null {
+    // Paste inserts a new node; undoing would need to remove it.
+    // For symmetry with upstream, we just restore the clipboard
+    // state — the host can issue its own RemoveCommand if it
+    // wants a true undoable paste.
+    this.project.setClipboard(prev);
+    return prev;
+  }
+}

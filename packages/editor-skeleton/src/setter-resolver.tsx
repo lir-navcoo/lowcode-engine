@@ -42,6 +42,7 @@ const LOOKUP: Record<SetterType, ComponentType<any> | string> = {
   'Switch': BaseUI.Switch.Root as ComponentType<any>,
   'Select': BaseUI.Select.Root as ComponentType<any>,
   'Slider': BaseUI.Slider.Root as ComponentType<any>,
+  'RadioGroup': BaseUI.RadioGroup as ComponentType<any>,
   'input': 'input',
   'textarea': 'textarea',
   'select': 'select',

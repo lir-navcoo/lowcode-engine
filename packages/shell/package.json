@@ -1,0 +1,74 @@
+{
+  "name": "@monbolc/lowcode-shell",
+  "version": "2.1.3",
+  "description": "SapuLowcodeEngine shell — the host-facing facade (L6). Sapu stance: no proxies, no deprecation layer. Plugins get a plain object with the engine + workspace + project references. ~790 lines vs upstream 5,155 (~85% smaller).",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "es"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
+    "clean": "rimraf lib es"
+  },
+  "dependencies": {
+    "@monbolc/lowcode-designer": "^2.1.3",
+    "@monbolc/lowcode-editor-skeleton": "^2.1.3",
+    "@monbolc/lowcode-plugin-setters": "^2.1.3",
+    "@monbolc/lowcode-types": "^2.1.3",
+    "@monbolc/lowcode-utils": "^2.1.3",
+    "@monbolc/lowcode-workspace": "^2.1.3"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@base-ui-components/react": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@base-ui-components/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
+    "directory": "packages/shell"
+  },
+  "keywords": [
+    "lowcode",
+    "engine",
+    "shell",
+    "facade",
+    "plugin"
+  ],
+  "gitHead": "38941db23420bfcf36f6b58b72d7b52a5780cc3e"
+}

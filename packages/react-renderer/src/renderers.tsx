@@ -76,7 +76,13 @@ function renderNode(
   const children = renderChildren(schema, props);
   const key = schema.key ?? fallbackKey;
   if (typeof Comp === 'function') {
-    return h()(Comp, { ...(schema.props ?? {}), key }, ...children);
+    // Tag every rendered node with its id so the L4 Overlays
+    // component (selection border, hover tint, drag ghost) can
+    // locate the corresponding DOM element. The `data-lce-id`
+    // attribute is HTML-safe and passes through any well-behaved
+    // user component that spreads its props to its root element
+    // (which is the standard lowcode component contract).
+    return h()(Comp, { ...(schema.props ?? {}), key, 'data-lce-id': key }, ...children);
   }
   // Unknown component — render a placeholder, but keep rendering
   // children below it so the page layout still works.
@@ -84,6 +90,7 @@ function renderNode(
     'div',
     {
       'data-unknown-component': schema.componentName,
+      'data-lce-id': key,
       key,
       style: {
         padding: '4px 8px',

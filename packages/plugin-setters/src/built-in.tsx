@@ -190,6 +190,95 @@ const Slider: SetterComponent = ({ value, onChange, field }) => {
 };
 
 /* ------------------------------------------------------------------ *
+ *  RadioGroup — single-select via BaseUI.RadioGroup                      *
+ *  (G: P2.x — fills the "mutually exclusive option" gap)               *
+ * ------------------------------------------------------------------ */
+
+const RadioGroup: SetterComponent = ({ value, onChange, field }) => {
+  // Options come from `field.extraProps?.options` (a {label, value}[] list).
+  // Fallback: an empty list (the user gets a visible "no options" hint).
+  const rawOptions =
+    ((field.extraProps?.options) as Array<{ label: string; value: string }> | undefined) ?? [];
+  const selected = typeof value === 'string' ? value : '';
+
+  return {
+    type: 'RadioGroup',
+    props: {
+      className: 'flex flex-col gap-1',
+      value: selected,
+      onValueChange: (next: string) => onChange(next as JSONValue),
+    },
+    children: rawOptions.length === 0
+      ? [{
+          type: 'div' as SetterDescriptor['type'],
+          props: {
+            key: 'empty',
+            className: 'text-[11px] text-slate-400 italic',
+          },
+          children: ['No options configured. Set field.extra.options = [{label, value}, ...]'],
+        }]
+      : rawOptions.flatMap((opt) => ([
+          {
+            type: 'input' as SetterDescriptor['type'],
+            props: {
+              key: `r-${opt.value}`,
+              type: 'radio',
+              name: field.name,
+              value: opt.value,
+              defaultChecked: opt.value === selected,
+              className: 'cursor-pointer mr-1',
+              onChange: () => onChange(opt.value as JSONValue),
+            },
+            children: [],
+          },
+          {
+            type: 'span' as SetterDescriptor['type'],
+            props: { key: `l-${opt.value}`, className: 'mr-3' },
+            children: [opt.label],
+          },
+        ])),
+  };
+};
+
+/* ------------------------------------------------------------------ *
+ *  DatePicker — native <input type="date"> wrapped for ISO yyyy-mm-dd    *
+ *  (G: P2.x — fills the date-only field gap; time uses a separate       *
+ *   DateTime setter that hosts can register themselves)                *
+ * ------------------------------------------------------------------ */
+
+const DatePicker: SetterComponent = ({ value, onChange }) => {
+  // Accept ISO date string, Date, or null. Normalize to yyyy-mm-dd.
+  const normalize = (raw: unknown): string => {
+    if (typeof raw === 'string') {
+      // Already ISO? (yyyy-mm-dd prefix)
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+      // Try parsing a Date-parseable string.
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+    if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+      return raw.toISOString().slice(0, 10);
+    }
+    return '';
+  };
+  const v = normalize(value);
+
+  return {
+    type: 'input',
+    props: {
+      type: 'date',
+      className: INPUT_CLASS,
+      defaultValue: v,
+      onBlur: (e: { target: { value: string } }) => {
+        // Empty input → null. Otherwise pass through as ISO date.
+        const next = e.target.value;
+        onChange((next ? next : null) as JSONValue);
+      },
+    },
+  };
+};
+
+/* ------------------------------------------------------------------ *
  *  Public export                                                       *
  * ------------------------------------------------------------------ */
 
@@ -207,6 +296,8 @@ export function registerBuiltInSetters(): void {
   registerSetter('Select', Select);
   registerSetter('ColorPicker', ColorPicker);
   registerSetter('Slider', Slider);
+  registerSetter('RadioGroup', RadioGroup);
+  registerSetter('DatePicker', DatePicker);
   _registered = true;
 }
 
@@ -218,4 +309,6 @@ export {
   Select,
   ColorPicker,
   Slider,
+  RadioGroup,
+  DatePicker,
 };

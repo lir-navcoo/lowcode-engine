@@ -22,6 +22,7 @@ import { OutlinePane, OutlineView } from '@monbolc/lowcode-plugin-outline-pane';
 import { Project, Simulator } from '@monbolc/lowcode-designer';
 
 import { SettingsPanel } from './settings-panel';
+import { Overlays } from './overlays';
 
 const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
   adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
@@ -143,6 +144,17 @@ export function Skeleton(props: SkeletonProps) {
     };
   }, [props.project.document.root, props.components]);
 
+  // canvasHostRef points at the inner canvas div. The Overlays
+  // component needs the host element (not the React ref object)
+  // so it can read `getBoundingClientRect()` for positioning.
+  // We snapshot it into state via the ref callback so children
+  // see the current element instead of `null` on first render.
+  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
+  const setCanvasRef = (el: HTMLDivElement | null) => {
+    canvasHost.current = el;
+    setCanvasEl(el);
+  };
+
   const onOutlineSelect = (id: string) => {
     props.project.select(id);
   };
@@ -159,7 +171,9 @@ export function Skeleton(props: SkeletonProps) {
     h()(PanelResizeHandle, { key: 'rh-left', className: CN.resize }),
     h()(Panel, { key: 'center', defaultSize: 100 - leftSize - rightSize, minSize: 30 },
       h()('div', { className: CN.canvas },
-        h()('div', { className: CN.canvasInner, ref: canvasHost }),
+        h()('div', { className: CN.canvasInner, ref: setCanvasRef },
+          h()(Overlays, { project: props.project, canvasContainer: canvasEl }),
+        ),
       ),
     ),
     h()(PanelResizeHandle, { key: 'rh-right', className: CN.resize }),

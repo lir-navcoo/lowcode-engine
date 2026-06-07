@@ -21,6 +21,10 @@ import { Node } from './node';
 export interface ProjectEvents extends Record<string, unknown>, DocumentEvents, DragonEvents {
   /** The selection changed. */
   selectionChanged: { ids: string[] };
+  /** The hover-detected node changed (F — Detecting command). */
+  detectingChanged: { id: string | null };
+  /** The internal data clipboard changed (F — Clipboard command). */
+  clipboardChanged: Record<string, never>;
   /** A new project was loaded. */
   loaded: Record<string, never>;
 }
@@ -30,6 +34,8 @@ export class Project {
   readonly document: DocumentModel;
   readonly dragon: Dragon;
   private _selectedIds: string[] = [];
+  private _detectingId: string | null = null;
+  private _clipboard: import('./commands').ClipboardPayload | null = null;
 
   constructor(root: IPublicTypeRootSchema) {
     this.document = new DocumentModel(root);
@@ -53,7 +59,32 @@ export class Project {
   load(root: IPublicTypeRootSchema): void {
     this.document.setRoot(root);
     this._selectedIds = [];
+    this._detectingId = null;
+    this._clipboard = null;
     this.events.emit('loaded', {});
+  }
+
+  /* ---------------- Detecting (hover) ---------------- */
+
+  getDetecting(): string | null {
+    return this._detectingId;
+  }
+
+  setDetecting(id: string | null): void {
+    if (this._detectingId === id) return;
+    this._detectingId = id;
+    this.events.emit('detectingChanged', { id });
+  }
+
+  /* ---------------- Clipboard ---------------- */
+
+  getClipboard(): import('./commands').ClipboardPayload | null {
+    return this._clipboard;
+  }
+
+  setClipboard(p: import('./commands').ClipboardPayload | null): void {
+    this._clipboard = p;
+    this.events.emit('clipboardChanged', {});
   }
 
   /* ---------------- Selection ---------------- */

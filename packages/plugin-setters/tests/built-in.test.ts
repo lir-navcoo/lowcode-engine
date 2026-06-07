@@ -23,6 +23,8 @@ import {
   Select,
   ColorPicker,
   Slider,
+  RadioGroup,
+  DatePicker,
 } from '../src/built-in';
 import type { SetterDescriptor, SetterProps } from '../src/registry';
 
@@ -240,5 +242,97 @@ describe('Slider setter (BaseUI.Slider.Root)', () => {
     const onValueChange = d.props?.onValueChange as (v: number) => void;
     onValueChange(42);
     expect(calls).toEqual([42]);
+  });
+});
+
+describe('RadioGroup setter (BaseUI.RadioGroup, G)', () => {
+  it('returns a RadioGroup descriptor with empty-options fallback', () => {
+    const d = RadioGroup(propsFor(''));
+    expect(d.type).toBe('RadioGroup');
+    expect(d.props?.className).toContain('flex');
+    // No options → fallback empty-state child.
+    expect(Array.isArray(d.children)).toBe(true);
+  });
+
+  it('renders one radio input per option from field.extraProps.options', () => {
+    const field = {
+      ...baseField,
+      extraProps: {
+        options: [
+          { label: 'One', value: '1' },
+          { label: 'Two', value: '2' },
+        ],
+      },
+    } as unknown as SetterProps['field'];
+    const d = RadioGroup(propsFor('1', field));
+    expect(d.type).toBe('RadioGroup');
+    expect(d.props?.value).toBe('1');
+    // Two radios + two labels.
+    const children = d.children as SetterDescriptor[];
+    const radioCount = children.filter((c) => c.type === 'input').length;
+    expect(radioCount).toBe(2);
+  });
+
+  it('marks the matching option as defaultChecked', () => {
+    const field = {
+      ...baseField,
+      extraProps: {
+        options: [
+          { label: 'A', value: 'a' },
+          { label: 'B', value: 'b' },
+        ],
+      },
+    } as unknown as SetterProps['field'];
+    const d = RadioGroup(propsFor('b', field));
+    const radios = (d.children as SetterDescriptor[]).filter((c) => c.type === 'input');
+    expect(radios[0].props?.defaultChecked).toBe(false);
+    expect(radios[1].props?.defaultChecked).toBe(true);
+  });
+
+  it('onChange fires when a radio is toggled', () => {
+    const calls: unknown[] = [];
+    const field = {
+      ...baseField,
+      extraProps: { options: [{ label: 'X', value: 'x' }] },
+    } as unknown as SetterProps['field'];
+    const d = RadioGroup({ ...propsFor('', field), onChange: (v) => calls.push(v) });
+    const radios = (d.children as SetterDescriptor[]).filter((c) => c.type === 'input');
+    const onChange = radios[0].props?.onChange as () => void;
+    onChange();
+    expect(calls).toEqual(['x']);
+  });
+});
+
+describe('DatePicker setter (raw <input type="date">, G)', () => {
+  it('returns an input[type=date] descriptor with yyyy-mm-dd', () => {
+    const d = DatePicker(propsFor('2025-12-31'));
+    expect(d.type).toBe('input');
+    expect(d.props?.type).toBe('date');
+    expect(d.props?.defaultValue).toBe('2025-12-31');
+  });
+
+  it('normalizes a full ISO string to yyyy-mm-dd', () => {
+    const d = DatePicker(propsFor('2025-12-31T10:30:00.000Z'));
+    expect(d.props?.defaultValue).toBe('2025-12-31');
+  });
+
+  it('normalizes a Date instance to yyyy-mm-dd', () => {
+    const d = DatePicker(propsFor(new Date('2024-06-15T00:00:00Z')));
+    expect(d.props?.defaultValue).toBe('2024-06-15');
+  });
+
+  it('falls back to empty string for unparseable input', () => {
+    const d = DatePicker(propsFor('not a date'));
+    expect(d.props?.defaultValue).toBe('');
+  });
+
+  it('onBlur fires onChange with null when value is empty, otherwise the ISO string', () => {
+    const calls: unknown[] = [];
+    const d = DatePicker({ ...propsFor(''), onChange: (v) => calls.push(v) });
+    const onBlur = d.props?.onBlur as (e: { target: { value: string } }) => void;
+    onBlur({ target: { value: '' } });
+    expect(calls).toEqual([null]);
+    onBlur({ target: { value: '2026-01-01' } });
+    expect(calls).toEqual([null, '2026-01-01']);
   });
 });
