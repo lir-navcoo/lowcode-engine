@@ -14,6 +14,6 @@ export {
   withLabel,
   BUILT_IN_SETTERS,
 } from './registry';
-export type { SetterComponent, SetterProps } from './registry';
+export type { SetterComponent, SetterProps, SetterDescriptor, SetterType } from './registry';
 
 export { registerBuiltInSetters, Input, TextArea, Number, Switch, Select, ColorPicker, Slider } from './built-in';

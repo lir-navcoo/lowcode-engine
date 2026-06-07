@@ -67,8 +67,9 @@ describe('E2E: L0–L4 stack', () => {
     act(() => { project.select(header.id); });
     // The Settings pane has a <code> element with the component name
     expect(screen.getByText('title')).toBeInTheDocument();
-    // The prop value is displayed in a div with the formatted JSON
-    expect(screen.getByText('"Hello"')).toBeInTheDocument();
+    // The 'title' prop is a string → Input setter. The value is
+    // rendered as the defaultValue of the underlying <input>.
+    expect(screen.getByDisplayValue('Hello')).toBeInTheDocument();
   });
 
   it('a full edit cycle: select → edit prop → schema persists', () => {
@@ -77,17 +78,15 @@ describe('E2E: L0–L4 stack', () => {
     render(<Skeleton project={project} components={components} />);
     act(() => { project.select(header.id); });
 
-    // Click the "Hello" value to enter edit mode (parseValue reads JSON,
-    // so a quoted string is parsed to its inner value)
-    const valueDiv = screen.getByText('"Hello"');
-    fireEvent.click(valueDiv);
-    const input = screen.getByDisplayValue('"Hello"') as HTMLInputElement;
-    // Type the new string in JSON form. parseValue strips the quotes.
-    fireEvent.change(input, { target: { value: '"World"' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    // The 'title' prop is a string → Input setter. Type a new
+    // value + blur (Input's onBlur commits via the setter's
+    // onChange → setProps).
+    const input = screen.getByDisplayValue('Hello') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'World' } });
+    fireEvent.blur(input);
 
-    // After commit, the value cell shows the new formatted JSON
-    expect(screen.getByText('"World"')).toBeInTheDocument();
+    // After commit, the input shows the new defaultValue.
+    expect(screen.getByDisplayValue('World')).toBeInTheDocument();
 
     // Re-create a Project from the same schema source to simulate
     // save → reload. The new value should persist.

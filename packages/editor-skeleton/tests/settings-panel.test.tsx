@@ -23,7 +23,7 @@ const SEED: IPublicTypeRootSchema = {
   fileName: 'p.json',
   componentName: 'Page',
   children: [
-    { componentName: 'A', props: { x: 1, label: 'foo' } },
+    { componentName: 'A', props: { x: 1, label: 'foo', enabled: true } },
   ],
 };
 
@@ -34,31 +34,51 @@ describe('SettingsPanel', () => {
     expect(screen.getByText(/No selection/i)).toBeInTheDocument();
   });
 
-  it('shows props of the selected node', () => {
+  it('shows props of the selected node (rendered through plugin-setters)', () => {
     const project = new Project(deepClone(SEED));
     const a = project.document.getNode(project.document.root.key as string)!.children[0];
     project.select(a.id);
     render(<SettingsPanel project={project} />);
+    // Component name + prop keys are still plain text.
     expect(screen.getByText('A')).toBeInTheDocument();
     expect(screen.getByText('x')).toBeInTheDocument();
     expect(screen.getByText('label')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('"foo"')).toBeInTheDocument();
+    expect(screen.getByText('enabled')).toBeInTheDocument();
+    // Prop values are inside BaseUI inputs with `defaultValue`; use
+    // getByDisplayValue to find them (BaseUI sets defaultValue on
+    // the underlying <input>).
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('foo')).toBeInTheDocument();
   });
 
-  it('clicking a prop value opens an input; Enter commits the edit', () => {
+  it('typing into a string setter input + blur commits the new value', () => {
     const project = new Project(deepClone(SEED));
     const a = project.document.getNode(project.document.root.key as string)!.children[0];
     project.select(a.id);
     render(<SettingsPanel project={project} />);
-    // Click the VALUE '1' to enter edit mode (not the key 'x')
-    const valueDiv = screen.getByText('1');
-    fireEvent.click(valueDiv);
-    // Now there's an input with current value '1'
+
+    // The 'label' prop is a string → Input setter. Type a new value
+    // and blur (Input's onBlur commits).
+    const input = screen.getByDisplayValue('foo') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'bar' } });
+    fireEvent.blur(input);
+
+    const updated = project.document.getNode(a.id)!;
+    expect(updated.schema.props?.label).toBe('bar');
+  });
+
+  it('typing into a number setter input + blur commits the new number', () => {
+    const project = new Project(deepClone(SEED));
+    const a = project.document.getNode(project.document.root.key as string)!.children[0];
+    project.select(a.id);
+    render(<SettingsPanel project={project} />);
+
+    // The 'x' prop is a number → NumberField setter. Change the value
+    // and blur to commit (NumberField's onValueChange fires on blur).
     const input = screen.getByDisplayValue('1') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '42' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    // Verify the document was updated
+    fireEvent.blur(input);
+
     const updated = project.document.getNode(a.id)!;
     expect(updated.schema.props?.x).toBe(42);
   });

@@ -2,14 +2,36 @@
  * @monbolc/lowcode-editor-skeleton — SettingsPanel
  *
  * Right pane of the editor. Lists the props of the currently
- * selected node and lets the user edit them. Subscribes to the
- * project's selection + document events.
+ * selected node and lets the user edit them.
+ *
+ * Wiring (P1.3): each prop is rendered through the L2.5
+ * `plugin-setters` API:
+ *   1. Infer the setter name from the value's runtime type +
+ *      prop key pattern (`inferSetterName(value, key)`).
+ *   2. Look up the setter via `pickSetter(field)` (we construct a
+ *      minimal `IPublicTypeFieldConfig` on the fly).
+ *   3. Call the setter to get a `SetterDescriptor` (pure data).
+ *   4. Render via `renderDescriptor(desc)` which resolves the
+ *      descriptor's `type` to a BaseUI component (or raw HTML
+ *      tag) and `createElement`s it.
+ *
+ * No more hand-rolled JSON value editor — the L4 panel now uses
+ * the same setters downstream users will register for their own
+ * component props.
  */
 
 import { useEffect, useState } from 'react';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { Project } from '@monbolc/lowcode-designer';
-import type { JSONValue } from '@monbolc/lowcode-types';
+import {
+  pickSetter,
+  registerBuiltInSetters,
+  type SetterComponent,
+  type SetterProps,
+} from '@monbolc/lowcode-plugin-setters';
+import type { IPublicTypeFieldConfig, JSONValue } from '@monbolc/lowcode-types';
+
+import { renderDescriptor, inferSetterName } from './setter-resolver';
 
 const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
   adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
@@ -18,33 +40,49 @@ export interface SettingsPanelProps {
   project: Project;
 }
 
-interface EditableProp {
-  key: string;
-  value: JSONValue;
+// Ensure the 7 built-in setters are registered before the first
+// prop is rendered. Idempotent.
+let _settersRegistered = false;
+function ensureSetters(): void {
+  if (_settersRegistered) return;
+  registerBuiltInSetters();
+  _settersRegistered = true;
 }
 
-function formatValue(v: JSONValue): string {
-  if (v === null) return 'null';
-  if (typeof v === 'string') return JSON.stringify(v);
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
+/**
+ * Build a minimal `IPublicTypeFieldConfig` for a (key, value) pair
+ * when the schema doesn't carry one. The settings panel only
+ * renders an existing node's props (not a meta-driven form), so
+ * a thin ad-hoc field config is all the setter API needs.
+ */
+function makeField(key: string, value: JSONValue, setterName: string): IPublicTypeFieldConfig {
+  return {
+    name: key,
+    path: [key],
+    type: typeof value === 'number' ? 'number'
+        : typeof value === 'boolean' ? 'boolean'
+        : typeof value === 'string' ? 'string'
+        : 'object',
+    title: key,
+    setter: setterName,
+    defaultValue: value,
+  } as unknown as IPublicTypeFieldConfig;
 }
 
-function parseValue(s: string): JSONValue {
-  if (s === 'null') return null;
-  if (s === 'true') return true;
-  if (s === 'false') return false;
-  if (s !== '' && !Number.isNaN(Number(s))) return Number(s);
-  if (s.startsWith('{') || s.startsWith('[') || s.startsWith('"')) {
-    try { return JSON.parse(s); } catch { /* fall through */ }
-  }
-  return s;
+/**
+ * Pick a setter for the given (key, value). Returns undefined if
+ * the inferred setter name isn't registered (fall through to a
+ * hand-rolled input below).
+ */
+function pickSetterFor(key: string, value: JSONValue): SetterComponent | undefined {
+  const setterName = inferSetterName(value, key);
+  const field = makeField(key, value, setterName);
+  return pickSetter(field);
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
+  ensureSetters();
   const [, force] = useState(0);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<string>('');
 
   // Re-render whenever selection or document changes.
   useEffect(() => {
@@ -59,9 +97,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
     };
   }, [props.project]);
 
-  // Local Tailwind classnames (was: sapu-skel-empty / sapu-skel-settings).
+  // Local Tailwind classnames.
   const CN_EMPTY = 'text-slate-400 italic p-6 text-center';
-  const CN_ROW = 'flex items-center gap-1';
+  const CN_ROW = 'flex items-center gap-2';
+  const CN_LABEL = 'w-20 text-xs text-slate-700 shrink-0';
+  const CN_CONTROL = 'flex-1 min-w-0';
 
   const selected = props.project.getSelectedNodes();
   if (selected.length === 0) {
@@ -78,16 +118,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const node = selected[0];
   const propsMap = node.props as Record<string, JSONValue>;
 
-  const startEdit = (key: string, current: JSONValue) => {
-    setEditingKey(key);
-    setDraft(formatValue(current));
-  };
-
-  const commit = (key: string) => {
-    if (editingKey !== key) return;
-    const v = parseValue(draft);
-    props.project.document.setProps(node, { [key]: v });
-    setEditingKey(null);
+  // Build a setter call closure that writes back into the document.
+  const onChangeFor = (key: string) => (next: JSONValue) => {
+    props.project.document.setProps(node, { [key]: next });
   };
 
   return h()('div', { className: 'p-3' },
@@ -108,28 +141,50 @@ export function SettingsPanel(props: SettingsPanelProps) {
     ),
     h()('div', { className: 'text-[11px] text-slate-500 mb-1.5' },
       `Props (${Object.keys(propsMap).length})`),
-    h()('div', { className: 'flex flex-col gap-1' },
-      Object.entries(propsMap).map(([k, v]) =>
-        h()('div', { key: k, className: CN_ROW },
-          h()('div', { className: 'w-20 text-xs text-slate-700' }, k),
-          editingKey === k
-            ? h()('input', {
-                autoFocus: true,
-                value: draft,
-                onChange: (e: { target: { value: string } }) => setDraft(e.target.value),
-                onBlur: () => commit(k),
-                onKeyDown: (e: { key: string }) => {
-                  if (e.key === 'Enter') commit(k);
-                  if (e.key === 'Escape') setEditingKey(null);
-                },
-                className: 'flex-1 text-xs px-1.5 py-0.5 border border-blue-500 rounded',
-              })
-            : h()('div', {
-                onClick: () => startEdit(k, v),
-                className: 'flex-1 text-xs px-1.5 py-0.5 bg-slate-100 rounded cursor-text font-mono',
-              }, formatValue(v)),
-        ),
-      ),
+    h()('div', { className: 'flex flex-col gap-2' },
+      Object.entries(propsMap).map(([k, v]) => {
+        const setter = pickSetterFor(k, v);
+        if (!setter) {
+          // Should never happen — we always fall back to 'Input' in pickSetter.
+          return h()('div', { key: k, className: CN_ROW },
+            h()('div', { className: CN_LABEL }, k),
+            h()('div', { className: CN_CONTROL, children: String(v) }),
+          );
+        }
+        // For TextArea (used for objects/arrays) the setter expects
+        // a string, not a JSON value — serialize the value.
+        const setterName = inferSetterName(v, k);
+        const valueForSetter: JSONValue =
+          setterName === 'TextArea' && v !== null && typeof v === 'object'
+            ? (JSON.stringify(v) as unknown as JSONValue)
+            : v;
+        const setterProps: SetterProps = {
+          value: valueForSetter,
+          field: makeField(k, valueForSetter, setterName),
+          onChange: (next) => {
+            // If the user edits a JSON-TextArea, parse it back.
+            const realNext: JSONValue =
+              setterName === 'TextArea' && v !== null && typeof v === 'object' && typeof next === 'string'
+                ? (safeJsonParse(next) as JSONValue)
+                : next;
+            onChangeFor(k)(realNext);
+          },
+        };
+        const desc = setter(setterProps);
+        return h()('div', { key: k, className: CN_ROW },
+          h()('div', { className: CN_LABEL }, k),
+          h()('div', { className: CN_CONTROL }, renderDescriptor(desc)),
+        );
+      }),
     ),
   );
+}
+
+/** Tolerant JSON parse. Falls back to the raw string. */
+function safeJsonParse(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
 }
