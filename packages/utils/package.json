@@ -1,31 +1,31 @@
 {
-  "name": "@monbolc/lowcode-ignitor",
+  "name": "@monbolc/lowcode-utils",
   "version": "2.0.0",
-  "description": "SapuLowcodeEngine bootstrap dev entry (L0)",
+  "description": "Pure utility functions and type guards for SapuLowcodeEngine (L1)",
   "license": "MIT",
   "main": "lib/index.js",
-  "module": "lib/index.js",
+  "module": "es/index.js",
   "types": "lib/index.d.ts",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "import": "./lib/index.js",
+      "import": "./es/index.js",
       "require": "./lib/index.js"
     }
   },
   "files": [
-    "lib"
+    "lib",
+    "es"
   ],
   "scripts": {
-    "start": "node scripts/dev.js",
     "build": "tsc -p tsconfig.json",
+    "build:es": "tsc -p tsconfig.esm.json",
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "2.0.0"
+    "@monbolc/lowcode-types": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
     "rimraf": "^5.0.5",
     "typescript": "^5.4.5"
   },
@@ -36,12 +36,11 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
-    "directory": "packages/ignitor"
+    "directory": "packages/utils"
   },
   "keywords": [
     "lowcode",
     "engine",
-    "ignitor",
-    "bootstrap"
+    "utils"
   ]
 }
