@@ -61,7 +61,7 @@ export function setByPath<T extends object>(obj: T, path: string, value: unknown
     } else {
       // Create a new container. Use an array if the *next* segment is numeric.
       const nextSegIsNumeric = /^\d+$/.test(segments[i + 1]);
-      const created: Record<string, unknown> = nextSegIsNumeric ? [] : {};
+      const created = (nextSegIsNumeric ? [] : {}) as Record<string, unknown>;
       current[seg] = created;
       current = created;
     }

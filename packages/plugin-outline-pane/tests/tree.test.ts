@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { schemaToTreeNodes, findNode, defaultOpenIds } from '../src/tree';
-import type { IPublicTypeNodeSchema } from '@monbolc/lowcode-types';
+import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
-const schema: IPublicTypeNodeSchema = {
+const schema: IPublicTypeRootSchema = {
   fileName: 'p.json',
   componentName: 'Page',
   children: [

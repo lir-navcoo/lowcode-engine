@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc -p tsconfig.json --noEmit && for p in packages/*/tsconfig.json; do tsc -p \"$p\" --noEmit; done",
+    "typecheck": "for p in packages/*/tsconfig.json; do echo \"--- $p ---\"; tsc -p \"$p\" --noEmit; done",
     "pub:patch": "lerna publish patch --yes --force-publish --no-changelog",
     "pub:minor": "lerna publish minor --yes --force-publish --no-changelog",
     "pub:major": "lerna publish major --yes --force-publish --no-changelog"

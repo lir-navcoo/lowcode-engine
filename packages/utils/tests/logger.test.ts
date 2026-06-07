@@ -1,8 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { ConsoleLogger, getLogger, setLogger } from '../src/logger';
 
+type Spies = {
+  debug: MockInstance;
+  info: MockInstance;
+  warn: MockInstance;
+  error: MockInstance;
+  log: MockInstance;
+};
+
 describe('ConsoleLogger', () => {
-  let spies: ReturnType<typeof vi.spyOn>;
+  let spies: Spies;
   beforeEach(() => {
     spies = {
       debug: vi.spyOn(console, 'debug').mockImplementation(() => undefined),
@@ -10,7 +18,7 @@ describe('ConsoleLogger', () => {
       warn: vi.spyOn(console, 'warn').mockImplementation(() => undefined),
       error: vi.spyOn(console, 'error').mockImplementation(() => undefined),
       log: vi.spyOn(console, 'log').mockImplementation(() => undefined),
-    } as ReturnType<typeof vi.spyOn>;
+    };
   });
   afterEach(() => {
     Object.values(spies).forEach((s) => s.mockRestore());
