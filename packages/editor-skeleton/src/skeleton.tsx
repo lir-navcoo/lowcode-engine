@@ -42,6 +42,15 @@ export interface SkeletonProps {
    * reference as stable.
    */
   onPaneReady?: (pane: import('@monbolc/lowcode-plugin-outline-pane').OutlinePane) => void;
+  /**
+   * Per-(componentName, propName) override of which setter to use.
+   * Format: `{ [componentName]: { [propName]: setterName } }`.
+   * The named setter is looked up via the runtime
+   * `@monbolc/lowcode-plugin-setters` registry — i.e. any setter the
+   * host registered via `registerSetter(name, comp)` is fair game.
+   * See `examples/demo/src/main.ts` for a working example.
+   */
+  setterConfig?: Record<string, Record<string, string>>;
 }
 
 /**
@@ -158,7 +167,7 @@ export function Skeleton(props: SkeletonProps) {
       h()('div', { className: CN.pane },
         h()('div', { className: CN.paneHeader }, 'Settings'),
         h()('div', { className: CN.paneBody },
-          h()(SettingsPanel, { project: props.project }),
+          h()(SettingsPanel, { project: props.project, setterConfig: props.setterConfig }),
         ),
       ),
     ),

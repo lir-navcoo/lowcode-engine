@@ -1,9 +1,19 @@
 /**
  * Hello Sapu — Vite demo entry
  *
- * Wires up the real L4 `Skeleton` + L3 `Designer` + L2 `OutlinePane`
- * against a hand-rolled component registry. Run via `yarn demo` at
- * the repo root, then open http://localhost:5173.
+ * Wires up the real L4 `Skeleton` + L3 `Designer` + L2 `OutlinePane` +
+ * L2.5 `plugin-setters` against a hand-rolled component registry.
+ *
+ * Run via `yarn demo` at the repo root, then open http://localhost:5173.
+ *
+ * What this demo proves:
+ *   - L0–L4 stack composes: bootstrap React, build a Project, mount
+ *     a Skeleton, render through the simulator.
+ *   - L2.5 setters are wired into the L4 settings panel (right pane).
+ *   - A host can register a CUSTOM setter and have the L4 panel use
+ *     it for a specific (component, prop) — see the
+ *     "Use custom setter" toggle in the toolbar and the `HexColor`
+ *     setter defined below.
  */
 import './styles.css';
 
@@ -13,65 +23,127 @@ import { setupReactRenderer } from '@monbolc/lowcode-react-renderer';
 import { Project } from '@monbolc/lowcode-designer';
 import { Skeleton } from '@monbolc/lowcode-editor-skeleton';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
+import {
+  registerSetter,
+  type SetterComponent,
+  type SetterProps,
+} from '@monbolc/lowcode-plugin-setters';
+import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
 // 1. Install React 19.2.7 runtime.
 setupReactRenderer();
 
-// 2. Component registry — these are what the canvas simulator renders.
+// ---------------------------------------------------------------------------
+// 2. Custom setter — `HexColor`.
+//    Setters are pure data: return a `SetterDescriptor` (string-typed vdom).
+//    The L4 panel resolves `'Input'` to BaseUI.Input and renders it.
+//    This setter prefixes the user's text with `0x` and suffixes with
+//    ` (hex)`. It commits on blur like the built-in `Input` setter.
+// ---------------------------------------------------------------------------
+const HexColor: SetterComponent = ({ value, onChange }: SetterProps) => {
+  const v = typeof value === 'string' ? value : '0x000000';
+  return {
+    type: 'Input',
+    props: {
+      className:
+        'w-full px-2 py-1 text-xs font-mono text-slate-900 border border-slate-300 rounded ' +
+        'bg-amber-50 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500',
+      defaultValue: v,
+      type: 'text',
+      onBlur: (e: { target: { value: string } }) => {
+        const next = e.target.value.startsWith('0x')
+          ? e.target.value
+          : `0x${e.target.value.replace(/^0x/, '')}`;
+        onChange(next as never);
+      },
+    },
+  };
+};
+
+// ---------------------------------------------------------------------------
+// 3. Component registry — what the canvas simulator renders.
+// ---------------------------------------------------------------------------
 const components: Record<string, React.FC<any>> = {
   Header:  (p) => React.createElement('header',  { ...p, style: { ...p.style, padding: 12, background: '#dbeafe', borderRadius: 4, marginBottom: 8 } }, '🏠 Header'),
   Body:    (p) => React.createElement('section', { ...p, style: { ...p.style, display: 'flex', gap: 8 } }, p.children),
-  Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: '#fef3c7', borderRadius: 4 } }, '📚 Sidebar'),
+  Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: p.bg ?? '#fef3c7', borderRadius: 4 } }, '📚 Sidebar'),
   Main:    (p) => React.createElement('main',    { ...p, style: { ...p.style, flex: 1, padding: 12, background: '#dcfce7', borderRadius: 4 } }, '📄 Main'),
   Footer:  (p) => React.createElement('footer',  { ...p, style: { ...p.style, padding: 12, background: '#fce7f3', borderRadius: 4, marginTop: 8 } }, '🦶 Footer'),
 };
 
-// 3. Initial schema. (Keys are assigned at runtime by the
-// DocumentModel when none is provided.)
+// ---------------------------------------------------------------------------
+// 4. Initial schema.
+// ---------------------------------------------------------------------------
 const initialSchema = {
   fileName: 'home.json',
   componentName: 'Page',
   children: [
     { componentName: 'Header', props: { className: 'header' } },
     { componentName: 'Body', props: { className: 'body' }, children: [
-      { componentName: 'Sidebar', props: { className: 'sidebar' } },
+      { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xfff3c7' } },
       { componentName: 'Main',    props: { className: 'main'    } },
     ] },
   ],
 };
 
-// 4. The demo React app. Owns the Project (single source of truth)
-// and re-mounts the Skeleton whenever the schema changes.
+// ---------------------------------------------------------------------------
+// 5. The demo React app.
+// ---------------------------------------------------------------------------
 function App() {
-  const [schema, setSchema] = useState(initialSchema);
-  const [project] = useState(() => new Project(schema));
+  const [schema, setSchema] = useState<IPublicTypeRootSchema>(initialSchema as IPublicTypeRootSchema);
+  const [project] = useState(() => new Project(initialSchema as IPublicTypeRootSchema));
   // The Skeleton owns the OutlinePane internally. We capture the
   // reference via `onPaneReady` so the toolbar buttons can call
-  // pane-level actions (rename, expand, select) directly — these
-  // mutate display state, not the schema, so they don't go through
-  // setSchema / project.load.
+  // pane-level actions (rename, expand, select) directly.
   const paneRef = useRef<OutlinePane | null>(null);
+  // When ON, the host has registered the custom `HexColor` setter and
+  // told the L4 settings panel to use it for `Sidebar.bg`. Toggling
+  // OFF unregisters it; the L4 panel falls back to the inferred
+  // `Input` setter for that prop.
+  const [customOn, setCustomOn] = useState(false);
 
   // Push schema into the project AFTER render, never during it.
-  // (Calling project.load inside the render body fires `rootChanged`,
-  // which triggers setState on the Skeleton / OutlineView child during
-  // App's render — React 19 error: "Cannot update a component while
-  // rendering a different component".)
   useEffect(() => {
     project.load(schema);
   }, [schema, project]);
 
+  // (Re-)register / unregister the custom setter whenever the toggle
+  // changes. The L4 panel consults the registry on every render, so
+  // flipping the toggle and selecting `Sidebar` is enough to see the
+  // change immediately.
+  useEffect(() => {
+    if (customOn) {
+      registerSetter('HexColor', HexColor);
+    } else {
+      // Unregister: registerSetter with `null` would be cleaner, but
+      // the public API only exposes `registerSetter(name, comp)`. We
+      // override with a sentinel that throws if it ever runs — this
+      // way the panel's `pickSetter` falls back to 'Input' (which is
+      // the "use the default" behaviour we want when the toggle is
+      // off).
+      registerSetter('HexColor', () => {
+        throw new Error('HexColor is unregistered. Toggle it on in the toolbar.');
+      });
+    }
+    // Reflect the toggle state in the toolbar button label.
+    const btn = document.getElementById('toggle-custom');
+    if (btn) btn.textContent = `Use custom setter: ${customOn ? 'on' : 'off'}`;
+  }, [customOn]);
+
+  // Declarative override: when `customOn`, route the `Sidebar.bg`
+  // prop through the custom `HexColor` setter instead of the
+  // inferred `Input` setter.
+  const setterConfig: Record<string, Record<string, string>> = customOn
+    ? { Sidebar: { bg: 'HexColor' } }
+    : {};
+
   const onAdd = () => {
     setSchema((s) => ({
       ...s,
-      children: [...s.children, { componentName: 'Footer', props: { className: 'footer' } }],
+      children: [...(s.children ?? []), { componentName: 'Footer', props: { className: 'footer' } }],
     }));
   };
   const onRename = () => {
-    // Ali-style: rename the display label, NOT the componentName.
-    // Renaming componentName would break the canvas (the renderer
-    // can't find the registered 'App' component). Renaming the
-    // label only mutates the outline tree's display title.
     const pane = paneRef.current;
     if (!pane) return;
     const body = pane.nodes.find((n) => n.componentName === 'Body');
@@ -84,29 +156,36 @@ function App() {
       children: [
         { componentName: 'Header', props: { className: 'header' } },
         { componentName: 'Body', props: { className: 'body' }, children: [
-          { componentName: 'Sidebar', props: { className: 'sidebar' } },
+          { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xfff3c7' } },
           { componentName: 'Main',    props: { className: 'main'    } },
         ] },
       ],
-    });
+    } as IPublicTypeRootSchema);
   };
+  const onToggleCustom = () => setCustomOn((v) => !v);
 
   // Expose handlers globally so the toolbar buttons (outside the React tree)
   // can call them.
-  (window as any).__demo__ = { onAdd, onRename, onReset };
+  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom };
 
-  return React.createElement(Skeleton, {
+  return React.createElement(Skeleton as any, {
     project,
     components,
     onPaneReady: (p: OutlinePane) => { paneRef.current = p; },
+    setterConfig,
   });
 }
 
-// 5. Mount.
+// ---------------------------------------------------------------------------
+// 6. Mount.
+// ---------------------------------------------------------------------------
 const root = createRoot(document.getElementById('skeleton')!);
 root.render(React.createElement(App));
 
-// 6. Toolbar wiring.
-(document.getElementById('add-footer') as HTMLButtonElement).onclick   = () => (window as any).__demo__.onAdd();
-(document.getElementById('rename-page') as HTMLButtonElement).onclick  = () => (window as any).__demo__.onRename();
-(document.getElementById('reset') as HTMLButtonElement).onclick        = () => (window as any).__demo__.onReset();
+// ---------------------------------------------------------------------------
+// 7. Toolbar wiring (vanilla DOM, no React).
+// ---------------------------------------------------------------------------
+(document.getElementById('add-footer') as HTMLButtonElement).onclick        = () => (window as any).__demo__.onAdd();
+(document.getElementById('rename-page') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onRename();
+(document.getElementById('reset') as HTMLButtonElement).onclick             = () => (window as any).__demo__.onReset();
+(document.getElementById('toggle-custom') as HTMLButtonElement).onclick    = () => (window as any).__demo__.onToggleCustom();

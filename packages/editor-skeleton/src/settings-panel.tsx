@@ -38,6 +38,16 @@ const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unkno
 
 export interface SettingsPanelProps {
   project: Project;
+  /**
+   * Optional per-(component, prop) override of which setter name to
+   * use. When the selected node's `componentName` and a prop key
+   * match, the named setter is used instead of the inferred one.
+   *
+   * Format: `{ [componentName]: { [propName]: setterName } }`.
+   * Looked up via the **runtime** `getSetter` registry, so any setter
+   * the host registered via `registerSetter(name, ...)` is fair game.
+   */
+  setterConfig?: Record<string, Record<string, string>>;
 }
 
 // Ensure the 7 built-in setters are registered before the first
@@ -73,9 +83,16 @@ function makeField(key: string, value: JSONValue, setterName: string): IPublicTy
  * Pick a setter for the given (key, value). Returns undefined if
  * the inferred setter name isn't registered (fall through to a
  * hand-rolled input below).
+ *
+ * `configuredSetter` — when the host declared a per-(component, prop)
+ * setter via `setterConfig`, use that name instead of inferring.
  */
-function pickSetterFor(key: string, value: JSONValue): SetterComponent | undefined {
-  const setterName = inferSetterName(value, key);
+function pickSetterFor(
+  key: string,
+  value: JSONValue,
+  configuredSetter: string | undefined,
+): SetterComponent | undefined {
+  const setterName = configuredSetter ?? inferSetterName(value, key);
   const field = makeField(key, value, setterName);
   return pickSetter(field);
 }
@@ -143,7 +160,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
       `Props (${Object.keys(propsMap).length})`),
     h()('div', { className: 'flex flex-col gap-2' },
       Object.entries(propsMap).map(([k, v]) => {
-        const setter = pickSetterFor(k, v);
+        const configured = props.setterConfig?.[node.componentName]?.[k];
+        const setter = pickSetterFor(k, v, configured);
         if (!setter) {
           // Should never happen — we always fall back to 'Input' in pickSetter.
           return h()('div', { key: k, className: CN_ROW },
