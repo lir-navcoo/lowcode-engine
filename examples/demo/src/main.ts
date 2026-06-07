@@ -171,44 +171,72 @@ function App() {
   // both), but selection / schema state is fully independent —
   // clicking a node in one outline does NOT affect the other.
   //
-  // The second doc's host div is empty until the button is clicked,
-  // so the second <Skeleton> only mounts on demand (preserves the
-  // "single Skeleton per mount" stance for normal usage).
+  // Toggle: button label flips between "Open second doc" and
+  // "Close second doc". On open we mount a fresh <Skeleton>; on
+  // close we unmount it cleanly (deferred microtask, like the
+  // Skeleton's own simulator teardown) and dispose the L5
+  // workspace.
   const [secondRoot, setSecondRoot] = useState<Root | null>(null);
+  const [secondWs, setSecondWs] = useState<Workspace | null>(null);
   const [secondActive, setSecondActive] = useState(false);
-  const secondHostRef = useRef<HTMLDivElement | null>(null);
-  const onOpenSecond = () => {
-    if (secondActive) return; // idempotent — second doc mounts once
-    const host = document.getElementById('skeleton-2');
-    if (!host) return;
-    secondHostRef.current = host as HTMLDivElement;
-    const schema: IPublicTypeRootSchema = {
-      fileName: 'second.json',
-      componentName: 'Page',
-      children: [
-        { componentName: 'Header', props: { className: 'header-2' } },
-        { componentName: 'Main',   props: { className: 'main-2' } },
-      ],
-    };
-    const project2 = new Project(schema);
-    const resource = new Resource({ id: 'r2', title: 'Second Doc', project: project2 });
-    const ws = new Workspace({ autoOpenFirstWindow: true });
-    ws.addResource(resource); // ws.events on 'windowActivated' is unused here — the L4 panel reads the project directly.
-    void ws; // keep the workspace reference live (sapu stance: WS is the data side; L4 reads the project)
-    const root2 = createRoot(host as Element);
-    root2.render(
-      React.createElement(Skeleton as any, {
-        project: project2,
-        components,
-      }),
-    );
-    setSecondRoot(root2);
-    setSecondActive(true);
+  const onToggleSecond = () => {
+    if (secondActive) {
+      // CLOSE: unmount the second <Skeleton> and dispose the L5
+      // workspace. Both are safe to call multiple times.
+      if (secondRoot) {
+        // queueMicrotask matches the pattern in editor-skeleton
+        // (simulator root cleanup) — React 19 rejects synchronous
+        // unmounts that happen during another component's commit.
+        queueMicrotask(() => secondRoot.unmount());
+      }
+      secondWs?.dispose();
+      setSecondRoot(null);
+      setSecondWs(null);
+      setSecondActive(false);
+      // Clear the host div so a re-open starts from a clean slate.
+      const host = document.getElementById('skeleton-2');
+      if (host) host.innerHTML = '';
+    } else {
+      // OPEN: construct a fresh Project + Resource + Workspace,
+      // mount a new <Skeleton> in the host div.
+      const host = document.getElementById('skeleton-2');
+      if (!host) return;
+      const schema: IPublicTypeRootSchema = {
+        fileName: 'second.json',
+        componentName: 'Page',
+        children: [
+          { componentName: 'Header', props: { className: 'header-2' } },
+          { componentName: 'Main',   props: { className: 'main-2' } },
+        ],
+      };
+      const project2 = new Project(schema);
+      const resource = new Resource({ id: 'r2', title: 'Second Doc', project: project2 });
+      const ws = new Workspace({ autoOpenFirstWindow: true });
+      ws.addResource(resource);
+      const root2 = createRoot(host as Element);
+      root2.render(
+        React.createElement(Skeleton as any, {
+          project: project2,
+          components,
+        }),
+      );
+      setSecondRoot(root2);
+      setSecondWs(ws);
+      setSecondActive(true);
+    }
   };
+
+  // Reflect toggle state in the toolbar button label. The vanilla-
+  // DOM button click handler reads `secondActive` via the closure
+  // captured here, so we just keep the text in sync.
+  useEffect(() => {
+    const btn = document.getElementById('open-second');
+    if (btn) btn.textContent = secondActive ? 'Close second doc' : 'Open second doc';
+  }, [secondActive]);
 
   // Expose handlers globally so the toolbar buttons (outside the React tree)
   // can call them.
-  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom, onOpenSecond, secondRoot: () => secondRoot };
+  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom, onToggleSecond, secondRoot: () => secondRoot };
 
   return React.createElement(Skeleton as any, {
     project,
@@ -231,4 +259,4 @@ root.render(React.createElement(App));
 (document.getElementById('rename-page') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onRename();
 (document.getElementById('reset') as HTMLButtonElement).onclick             = () => (window as any).__demo__.onReset();
 (document.getElementById('toggle-custom') as HTMLButtonElement).onclick    = () => (window as any).__demo__.onToggleCustom();
-(document.getElementById('open-second') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onOpenSecond();
+(document.getElementById('open-second') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onToggleSecond();
