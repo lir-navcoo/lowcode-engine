@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hello Sapu — SapuLowcodeEngine demo</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .container { max-width: 880px; margin: 40px auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    .tag { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+    .toolbar { margin-bottom: 12px; }
+    button {
+      padding: 6px 12px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-right: 6px;
+    }
+    button:hover { background: #f1f5f9; }
+    .stage {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 320px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .meta { font-size: 12px; color: #475569; margin-top: 12px; }
+    .node { padding: 6px 10px; border-radius: 4px; }
+    .header  { background: #dbeafe; }
+    .body    { background: #f1f5f9; }
+    .sidebar { background: #fef3c7; }
+    .main    { background: #dcfce7; }
+    .footer  { background: #fce7f3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hello Sapu</h1>
+    <div class="tag">SapuLowcodeEngine · L0–L3 in your browser</div>
+    <div id="root"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@19.2.7",
+      "react/jsx-runtime": "https://esm.sh/react@19.2.7/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@19.2.7",
+      "react-dom/client": "https://esm.sh/react-dom@19.2.7/client",
+      "@monbolc/lowcode-types": "https://esm.sh/@monbolc/lowcode-types@2.0.1",
+      "@monbolc/lowcode-utils": "https://esm.sh/@monbolc/lowcode-utils@2.0.2",
+      "@monbolc/lowcode-renderer-core": "https://esm.sh/@monbolc/lowcode-renderer-core@2.0.0",
+      "@monbolc/lowcode-react-renderer": "https://esm.sh/@monbolc/lowcode-react-renderer@2.0.1"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import React, { useState, useMemo, useEffect } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { setupReactRenderer, ReactRenderer } from '@monbolc/lowcode-react-renderer';
+
+    // 1. Install React 19.2.7 runtime into the adapter.
+    setupReactRenderer();
+
+    // 2. Component registry — map component names to React components.
+    const components = {
+      Header:  (p) => React.createElement('div', { ...p, className: 'node header'  }, 'Header'),
+      Body:    (p) => React.createElement('div', { ...p, className: 'node body'    }, 'Body'),
+      Sidebar: (p) => React.createElement('div', { ...p, className: 'node sidebar' }, 'Sidebar'),
+      Main:    (p) => React.createElement('div', { ...p, className: 'node main'    }, 'Main'),
+      Footer:  (p) => React.createElement('div', { ...p, className: 'node footer'  }, 'Footer'),
+    };
+
+    const initialSchema = {
+      fileName: 'home.json',
+      componentName: 'Page',
+      children: [
+        { componentName: 'Header', props: { className: 'header' } },
+        { componentName: 'Body', props: { className: 'body' }, children: [
+          { componentName: 'Sidebar', props: { className: 'sidebar' } },
+          { componentName: 'Main',    props: { className: 'main'    } },
+        ] },
+      ],
+    };
+
+    function App() {
+      const [schema, setSchema] = useState(initialSchema);
+
+      const element = useMemo(
+        () => new ReactRenderer({ schema, components }).render(),
+        [schema],
+      );
+
+      return React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          'div',
+          { className: 'toolbar' },
+          React.createElement(
+            'button',
+            { onClick: () => setSchema((s) => ({ ...s, children: [...s.children, { componentName: 'Footer', props: { className: 'footer' } }] })) },
+            'Add Footer',
+          ),
+          React.createElement(
+            'button',
+            { onClick: () => setSchema((s) => ({ ...s, componentName: 'App' })) },
+            'Rename Page → App',
+          ),
+          React.createElement(
+            'button',
+            { onClick: () => setSchema(initialSchema) },
+            'Reset',
+          ),
+        ),
+        React.createElement('div', { className: 'stage' }, element),
+        React.createElement(
+          'div',
+          { className: 'meta' },
+          'Editing ',
+          React.createElement('code', null, schema.componentName),
+          ' — top-level children: ',
+          schema.children.length,
+        ),
+      );
+    }
+
+    // 3. Mount.
+    createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>

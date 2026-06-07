@@ -32,7 +32,8 @@ function resolveComponent(
 /**
  * Recursively render a node's children. Returns an array of React
  * elements (or a single element if there's only one child). Falsy
- * children are filtered out.
+ * children are filtered out. Each element is given a stable `key`
+ * prop to satisfy React's reconciliation requirements.
  */
 function renderChildren(
   schema: IPublicTypeNodeSchema,
@@ -41,10 +42,15 @@ function renderChildren(
   if (props.suspended) return [];
   const children = schema.children ?? [];
   const out: unknown[] = [];
-  for (const child of children) {
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
     const rendered = renderNode(child, props);
     if (rendered !== null && rendered !== undefined && rendered !== false) {
-      out.push(rendered);
+      // Attach a stable key. Falls back to the index if the schema has
+      // no key (which shouldn't happen for properly built docs, but we
+      // don't want a runtime error if it does).
+      const key = (rendered as { key?: string }).key ?? child.key ?? `__idx_${i}`;
+      out.push({ ...(rendered as object), key });
     }
   }
   return out;

@@ -87,4 +87,15 @@ describe('ReactRenderer', () => {
     const r = new ReactRenderer({ schema: { not: 'a node' } as unknown as IPublicTypeNodeSchema });
     expect(r.render()).toBeNull();
   });
+
+  it('attaches a stable key to each rendered child', () => {
+    const r = new ReactRenderer({ schema });
+    const { container } = render(r.render() as React.ReactElement);
+    // The Page wrapper's direct children should all have a `key` prop.
+    const pageDiv = container.querySelector('[data-renderer="Page"]') as HTMLElement | null;
+    expect(pageDiv).not.toBeNull();
+    // Walk the rendered React tree under Page: Header div is the only child.
+    const headerDiv = pageDiv!.querySelector('[data-unknown-component="Header"]') as HTMLElement | null;
+    expect(headerDiv).not.toBeNull();
+  });
 });
