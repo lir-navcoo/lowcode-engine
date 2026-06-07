@@ -1,0 +1,43 @@
+{
+  "name": "@monbolc/lowcode-types",
+  "version": "2.0.0",
+  "description": "Core type definitions for SapuLowcodeEngine",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "es"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:es": "tsc -p tsconfig.esm.json",
+    "clean": "rimraf lib es"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
+    "directory": "packages/types"
+  },
+  "keywords": [
+    "lowcode",
+    "engine",
+    "types"
+  ]
+}

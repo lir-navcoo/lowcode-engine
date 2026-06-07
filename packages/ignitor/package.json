@@ -1,0 +1,21 @@
+{
+  "name": "@monbolc/lowcode-ignitor",
+  "version": "2.0.0",
+  "description": "SapuLowcodeEngine bootstrap dev server (L0)",
+  "private": true,
+  "license": "MIT",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node scripts/dev.js",
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf lib es"
+  },
+  "dependencies": {
+    "@monbolc/lowcode-types": "2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  }
+}
