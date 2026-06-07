@@ -50,7 +50,7 @@
 |---|---|---|
 | `packages/engine` (15 files, 1,330 lines) | Composition root: `init()`/`destroy()`, registers all inner plugins, UMD bundles. | Will become `@monbolc/lowcode-engine` (L7). Not started. |
 | `packages/shell` (45 files, 5,155 lines) | The `IPublicApi*` / `IPublicModel*` facade layer. Re-exports 28 `@alifd/next` components as `IPublicApiCommonUI`. | Will become `@monbolc/lowcode-shell` (L6). The 28-component re-export is **dropped** (those Fusion components are being removed entirely). |
-| `packages/workspace` (13 files, 1,298 lines) | Multi-window / multi-view support. | Will become `@monbolc/lowcode-workspace` (L5). Sapu may collapse to single-view. |
+| `packages/workspace` (13 files, 1,298 lines) | Multi-window / multi-view support. | Will become `@monbolc/lowcode-workspace` (L5). **Decision 2026-06-07**: sapu keeps the *type* surface (`Resource`, `EditorWindow`, `Workspace` classes) for ali-port plugin compatibility, but drops the multi-window `Workbench` tab UI, the `ResourceType` registry, and the `openEditorWindowByResource` machinery. Multi-document = multi-mount of `<Skeleton>`. Target: ~390 lines, ~70% smaller. See `docs/packages/workspace.md` + `ROADMAP.md` P3 → L5. |
 | `packages/plugin-designer` (1 file, 157 lines) | The "designer" widget glue file (renders `<DesignerView>` in mainArea). | L4 work; partially folded into `editor-skeleton`. |
 | `packages/react-simulator-renderer` (13 files, 1,609 lines) | The simulator iframe host. Uses `getReactInternalFiber` to find DOM nodes (fragile React 16 internals). | Will be a L4+ package; **must** drop `getReactInternalFiber` (React 19 has different internals). Will likely be a L5 package after skeleton is fully wired. |
 

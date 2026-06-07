@@ -14,7 +14,7 @@ Sapu is organized as a strict (mostly) bottom-up dependency stack. Each layer ca
 | **L2.5** | Setters (BaseUI, in progress) | `@monbolc/lowcode-plugin-setters` | ⚠️ types only, setters return vdom-shaped objects |
 | **L3** | React integration + design model | `@monbolc/lowcode-react-renderer`, `@monbolc/lowcode-designer` | ⚠️ designer uses adapter; only react-renderer imports React |
 | **L4** | Skeleton UI (3-pane editor) | `@monbolc/lowcode-editor-skeleton` | ❌ React + `react-resizable-panels` |
-| L5 | (planned) Workspace | — | — |
+| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` *(planned, see ROADMAP L5)* | ✅ (only types — no UI; UI is multi-mount of L4) |
 | L6 | (planned) Shell | — | — |
 | L7 | (planned) Engine (composition root) | — | — |
 

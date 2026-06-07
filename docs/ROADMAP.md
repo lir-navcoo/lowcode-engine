@@ -279,10 +279,35 @@ sapu uses **BaseUI** (headless primitives) + **Tailwind CSS** (utility-first sty
 
 ### L5 — `@monbolc/lowcode-workspace`
 
-- **What**: multi-window / multi-view support
-- **From upstream**: `packages/workspace/` (13 files, 1,298 lines) — `Workspace` class, `EditorView`, `Resource`, `Workbench` tabbed UI
-- **Sapu decision needed**: collapse to single-view, or full multi-view?
-- **Dependencies**: will require L4 editor-skeleton to be more complete (`Workbench` is a tabbed UI on top of `EditorView`s)
+**Sapu's L5 is deliberately small.** Upstream's `packages/workspace/` (13 files, 1,298 lines) carries a full multi-window Workbench: `Workspace` class with `resourceList`, `EditorWindow` instances, `Resource` lifecycle (`openEditorWindowByResource`, `removeEditorWindowByResource`, `emitChangeActiveEditorView`), and a `Workbench` tabbed UI in `editor-skeleton/layouts/workbench.tsx`. Most of that surface is there because ali's host apps needed to flip between multiple open documents in the same browser tab.
+
+**Sapu's stance** (locked 2026-06-07): **one document per Skeleton, multi-instance via multi-mount.** A host that wants two open pages mounts two `<Skeleton>` instances in two divs. Each owns its own `Project`, its own `OutlinePane`, its own `Simulator`. No cross-window state to reason about, no `Resource` registry, no `Workbench` tab bar.
+
+This collapses L5 to ~3–4 files, ~200 lines: the types that downstream plugin code might need to recognize (so a plugin from ali-port code type-checks), plus a tiny `Workspace` class that exists only to hold `IProject` and `IEditorWindow` references for the L6 facade to point at.
+
+#### What sapu ships in L5 (decision 2026-06-07)
+
+| File | Purpose | Lines (est.) |
+|---|---|---|
+| `src/index.ts` | barrel: re-export `Workspace`, `IWorkspace`, `EditorWindow`, `IEditorWindow`, `Resource`, `IResource` | ~20 |
+| `src/resource.ts` | `Resource` class — `{ id, title, project, options }`. Pure data, no I/O. | ~60 |
+| `src/window.ts` | `EditorWindow` class — wraps a `Resource` + the editor-skeleton view into one. Holds active-flag, `setActive(b)`, fires `activate` / `deactivate` events. | ~80 |
+| `src/workspace.ts` | `Workspace` class — `addResource(r)`, `removeResource(r)`, `getActive()`, `setActive(r)`, `getResourceList()`. Holds a single `EditorWindow` (sapu = single-window). | ~120 |
+| `src/types.ts` | `IWorkspace`, `IEditorWindow`, `IResource` (interfaces) | ~30 |
+| `tests/workspace.test.ts` | unit: add/remove/activate one resource, event firings | ~80 |
+
+Total: ~390 lines, vs ali's 1,298. ~70% smaller. The deleted bulk is the `Workbench` tab UI (moved to a future optional `plugin-workbench` if a host asks for it) and the multi-window `openEditorWindowByResource` machinery (replaced by multi-mount).
+
+#### L5 — concrete P-tasks (not yet started, target after P2 is done)
+
+- **L5.1** — `packages/workspace/` package skeleton: `package.json`, `tsconfig.json`, `vitest` alias, build script. Add `@monbolc/lowcode-types`, `@monbolc/lowcode-designer` as deps. **No new third-party deps** — `Workspace` is in-tree.
+- **L5.2** — `Resource` + `IResource` + 3 unit tests (construct from `{ id, title, project }`, `getProject()` returns the project, `dispose()` is idempotent).
+- **L5.3** — `EditorWindow` + `IEditorWindow` + 4 unit tests (construct, `setActive(true|false)` fires the right event, `getResource()` returns the resource, `dispose()` releases the window).
+- **L5.4** — `Workspace` + `IWorkspace` + 6 unit tests (`addResource` puts the resource in the list, `removeResource` removes it, `setActive(r)` switches the active window and fires the event, `getActive()` returns the active resource, `getResourceList()` is immutable, `enableAutoOpenFirstWindow` opens the first added resource automatically).
+- **L5.5** — Demo extension: add a "Open second doc" button that constructs a second `Project` + `Resource` + `Workspace` and mounts a second `<Skeleton>` in a sibling div. Visual proof that L5 single-window is just one of N mounts.
+- **L5.6** — Docs: `docs/packages/workspace.md` (new file), `docs/COMPARISON-WITH-ALI.md` (mapping table — what was dropped, why), `docs/ARCHITECTURE.md` (add the L5 row + dep graph), `docs/ROADMAP.md` (move L5.1–L5.6 from P3 to P1 or P2 once started).
+
+**Permission gate for L5**: when L5.1 starts, **confirm** any new third-party dep (sapu stance: expect 0 new deps).
 
 ### L6 — `@monbolc/lowcode-shell`
 
@@ -290,12 +315,14 @@ sapu uses **BaseUI** (headless primitives) + **Tailwind CSS** (utility-first sty
 - **From upstream**: `packages/shell/` (45 files, 5,155 lines) — each public-model class is a `setAsInstance` + `current` proxy
 - **Sapu decision needed**: do plugin authors want facades (proxy with deprecation surface), or is direct class access OK?
 - **Sapu already drops**: the 28-component `IPublicApiCommonUI` (no replacement)
+- **Sapu stance** (tentative): **minimal facade — just the `setAsInstance` + `current` plumbing**, no proxy/deprecation layer. ~15 files, ~600 lines. Plugin authors access the real class via `getInstance(Engine)`. Deprecation is a host-app concern (use a wrapper).
 
 ### L7 — `@monbolc/lowcode-engine`
 
 - **What**: the composition root. Wires together all L0–L6 packages into a single `init(options)` entry.
 - **From upstream**: `packages/engine/` (15 files, 1,330 lines) — `engine-core.ts` is ~300+ lines of "construct singletons + register plugins" boilerplate
 - **Sapu's current `ignitor`**: a placeholder; the real `engine` package will replace it
+- **Sapu stance** (tentative): **`ignitor` grows into `engine`**. The L0 placeholder becomes the L7 entry point. `bootstrap({ ... })` gets the real signature: `init({ container, schema, components, plugins? })`. It wires `Project`, `Skeleton`, registers built-in setters, runs `plugins?.forEach(p => p(engineApi))`, returns the engine handle. Replaces the standalone `ignitor` package (sapu folds L0 → L7). Net new code: ~500 lines.
 
 ## Post-L7 — beyond the upstream feature set
 
