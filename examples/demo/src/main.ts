@@ -18,10 +18,11 @@
 import './styles.css';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { setupReactRenderer } from '@monbolc/lowcode-react-renderer';
 import { Project } from '@monbolc/lowcode-designer';
 import { Skeleton } from '@monbolc/lowcode-editor-skeleton';
+import { Resource, Workspace } from '@monbolc/lowcode-workspace';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
 import {
   registerSetter,
@@ -164,9 +165,50 @@ function App() {
   };
   const onToggleCustom = () => setCustomOn((v) => !v);
 
+  // L5 demo: open a SECOND editing session in a sibling div. Each
+  // <Skeleton> owns its own Project + Workspace. The two sessions
+  // share the `components` registry (so the simulator can render
+  // both), but selection / schema state is fully independent —
+  // clicking a node in one outline does NOT affect the other.
+  //
+  // The second doc's host div is empty until the button is clicked,
+  // so the second <Skeleton> only mounts on demand (preserves the
+  // "single Skeleton per mount" stance for normal usage).
+  const [secondRoot, setSecondRoot] = useState<Root | null>(null);
+  const [secondActive, setSecondActive] = useState(false);
+  const secondHostRef = useRef<HTMLDivElement | null>(null);
+  const onOpenSecond = () => {
+    if (secondActive) return; // idempotent — second doc mounts once
+    const host = document.getElementById('skeleton-2');
+    if (!host) return;
+    secondHostRef.current = host as HTMLDivElement;
+    const schema: IPublicTypeRootSchema = {
+      fileName: 'second.json',
+      componentName: 'Page',
+      children: [
+        { componentName: 'Header', props: { className: 'header-2' } },
+        { componentName: 'Main',   props: { className: 'main-2' } },
+      ],
+    };
+    const project2 = new Project(schema);
+    const resource = new Resource({ id: 'r2', title: 'Second Doc', project: project2 });
+    const ws = new Workspace({ autoOpenFirstWindow: true });
+    ws.addResource(resource); // ws.events on 'windowActivated' is unused here — the L4 panel reads the project directly.
+    void ws; // keep the workspace reference live (sapu stance: WS is the data side; L4 reads the project)
+    const root2 = createRoot(host as Element);
+    root2.render(
+      React.createElement(Skeleton as any, {
+        project: project2,
+        components,
+      }),
+    );
+    setSecondRoot(root2);
+    setSecondActive(true);
+  };
+
   // Expose handlers globally so the toolbar buttons (outside the React tree)
   // can call them.
-  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom };
+  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom, onOpenSecond, secondRoot: () => secondRoot };
 
   return React.createElement(Skeleton as any, {
     project,
@@ -189,3 +231,4 @@ root.render(React.createElement(App));
 (document.getElementById('rename-page') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onRename();
 (document.getElementById('reset') as HTMLButtonElement).onclick             = () => (window as any).__demo__.onReset();
 (document.getElementById('toggle-custom') as HTMLButtonElement).onclick    = () => (window as any).__demo__.onToggleCustom();
+(document.getElementById('open-second') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onOpenSecond();

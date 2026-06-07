@@ -23,7 +23,8 @@
       "@monbolc/lowcode-plugin-setters":     ["../../packages/plugin-setters/src/index.ts"],
       "@monbolc/lowcode-react-renderer":     ["../../packages/react-renderer/src/index.ts"],
       "@monbolc/lowcode-designer":           ["../../packages/designer/src/index.ts"],
-      "@monbolc/lowcode-editor-skeleton":    ["../../packages/editor-skeleton/src/index.ts"]
+      "@monbolc/lowcode-editor-skeleton":    ["../../packages/editor-skeleton/src/index.ts"],
+      "@monbolc/lowcode-workspace":          ["../../packages/workspace/src/index.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]

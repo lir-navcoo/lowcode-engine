@@ -34,14 +34,18 @@
   <div class="demo-shell">
     <div class="demo-header">
       <h1>Hello Sapu</h1>
-      <span class="tag">SapuLowcodeEngine · L0–L4 · @monbolc</span>
+      <span class="tag">SapuLowcodeEngine · L0–L5 · @monbolc</span>
       <div style="flex:1"></div>
       <button id="add-footer">Add Footer</button>
       <button id="rename-page" title="Renames the Body node's display label in the outline tree (does not change component type)">Body → App</button>
       <button id="reset">Reset</button>
       <button id="toggle-custom" title="Register a custom HexColor setter and route Sidebar.bg through it. Toggle off to revert to the inferred Input setter.">Use custom setter: off</button>
+      <button id="open-second" title="L5 proof: opens a second <Skeleton> in a sibling div, sharing the L2 component registry but owning its own Project + Workspace. Selections in one do not affect the other.">Open second doc</button>
     </div>
-    <div id="skeleton" class="demo-skeleton"></div>
+    <div style="display:flex; flex:1; min-height:0;">
+      <div id="skeleton"   class="demo-skeleton" style="flex:1; min-width:0;"></div>
+      <div id="skeleton-2" class="demo-skeleton" style="flex:1; min-width:0; border-left:1px solid #e2e8f0;"></div>
+    </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

@@ -31,6 +31,7 @@ export default defineConfig({
       '@monbolc/lowcode-react-renderer': new URL('./packages/react-renderer/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-designer': new URL('./packages/designer/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-editor-skeleton': new URL('./packages/editor-skeleton/src/index.ts', import.meta.url).pathname,
+      '@monbolc/lowcode-workspace': new URL('./packages/workspace/src/index.ts', import.meta.url).pathname,
     },
   },
 });

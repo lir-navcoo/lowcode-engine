@@ -1,6 +1,6 @@
 # Architecture — SapuLowcodeEngine
 
-> Last refreshed: 2026-06-07. Update this file when a new layer is added, a dependency edge changes, or a design principle is amended.
+> Last refreshed: 2026-06-08. Update this file when a new layer is added, a dependency edge changes, or a design principle is amended.
 
 ## L0–L7 layering
 
@@ -14,7 +14,7 @@ Sapu is organized as a strict (mostly) bottom-up dependency stack. Each layer ca
 | **L2.5** | Setters (BaseUI, in progress) | `@monbolc/lowcode-plugin-setters` | ⚠️ types only, setters return vdom-shaped objects |
 | **L3** | React integration + design model | `@monbolc/lowcode-react-renderer`, `@monbolc/lowcode-designer` | ⚠️ designer uses adapter; only react-renderer imports React |
 | **L4** | Skeleton UI (3-pane editor) | `@monbolc/lowcode-editor-skeleton` | ❌ React + `react-resizable-panels` |
-| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` *(planned, see ROADMAP L5)* | ✅ (only types — no UI; UI is multi-mount of L4) |
+| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` (2.1.2, 24 tests) | ✅ (data only — no UI; multi-doc = multi-mount of L4) |
 | L6 | (planned) Shell | — | — |
 | L7 | (planned) Engine (composition root) | — | — |
 
@@ -24,10 +24,10 @@ Sapu is organized as a strict (mostly) bottom-up dependency stack. Each layer ca
 
 ```
 L0: types
-    ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑
+    ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑
 L0: ignitor
 L1: utils
-    ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑
+    ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑
 L2: plugin-command ─────────┐
 L2: editor-core ────────────┤
 L2: renderer-core ─────────────────────────────┐
@@ -39,19 +39,21 @@ L3: react-renderer ────────────────────�
 L3: designer ─────────────┤                    │
                          │                    │
 L4: editor-skeleton ───────────────────────────┘
+L5: workspace ────────────────────────────────── (consumes L3 designer)
 ```
 
 Reverse-direction inbound (who imports whom):
-- `types` ← everyone (10 inbound)
-- `utils` ← 8 packages
+- `types` ← everyone (11 inbound)
+- `utils` ← 9 packages
 - `renderer-core` ← 4 (outline-pane, react-renderer, designer, editor-skeleton)
 - `editor-core` ← 2 (outline-pane, designer)
 - `plugin-command` ← 2 (editor-core, designer)
 - `react-renderer` ← 2 (designer, editor-skeleton)
 - `plugin-outline-pane` ← 1 (editor-skeleton)
-- `designer` ← 1 (editor-skeleton)
-- `plugin-setters` ← 0 (not yet wired in)
-- `ignitor` ← 0 (still a placeholder)
+- `designer` ← 2 (editor-skeleton, **workspace**)
+- `plugin-setters` ← 1 (editor-skeleton) — wired in P1.3
+- `workspace` ← 0 (host apps import directly, e.g. the demo)
+- `ignitor` ← 0 (still a placeholder; L7 will fold it)
 
 ## React injection boundary
 

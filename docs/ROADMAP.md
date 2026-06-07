@@ -2,31 +2,32 @@
 
 > Last refreshed: 2026-06-07. Update this file whenever a task is completed, blocked, or a new direction is decided.
 
-## Current state — L0–L4 done, 211 tests passing
+## Current state — L0–L5 done, 291 tests passing
 
-11 packages published to `@monbolc`:
+12 packages published to `@monbolc`:
 
 | Layer | Package | Version | Status |
 |---|---|---|---|
-| L0 | `@monbolc/lowcode-types` | 2.0.2 | ✅ shipped, but version bump + new fields uncommitted |
-| L0 | `@monbolc/lowcode-ignitor` | 2.0.0 | ✅ placeholder, 0 tests |
-| L1 | `@monbolc/lowcode-utils` | 2.0.2 | ✅ shipped |
-| L2 | `@monbolc/lowcode-editor-core` | 2.0.0 | ✅ shipped |
-| L2 | `@monbolc/lowcode-plugin-command` | 2.0.2 | ✅ shipped |
-| L2 | `@monbolc/lowcode-renderer-core` | 2.0.0 | ✅ shipped |
-| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.0.2 | ✅ shipped |
-| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.0.0 | ⚠️ typecheck broken, no tests |
-| L3 | `@monbolc/lowcode-react-renderer` | 2.0.1 | ✅ shipped |
-| L3 | `@monbolc/lowcode-designer` | 2.0.3 | ⚠️ 1 typecheck error |
-| L4 | `@monbolc/lowcode-editor-skeleton` | 2.0.3 | ⚠️ 2 React 19 test warnings |
+| L0 | `@monbolc/lowcode-types` | 2.1.2 | ✅ shipped |
+| L0 | `@monbolc/lowcode-ignitor` | 2.1.2 | ✅ placeholder, 6 smoke tests |
+| L1 | `@monbolc/lowcode-utils` | 2.1.2 | ✅ shipped |
+| L2 | `@monbolc/lowcode-editor-core` | 2.1.2 | ✅ shipped |
+| L2 | `@monbolc/lowcode-plugin-command` | 2.1.2 | ✅ shipped |
+| L2 | `@monbolc/lowcode-renderer-core` | 2.1.2 | ✅ shipped |
+| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.2 | ✅ shipped |
+| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.2 | ✅ shipped (BaseUI + Tailwind v4, 40 tests) |
+| L3 | `@monbolc/lowcode-react-renderer` | 2.1.2 | ✅ shipped |
+| L3 | `@monbolc/lowcode-designer` | 2.1.2 | ✅ shipped |
+| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.2 | ✅ shipped (BaseUI + Tailwind v4) |
+| **L5** | **`@monbolc/lowcode-workspace`** | **2.1.2** | **✅ shipped (24 tests, ~280 lines)** |
 
-`yarn test` ✅ 211 tests / 27 files, all passing in ~1.7s.
+`yarn test` ✅ 291 tests + 1 skip / 33 files, all passing in ~2.2s.
 
-`yarn typecheck` ❌ 2 error clusters (see P0 below).
+`yarn typecheck` ✅ 0 errors across all 12 packages + demo.
 
-`examples/hello-sapu.html` ✅ end-to-end demo using the real `Skeleton` + `Designer` + `OutlinePane` + `Simulator` (commit `1f2fc2b`).
+`examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof.
 
-`tests/e2e/` ✅ L0–L4 stack end-to-end (commit `2bf3449`).
+`tests/e2e/` ✅ L0–L4 stack end-to-end (L5 path is in `packages/workspace/tests/`).
 
 ## P0 — must fix before next publish
 
@@ -277,52 +278,109 @@ sapu uses **BaseUI** (headless primitives) + **Tailwind CSS** (utility-first sty
 
 ## P3 — L5+ planning
 
-### L5 — `@monbolc/lowcode-workspace`
+### L5 — `@monbolc/lowcode-workspace` ✅ DONE 2026-06-08
 
-**Sapu's L5 is deliberately small.** Upstream's `packages/workspace/` (13 files, 1,298 lines) carries a full multi-window Workbench: `Workspace` class with `resourceList`, `EditorWindow` instances, `Resource` lifecycle (`openEditorWindowByResource`, `removeEditorWindowByResource`, `emitChangeActiveEditorView`), and a `Workbench` tabbed UI in `editor-skeleton/layouts/workbench.tsx`. Most of that surface is there because ali's host apps needed to flip between multiple open documents in the same browser tab.
+Locked 2026-06-07, shipped 2026-06-08 as `@monbolc/lowcode-workspace@2.1.2`. 3 source files (`index.ts`, `resource.ts`, `window.ts`, `workspace.ts`) + 3 test files = **24 tests passing**, ~280 lines, vs upstream 1,298. ~78% smaller. The dropped bulk:
 
-**Sapu's stance** (locked 2026-06-07): **one document per Skeleton, multi-instance via multi-mount.** A host that wants two open pages mounts two `<Skeleton>` instances in two divs. Each owns its own `Project`, its own `OutlinePane`, its own `Simulator`. No cross-window state to reason about, no `Resource` registry, no `Workbench` tab bar.
+- `Workbench` tabbed UI (~500 lines) — replaced by multi-mount of `<Skeleton>`
+- `IPublicApiWorkspace` proxy + `setAsInstance`/`current` glue (~150 lines) — L6 will fetch the real class
+- `ResourceType` registry + `getResourceType` lookup (~100 lines) — hosts use `options.type` as a string
+- `EditorWindow` queue with auto-focus tracking (~80 lines) — single-window: just an active flag
 
-This collapses L5 to ~3–4 files, ~200 lines: the types that downstream plugin code might need to recognize (so a plugin from ali-port code type-checks), plus a tiny `Workspace` class that exists only to hold `IProject` and `IEditorWindow` references for the L6 facade to point at.
+See `docs/packages/workspace.md` for the full design rationale and the demo's "Open second doc" button for the multi-mount proof.
 
-#### What sapu ships in L5 (decision 2026-06-07)
-
-| File | Purpose | Lines (est.) |
-|---|---|---|
-| `src/index.ts` | barrel: re-export `Workspace`, `IWorkspace`, `EditorWindow`, `IEditorWindow`, `Resource`, `IResource` | ~20 |
-| `src/resource.ts` | `Resource` class — `{ id, title, project, options }`. Pure data, no I/O. | ~60 |
-| `src/window.ts` | `EditorWindow` class — wraps a `Resource` + the editor-skeleton view into one. Holds active-flag, `setActive(b)`, fires `activate` / `deactivate` events. | ~80 |
-| `src/workspace.ts` | `Workspace` class — `addResource(r)`, `removeResource(r)`, `getActive()`, `setActive(r)`, `getResourceList()`. Holds a single `EditorWindow` (sapu = single-window). | ~120 |
-| `src/types.ts` | `IWorkspace`, `IEditorWindow`, `IResource` (interfaces) | ~30 |
-| `tests/workspace.test.ts` | unit: add/remove/activate one resource, event firings | ~80 |
-
-Total: ~390 lines, vs ali's 1,298. ~70% smaller. The deleted bulk is the `Workbench` tab UI (moved to a future optional `plugin-workbench` if a host asks for it) and the multi-window `openEditorWindowByResource` machinery (replaced by multi-mount).
-
-#### L5 — concrete P-tasks (not yet started, target after P2 is done)
-
-- **L5.1** — `packages/workspace/` package skeleton: `package.json`, `tsconfig.json`, `vitest` alias, build script. Add `@monbolc/lowcode-types`, `@monbolc/lowcode-designer` as deps. **No new third-party deps** — `Workspace` is in-tree.
-- **L5.2** — `Resource` + `IResource` + 3 unit tests (construct from `{ id, title, project }`, `getProject()` returns the project, `dispose()` is idempotent).
-- **L5.3** — `EditorWindow` + `IEditorWindow` + 4 unit tests (construct, `setActive(true|false)` fires the right event, `getResource()` returns the resource, `dispose()` releases the window).
-- **L5.4** — `Workspace` + `IWorkspace` + 6 unit tests (`addResource` puts the resource in the list, `removeResource` removes it, `setActive(r)` switches the active window and fires the event, `getActive()` returns the active resource, `getResourceList()` is immutable, `enableAutoOpenFirstWindow` opens the first added resource automatically).
-- **L5.5** — Demo extension: add a "Open second doc" button that constructs a second `Project` + `Resource` + `Workspace` and mounts a second `<Skeleton>` in a sibling div. Visual proof that L5 single-window is just one of N mounts.
-- **L5.6** — Docs: `docs/packages/workspace.md` (new file), `docs/COMPARISON-WITH-ALI.md` (mapping table — what was dropped, why), `docs/ARCHITECTURE.md` (add the L5 row + dep graph), `docs/ROADMAP.md` (move L5.1–L5.6 from P3 to P1 or P2 once started).
-
-**Permission gate for L5**: when L5.1 starts, **confirm** any new third-party dep (sapu stance: expect 0 new deps).
+L5.1–L5.6 (6 P-tasks) all completed in one session:
+- L5.1 package skeleton + tsconfig + vitest alias
+- L5.2 Resource + 5 tests
+- L5.3 EditorWindow + 7 tests
+- L5.4 Workspace + 12 tests
+- L5.5 demo multi-mount
+- L5.6 docs (this update)
 
 ### L6 — `@monbolc/lowcode-shell`
 
-- **What**: the `IPublicApi*` / `IPublicModel*` facade layer
-- **From upstream**: `packages/shell/` (45 files, 5,155 lines) — each public-model class is a `setAsInstance` + `current` proxy
-- **Sapu decision needed**: do plugin authors want facades (proxy with deprecation surface), or is direct class access OK?
-- **Sapu already drops**: the 28-component `IPublicApiCommonUI` (no replacement)
-- **Sapu stance** (tentative): **minimal facade — just the `setAsInstance` + `current` plumbing**, no proxy/deprecation layer. ~15 files, ~600 lines. Plugin authors access the real class via `getInstance(Engine)`. Deprecation is a host-app concern (use a wrapper).
+**Goal**: the host-facing facade. Plugins and host apps talk to one entry object (`engine`) and get typed access to the document, simulator, project, events, and a plugin slot. Replaces the upstream `IPublicApi*` proxy zoo.
 
-### L7 — `@monbolc/lowcode-engine`
+**Upstream**: `packages/shell/` — 45 files, ~5,155 lines, each `IPublicApiFoo` is a 30-line proxy over a real class with deprecation wrappers.
 
-- **What**: the composition root. Wires together all L0–L6 packages into a single `init(options)` entry.
-- **From upstream**: `packages/engine/` (15 files, 1,330 lines) — `engine-core.ts` is ~300+ lines of "construct singletons + register plugins" boilerplate
-- **Sapu's current `ignitor`**: a placeholder; the real `engine` package will replace it
-- **Sapu stance** (tentative): **`ignitor` grows into `engine`**. The L0 placeholder becomes the L7 entry point. `bootstrap({ ... })` gets the real signature: `init({ container, schema, components, plugins? })`. It wires `Project`, `Skeleton`, registers built-in setters, runs `plugins?.forEach(p => p(engineApi))`, returns the engine handle. Replaces the standalone `ignitor` package (sapu folds L0 → L7). Net new code: ~500 lines.
+**Sapu's stance** (locked 2026-06-08): **no proxies, no deprecation layer.** Plugin authors call the real classes. The "facade" is just a plain object literal that bundles references and a `registerPlugin` slot.
+
+#### What sapu ships in L6 (locked 2026-06-08)
+
+| File | Purpose | Lines (est.) |
+|---|---|---|
+| `src/index.ts` | barrel: re-export `SapuEngine`, `IPlugin`, `IPluginContext` | ~20 |
+| `src/engine.ts` | `SapuEngine` class — owns a `Project`, an `IWorkspace` (L5), an event bus. `mount(container)` + `destroy()`. | ~120 |
+| `src/plugin.ts` | `IPlugin` / `IPluginContext` types + `definePlugin(p)` identity helper (for DX, not runtime magic) | ~50 |
+| `src/events.ts` | typed event names + payload types: `'schemaChanged' \| 'selectionChanged' \| 'windowActivated' \| 'pluginRegistered'`, all with payload interfaces | ~80 |
+| `src/i18n.ts` | 30-key zh-CN/en-US dictionary + `engine.t('key')` accessor | ~60 |
+| `src/error-boundary.tsx` | React 19 `ErrorBoundary` component that catches plugin exceptions, logs to engine events, shows a BaseUI `Dialog` | ~80 |
+| `src/index.css` | Tailwind v4 `@import "tailwindcss"` + design tokens | ~30 |
+| `tests/engine.test.ts` | mount/destroy, plugin registration fires the event, error-boundary catches, i18n fallback | ~150 |
+| `tests/events.test.ts` | typed subscribe / unsubscribe / once + payload validation | ~80 |
+| `tests/plugin.test.ts` | `definePlugin` returns same shape, `IPluginContext` is exactly the engine surface | ~60 |
+| `tests/i18n.test.ts` | `t('foo')` returns zh-CN by default, falls back to en-US for missing keys, format substitution | ~60 |
+
+Total: ~790 lines, vs upstream 5,155. **~85% smaller.** The dropped bulk: 28-component `IPublicApiCommonUI` (no replacement, host uses its own UI), 11 deprecated proxies (no deprecation layer), `setAsInstance`/`current` machinery (sapu passes the real class).
+
+#### L6 — concrete P-tasks (not yet started, after L5)
+
+- **L6.1** — Package skeleton: `packages/shell/` `package.json` (deps: L2 designer + L4 skeleton + L5 workspace + L2.5 plugin-setters; peer: react ^19.2), `tsconfig.json`, vitest alias, `build:css` for the Tailwind file. **No new third-party deps.**
+- **L6.2** — Events: define `EngineEventName` union + payload interfaces; `EventEmitter` wrapper that enforces payload types at subscribe time (compile-time only — runtime is the existing L1 emitter).
+- **L6.3** — `SapuEngine` class + 4 unit tests (`mount` creates the Skeleton, `destroy` tears it down, `getProject()` returns the project, `registerPlugin(p)` calls `p.init(context)` synchronously and fires `pluginRegistered`).
+- **L6.4** — `IPlugin` / `IPluginContext` types + `definePlugin` helper + 2 unit tests (helper is identity, context shape matches `SapuEngine`).
+- **L6.5** — i18n dictionary + `engine.t(key, vars?)` + 2 unit tests (zh-CN default, en-US fallback, `{name}` substitution).
+- **L6.6** — `ErrorBoundary` component + 2 unit tests (catches render error, renders fallback, fires `pluginError` event).
+- **L6.7** — Demo extension: wrap the existing demo's `App` in `ErrorBoundary`, add an "Inject crash" button that calls `engine.registerPlugin({ name: 'crash', init: () => { throw new Error(...) } })` to prove the boundary works.
+- **L6.8** — Docs: `docs/packages/shell.md` (new), `docs/COMPARISON-WITH-ALI.md` (mapping table), `docs/ARCHITECTURE.md` (add L6 row), `docs/ROADMAP.md` (move L6.x from P3 to in-progress once started).
+
+**Permission gate for L6**: when L6.1 starts, **confirm** any new third-party dep (sapu stance: expect 0 new deps; React 19 ErrorBoundary and existing event emitter cover everything).
+
+### L7 — `@monbolc/lowcode-engine` (composition root)
+
+**Goal**: the one package a host app installs. It re-exports L0–L6, ships default plugins (setters, outline, settings panel), default i18n, default theme, and a one-call `init(container, schema, components)` that wires everything. The L0 `ignitor` placeholder folds into this.
+
+**Upstream**: `packages/engine/` — 15 files, ~1,330 lines; `engine-core.ts` is ~300+ lines of "construct singletons + register plugins" boilerplate.
+
+**Sapu's stance** (locked 2026-06-08): **L0 `ignitor` grows into L7 `engine`**, no parallel `ignitor` package. The L0 placeholder gets replaced by the real composition. `bootstrap` is renamed `init` and gets the real signature. The L0 package is deleted in 2.2.0.
+
+#### What sapu ships in L7 (locked 2026-06-08)
+
+| File | Purpose | Lines (est.) |
+|---|---|---|
+| `src/index.ts` | barrel: re-export `SapuEngine`, `init`, default plugins, default theme, default i18n | ~20 |
+| `src/init.ts` | `init(container, options)` — `new SapuEngine()`, register built-in setters + outline + settings panel, mount, return engine handle | ~80 |
+| `src/default-plugins.ts` | `outlinePanePlugin`, `settingsPanelPlugin`, `settersPlugin` — minimal plugin wrappers around L2.5/L2/L4 | ~60 |
+| `src/default-theme.ts` | exports the Tailwind v4 CSS file path + a `setTheme(name)` that toggles a `data-theme` attribute on `<html>` | ~40 |
+| `src/preset.ts` | `createDefaultPreset()` — bundles plugins + theme + i18n, returns a single `IPreset` consumers can extend | ~50 |
+| `tests/init.test.ts` | happy-dom test: `init(div, { schema, components })` mounts a Skeleton with outline + canvas + settings; destroy tears it down | ~120 |
+| `tests/default-plugins.test.ts` | each plugin's `init(context)` wires the right L2/L4 instance; no plugin mutates the schema | ~80 |
+
+Total: ~450 lines, vs upstream 1,330. **~66% smaller.** The dropped bulk: monkey-patch React renderer (sapu uses React 19 + BaseUI, no patch needed), `BuiltinSimulatorHost` initialization (~200 lines upstream, replaced by `Project` construction), `LowCodePluginManager` (sapu reuses L2 editor-core's plugin manager).
+
+#### L7 — concrete P-tasks (not yet started, after L6)
+
+- **L7.1** — Package skeleton: `packages/engine/` `package.json` (deps: ALL L2–L6 + react 19.2 peer; **this is the meta package**), `tsconfig.json`, vitest alias, build script.
+- **L7.2** — `init(container, options)` + 3 unit tests (mounts Skeleton, returns engine, fires `engineReady` event on `mount`).
+- **L7.3** — Default plugins: `outlinePanePlugin`, `settingsPanelPlugin`, `settersPlugin` + 3 unit tests (each `init` is idempotent, doesn't double-register, can be unregistered).
+- **L7.4** — `createDefaultPreset()` + 2 unit tests (preset is the union of 3 plugins + theme + i18n, consumer can override any field).
+- **L7.5** — `setTheme(name)` + 2 unit tests (sets `data-theme` on `document.documentElement`, fires `themeChanged` event).
+- **L7.6** — Delete `@monbolc/lowcode-ignitor` (its job is now in L7), update `docs/packages/ignitor.md` → archived note pointing to engine, update `examples/demo/` to import from `@monbolc/lowcode-engine`, update `vitest.config.ts` alias.
+- **L7.7** — Demo extension: replace the demo's manual wiring (`new Project`, `new Skeleton`, register setters) with a single `init(div, { schema, components, preset: createDefaultPreset() })` call. Visual diff: the demo should look identical.
+- **L7.8** — Docs: `docs/packages/engine.md` (new), `docs/COMPARISON-WITH-ALI.md` (engine mapping), `docs/ARCHITECTURE.md` (add L7 row + the meta-package nature), `docs/ROADMAP.md` (move L7 from P3 to in-progress, note ignitor deletion).
+- **L7.9** — README + landing: top-level `README.md` rewrite to direct users to `yarn add @monbolc/lowcode-engine` and show the 5-line starter.
+
+**Permission gate for L7**: when L7.1 starts, **confirm** any new third-party dep (sapu stance: expect 0 new deps; the package is purely composition).
+
+#### L7 → L0 deletion order
+
+1. Publish L7 at version `2.2.0-rc.0` (with L0 still present for back-compat).
+2. Wait one release.
+3. Re-publish L7 at `2.2.0`; mark `@monbolc/lowcode-ignitor` deprecated in its README.
+4. Wait one more release.
+5. L7 at `2.3.0`: delete `@monbolc/lowcode-ignitor`, unpublish from npm (`npm unpublish @monbolc/lowcode-ignitor@* --force`), update demo + docs.
+
+This deprecates L0 over two release cycles so any host that pinned L0 has time to migrate.
 
 ## Post-L7 — beyond the upstream feature set
 

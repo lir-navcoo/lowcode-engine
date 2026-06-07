@@ -1,0 +1,51 @@
+{
+  "name": "@monbolc/lowcode-workspace",
+  "version": "2.1.2",
+  "description": "Workspace, EditorWindow, Resource for SapuLowcodeEngine (L5). Single-window — multi-doc is achieved by multi-mount, not by an in-tree tab bar.",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "es"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
+    "clean": "rimraf lib es"
+  },
+  "dependencies": {
+    "@monbolc/lowcode-designer": "^2.1.2",
+    "@monbolc/lowcode-types": "^2.1.2",
+    "@monbolc/lowcode-utils": "^2.1.2"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
+    "directory": "packages/workspace"
+  },
+  "keywords": [
+    "lowcode",
+    "engine",
+    "workspace",
+    "window",
+    "resource"
+  ],
+  "gitHead": "f2df4cee4b702fc980b0efaadf0b5a7b385c5af0"
+}
