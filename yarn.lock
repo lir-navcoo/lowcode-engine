@@ -554,11 +554,6 @@
     yargs "17.7.2"
     yargs-parser "21.1.1"
 
-"@monbolc/lowcode-types@2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@monbolc/lowcode-types/-/lowcode-types-2.0.0.tgz#90f065d45cf7b48e71060282ee81a18fc35f0dda"
-  integrity sha512-7ZwhT4l5GYLDJFiTd64ypyRTwh1eKSh7i0CHQQUb+0CdfkspKcj7eqPv/faIprC7Fh0ezoRwZfCiInoxX2d1vg==
-
 "@napi-rs/wasm-runtime@0.2.4":
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/@napi-rs/wasm-runtime/-/wasm-runtime-0.2.4.tgz#d27788176f250d86e498081e3c5ff48a17606918"
