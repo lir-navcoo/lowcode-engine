@@ -184,8 +184,13 @@ export class CommandManager implements ICommandManager {
         top.name === name &&
         now - top.lastTouchedAt <= mergeWindow
       ) {
+        // Update the latest args (the most recent user input) BUT
+        // keep the original returnValue. For commands like SetProp
+        // that store the previous state in returnValue, this ensures
+        // undo restores the value that existed BEFORE the first edit
+        // in the merge window — not the value that existed before
+        // the last edit.
         top.args = args;
-        top.returnValue = returnValue;
         top.lastTouchedAt = now;
         return;
       }

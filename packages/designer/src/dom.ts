@@ -66,9 +66,10 @@ export function tagElementWithNodeId(el: Element, id: string): void {
  * exists within `container`.
  */
 export function hitTest(container: Element, x: number, y: number): string | null {
-  if (typeof container.elementsFromPoint !== 'function') return null;
-  const stack = container.elementsFromPoint(x, y);
+  if (typeof document.elementsFromPoint !== 'function') return null;
+  const stack = document.elementsFromPoint(x, y);
   for (const el of stack) {
+    if (!container.contains(el)) continue;
     const id = (el as Element).getAttribute?.('data-lce-id');
     if (id) return id;
   }

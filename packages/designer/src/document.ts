@@ -90,8 +90,11 @@ export class DocumentModel implements IDocumentModel {
     const safeIndex = Math.max(0, Math.min(index, parentSchema.children!.length));
     parentSchema.children!.splice(safeIndex, 0, node);
 
-    const wrapped = new Node(node, parent);
-    this.indexSubtree(node, wrapped, safeIndex);
+    // Use registerNode — the single source of truth for creating a Node
+    // wrapper and storing it in _nodes. This guarantees the wrapper
+    // returned to the caller is the same one stored in _nodes (so
+    // `getNode(id)` returns a wrapper with the correct parent ref).
+    const wrapped = this.registerNode(node, parent);
     this.events.emit('nodeAdded', { node: wrapped, parent, index: safeIndex });
     return wrapped;
   }
@@ -136,10 +139,11 @@ export class DocumentModel implements IDocumentModel {
 
     // Re-index the moved subtree (its parent ref changed).
     this.unindexSubtree(node);
-    // Update parent reference: easiest is to reconstruct the Node wrapper.
-    const rewrapped = new Node(node.schema, newParent);
-    this.indexSubtree(node.schema, rewrapped, safeIndex);
-    this.events.emit('nodeMoved', { node: rewrapped, oldParent, newParent, oldIndex, newIndex: safeIndex });
+    // Build a fresh wrapper with the correct parent. Pass `newParent`
+    // directly to indexSubtree so the stored wrapper's parent ref
+    // is the actual new parent (B), not an outer wrapper of B.
+    this.indexSubtree(node.schema, newParent, safeIndex);
+    this.events.emit('nodeMoved', { node, oldParent, newParent, oldIndex, newIndex: safeIndex });
   }
 
   // ---- internals ----
@@ -148,12 +152,13 @@ export class DocumentModel implements IDocumentModel {
    * Walk a subtree and register each node (and its children) in
    * `_nodes`. Each node is assigned a synthetic `id` if it doesn't
    * have one, and we wrap it in a `Node` for ergonomic access.
+   * Returns the wrapper for `schema` so callers can use it.
    */
   private indexSubtree(
     schema: IPublicTypeNodeSchema,
     parent: Node | null,
-    indexInParent: number,
-  ): void {
+    _indexInParent: number,
+  ): Node {
     const id = schema.key ?? uid('n');
     schema.key = id;
     const wrapped = new Node(schema, parent);
@@ -161,6 +166,16 @@ export class DocumentModel implements IDocumentModel {
     (schema.children ?? []).forEach((child, i) => {
       this.indexSubtree(child, wrapped, i);
     });
+    return wrapped;
+  }
+
+  /**
+   * Public entry: index a single node and return its wrapper. Use
+   * this from `insert` / `move` to ensure the wrapper stored in
+   * `_nodes` is the same one returned to the caller.
+   */
+  private registerNode(schema: IPublicTypeNodeSchema, parent: Node | null): Node {
+    return this.indexSubtree(schema, parent, 0);
   }
 
   /** Unregister a node and all its descendants. */

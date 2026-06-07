@@ -7,6 +7,7 @@
  *   - Project: top-level container (document + selection + dragon)
  *   - Dragon: drag state machine
  *   - Simulator: preview wrapper around the schema
+ *   - DocumentCommands: undo/redo-ready ICommand wrappers
  *   - DOM utilities: rect math, id tagging, hit testing
  */
 
@@ -23,6 +24,14 @@ export type { DragonEvents, DragonState, DropTarget } from './dragon';
 
 export { Simulator } from './simulator';
 export type { SimulatorOptions } from './simulator';
+
+export {
+  InsertCommand,
+  RemoveCommand,
+  MoveCommand,
+  SetPropCommand,
+  RenameCommand,
+} from './commands';
 
 export {
   getRect,

@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-command",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Command pattern + undo/redo history for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
