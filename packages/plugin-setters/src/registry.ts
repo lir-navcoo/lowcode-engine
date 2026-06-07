@@ -1,20 +1,33 @@
 /**
  * @monbolc/lowcode-plugin-setters — Setter registry
  *
- * Maps a `IPublicTypeFieldConfig`'s `setter` field to a concrete
- * React component. Built-in setters:
- *   - "Input"        : text input (default)
- *   - "TextArea"     : multi-line text
- *   - "Number"       : number input
- *   - "Switch"       : on/off
- *   - "Select"       : dropdown
- *   - "ColorPicker"  : color input
- *   - "Slider"       : number slider with min/max
+ * Maps a `IPublicTypeFieldConfig`'s `setter` field to a pure-data
+ * `SetterDescriptor` that the L4 settings panel turns into BaseUI
+ * JSX. Built-in setters:
+ *   - "Input"        : BaseUI.Input
+ *   - "TextArea"     : raw <textarea> (no BaseUI equivalent)
+ *   - "Number"       : BaseUI.NumberField
+ *   - "Switch"       : BaseUI.Switch.Root
+ *   - "Select"       : BaseUI.Select.Root
+ *   - "ColorPicker"  : raw <input type="color"> (BaseUI has no picker)
+ *   - "Slider"       : BaseUI.Slider.Root
+ *
+ * Setters are framework-agnostic data: they return a
+ * `SetterDescriptor` (a string-typed vdom). The L4 settings panel
+ * imports @base-ui-components/react and resolves the `type` to a
+ * concrete component. This keeps `plugin-setters` free of any
+ * BaseUI runtime dependency and makes the descriptor shape easy to
+ * snapshot in tests.
+ *
+ * Styling is via Tailwind v4 utility class strings on the
+ * `className` prop. The package ships a `styles.css` (compiled
+ * from `src/styles.css` via `yarn build:css`) that pulls
+ * Tailwind in.
  *
  * Consumers can register their own setters via `registerSetter(name, comp)`.
  */
 
-import type { ComponentType, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { IPublicTypeFieldConfig, IPublicTypeSetterConfig, JSONValue } from '@monbolc/lowcode-types';
 
 export type SetterProps = {
@@ -28,7 +41,49 @@ export type SetterProps = {
   onInput?: (value: JSONValue) => void;
 };
 
-export type SetterComponent = ComponentType<SetterProps>;
+/**
+ * The string-typed vdom. The L4 settings panel resolves `type` to
+ * a BaseUI component (or to a raw HTML tag name — `input`,
+ * `textarea`, etc. — which `React.createElement` handles
+ * transparently). The `props` and `children` are forwarded as-is.
+ *
+ * PascalCase types refer to BaseUI components (e.g. `Switch` →
+ * `@base-ui-components/react`'s `Switch.Root`).
+ *
+ * Lowercase types are raw HTML tags (`input`, `textarea`, `select`,
+ * `button`, `div`, `span`).
+ */
+export type SetterType =
+  | 'Input'        // @base-ui-components/react Input
+  | 'NumberField'  // @base-ui-components/react NumberField.Root
+  | 'Field'        // @base-ui-components/react Field.Root (compound; Control via children)
+  | 'Switch'       // @base-ui-components/react Switch.Root
+  | 'Select'       // @base-ui-components/react Select.Root
+  | 'Slider'       // @base-ui-components/react Slider.Root
+  | 'input'        // raw <input>
+  | 'textarea'     // raw <textarea>
+  | 'select'       // raw <select>
+  | 'option'       // raw <option>
+  | 'button'       // raw <button>
+  | 'label'        // raw <label>
+  | 'div'          // raw <div>
+  | 'span';        // raw <span>
+
+export interface SetterDescriptor {
+  type: SetterType;
+  /** Props to pass to the resolved component. Tailwind className lives here. */
+  props?: Record<string, unknown>;
+  /** Nested children. Each child is either a descriptor or a string. */
+  children?: (SetterDescriptor | string)[];
+}
+
+/**
+ * A setter is a pure function from `SetterProps` to `SetterDescriptor`.
+ * It does NOT call `React.createElement` itself — that is the L4
+ * settings panel's job. This separation keeps setters trivially
+ * testable (snapshot the descriptor) and framework-agnostic.
+ */
+export type SetterComponent = (props: SetterProps) => SetterDescriptor;
 
 const registry = new Map<string, SetterComponent>();
 
@@ -68,16 +123,24 @@ export const BUILT_IN_SETTERS = [
 ] as const;
 export type BuiltInSetter = (typeof BUILT_IN_SETTERS)[number];
 
-/** Helper: render a label + setter side-by-side. */
-export function withLabel(label: ReactNode, control: ReactNode): ReactNode {
+/**
+ * Helper: render a label + setter side-by-side. Returns a
+ * SetterDescriptor (NOT JSX) so the whole setter tree is pure
+ * data until the L4 settings panel resolves it.
+ */
+export function withLabel(label: ReactNode, control: SetterDescriptor): SetterDescriptor {
   return {
     type: 'div',
     props: {
-      style: { display: 'flex', flexDirection: 'column', gap: 4 },
-      children: [
-        { type: 'label', props: { style: { fontSize: 11, color: '#475569' }, children: label } },
-        control,
-      ],
+      className: 'flex flex-col gap-1',
     },
+    children: [
+      {
+        type: 'label',
+        props: { className: 'text-[11px] text-slate-600' },
+        children: [typeof label === 'string' ? label : String(label)],
+      },
+      control,
+    ],
   };
 }

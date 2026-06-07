@@ -59,14 +59,18 @@ export function SettingsPanel(props: SettingsPanelProps) {
     };
   }, [props.project]);
 
+  // Local Tailwind classnames (was: sapu-skel-empty / sapu-skel-settings).
+  const CN_EMPTY = 'text-slate-400 italic p-6 text-center';
+  const CN_ROW = 'flex items-center gap-1';
+
   const selected = props.project.getSelectedNodes();
   if (selected.length === 0) {
-    return h()('div', { className: 'sapu-skel-empty' },
+    return h()('div', { className: CN_EMPTY },
       'No selection. Click a node in the outline to edit it.',
     );
   }
   if (selected.length > 1) {
-    return h()('div', { className: 'sapu-skel-empty' },
+    return h()('div', { className: CN_EMPTY },
       `${selected.length} nodes selected. Settings show one at a time.`,
     );
   }
@@ -86,11 +90,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
     setEditingKey(null);
   };
 
-  return h()('div', { className: 'sapu-skel-settings', style: { padding: 12 } },
-    h()('div', { style: { marginBottom: 12 } },
-      h()('div', { style: { fontSize: 11, color: '#64748b' } }, 'Component'),
-      h()('div', { style: { display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 } },
-        h()('code', { style: { fontSize: 13, flex: 1, fontWeight: 600 } }, node.componentName),
+  return h()('div', { className: 'p-3' },
+    h()('div', { className: 'mb-3' },
+      h()('div', { className: 'text-[11px] text-slate-500' }, 'Component'),
+      h()('div', { className: 'flex items-center gap-1.5 mt-1' },
+        h()('code', { className: 'text-[13px] flex-1 font-semibold' }, node.componentName),
         h()('button', {
           onClick: () => {
             const newName = prompt('Rename component to:', node.componentName);
@@ -98,16 +102,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
               props.project.document.rename(node, newName);
             }
           },
-          style: { fontSize: 11, padding: '2px 6px' },
+          className: 'text-[11px] px-1.5 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-50',
         }, 'Rename'),
       ),
     ),
-    h()('div', { style: { fontSize: 11, color: '#64748b', marginBottom: 6 } },
+    h()('div', { className: 'text-[11px] text-slate-500 mb-1.5' },
       `Props (${Object.keys(propsMap).length})`),
-    h()('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+    h()('div', { className: 'flex flex-col gap-1' },
       Object.entries(propsMap).map(([k, v]) =>
-        h()('div', { key: k, style: { display: 'flex', gap: 4, alignItems: 'center' } },
-          h()('div', { style: { width: 80, fontSize: 12, color: '#334155' } }, k),
+        h()('div', { key: k, className: CN_ROW },
+          h()('div', { className: 'w-20 text-xs text-slate-700' }, k),
           editingKey === k
             ? h()('input', {
                 autoFocus: true,
@@ -118,15 +122,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   if (e.key === 'Enter') commit(k);
                   if (e.key === 'Escape') setEditingKey(null);
                 },
-                style: { flex: 1, fontSize: 12, padding: '2px 6px', border: '1px solid #3b82f6' },
+                className: 'flex-1 text-xs px-1.5 py-0.5 border border-blue-500 rounded',
               })
             : h()('div', {
                 onClick: () => startEdit(k, v),
-                style: {
-                  flex: 1, fontSize: 12, padding: '2px 6px',
-                  background: '#f1f5f9', borderRadius: 3, cursor: 'text',
-                  fontFamily: 'monospace',
-                },
+                className: 'flex-1 text-xs px-1.5 py-0.5 bg-slate-100 rounded cursor-text font-mono',
               }, formatValue(v)),
         ),
       ),

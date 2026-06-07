@@ -1,0 +1,15 @@
+/**
+ * @monbolc/lowcode-editor-skeleton — built Tailwind entry
+ *
+ * Replaces the previous hand-rolled `<style>` block (the `sapu-skel-*`
+ * / `sapu-border-overlay` / `sapu-drag-ghost` / `sapu-insertion-indicator`
+ * classes). Every layout rule now lives as Tailwind utility classes
+ * on the JSX. The block below just pulls Tailwind in.
+ *
+ * Built via `yarn build:css` (per-package Tailwind CLI step) and
+ * published to npm as `lib/styles.css`. Consumers can also import
+ * this directly or rely on their own Tailwind build to pick up
+ * the utility classes from the JSX.
+ */
+
+@import "tailwindcss";

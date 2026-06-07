@@ -7,6 +7,11 @@
  *   - Right: settings panel (props editor)
  *
  * Pane widths are user-resizable via drag handles between panels.
+ *
+ * Styling: Tailwind v4 utility classes (see `src/styles.css` for the
+ * import). Replaced the previous hand-rolled `<style>` block (the
+ * `sapu-skel-*` etc. classes) — that block is gone; the utilities
+ * are inlined in the `className` props below.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -39,36 +44,32 @@ export interface SkeletonProps {
   onPaneReady?: (pane: import('@monbolc/lowcode-plugin-outline-pane').OutlinePane) => void;
 }
 
-const STYLES = `
-.sapu-skel { height: 100%; width: 100%; font-family: system-ui, sans-serif; font-size: 12px; }
-.sapu-skel, .sapu-skel * { box-sizing: border-box; }
-.sapu-skel-pane { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid #e2e8f0; height: 100%; }
-.sapu-skel-pane:last-child { border-right: none; border-left: 1px solid #e2e8f0; }
-.sapu-skel-pane-header { padding: 8px 12px; font-weight: 600; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-.sapu-skel-pane-body { flex: 1; overflow: auto; padding: 8px; }
-.sapu-skel-canvas { flex: 1; background: #fafafa; padding: 16px; overflow: auto; height: 100%; }
-.sapu-skel-canvas-inner { background: white; min-height: 100%; padding: 16px; border: 1px solid #e2e8f0; }
-.sapu-skel-empty { color: #94a3b8; font-style: italic; padding: 24px; text-align: center; }
-.sapu-skel-resize { width: 4px; background: #e2e8f0; cursor: col-resize; }
-.sapu-skel-resize:hover { background: #94a3b8; }
-.sapu-skel-resize[data-resize-handle-active] { background: #3b82f6; }
-`;
-
 /**
- * Mount the global stylesheet once. Idempotent.
+ * Layout classnames (Tailwind v4 utilities; no hand-rolled CSS).
+ * Kept here as constants so the JSX stays compact and the
+ * Tailwind purger has stable strings to scan.
  */
-let _stylesInjected = false;
-function injectStyles(): void {
-  if (_stylesInjected) return;
-  if (typeof document === 'undefined') return;
-  const style = document.createElement('style');
-  style.textContent = STYLES;
-  document.head.appendChild(style);
-  _stylesInjected = true;
-}
+const CN = {
+  // Root PanelGroup: h-full, w-full, system font, small base size.
+  skel: 'h-full w-full font-[system-ui,sans-serif] text-xs',
+  // Each pane column: flex column, no overflow, 1px slate border on
+  // the right (or the left for the last one).
+  pane: 'flex flex-col overflow-hidden border-r border-slate-200 h-full [&:last-child]:border-r-0 [&:last-child]:border-l',
+  // Pane header: 8/12 padding, semibold, slate-50 bg, bottom border.
+  paneHeader: 'px-3 py-2 font-semibold bg-slate-50 border-b border-slate-200',
+  // Pane body: fills the rest of the column, scrolls, 8px padding.
+  paneBody: 'flex-1 overflow-auto p-2',
+  // Canvas (center pane): fills, slate-50 bg, 16px padding, scrolls.
+  canvas: 'flex-1 bg-slate-50 p-4 overflow-auto h-full',
+  // Canvas inner: white card with border, full height minimum.
+  canvasInner: 'bg-white min-h-full p-4 border border-slate-200',
+  // Empty-state hint (used by SettingsPanel).
+  empty: 'text-slate-400 italic p-6 text-center',
+  // Resize handle: 4px wide slate bar, hover + active states.
+  resize: 'w-1 bg-slate-200 cursor-col-resize hover:bg-slate-400 data-[resize-handle-active]:bg-blue-500',
+} as const;
 
 export function Skeleton(props: SkeletonProps) {
-  injectStyles();
   const leftSize = props.leftSize ?? 20;
   const rightSize = props.rightSize ?? 25;
 
@@ -137,26 +138,26 @@ export function Skeleton(props: SkeletonProps) {
     props.project.select(id);
   };
 
-  return h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: 'sapu-skel' },
+  return h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: CN.skel },
     h()(Panel, { key: 'left', defaultSize: leftSize, minSize: 15 },
-      h()('div', { className: 'sapu-skel-pane' },
-        h()('div', { className: 'sapu-skel-pane-header' }, 'Outline'),
-        h()('div', { className: 'sapu-skel-pane-body' },
+      h()('div', { className: CN.pane },
+        h()('div', { className: CN.paneHeader }, 'Outline'),
+        h()('div', { className: CN.paneBody },
           h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) }),
         ),
       ),
     ),
-    h()(PanelResizeHandle, { key: 'rh-left', className: 'sapu-skel-resize' }),
+    h()(PanelResizeHandle, { key: 'rh-left', className: CN.resize }),
     h()(Panel, { key: 'center', defaultSize: 100 - leftSize - rightSize, minSize: 30 },
-      h()('div', { className: 'sapu-skel-canvas' },
-        h()('div', { className: 'sapu-skel-canvas-inner', ref: canvasHost }),
+      h()('div', { className: CN.canvas },
+        h()('div', { className: CN.canvasInner, ref: canvasHost }),
       ),
     ),
-    h()(PanelResizeHandle, { key: 'rh-right', className: 'sapu-skel-resize' }),
+    h()(PanelResizeHandle, { key: 'rh-right', className: CN.resize }),
     h()(Panel, { key: 'right', defaultSize: rightSize, minSize: 15 },
-      h()('div', { className: 'sapu-skel-pane' },
-        h()('div', { className: 'sapu-skel-pane-header' }, 'Settings'),
-        h()('div', { className: 'sapu-skel-pane-body' },
+      h()('div', { className: CN.pane },
+        h()('div', { className: CN.paneHeader }, 'Settings'),
+        h()('div', { className: CN.paneBody },
           h()(SettingsPanel, { project: props.project }),
         ),
       ),

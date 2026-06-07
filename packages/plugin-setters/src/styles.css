@@ -1,0 +1,15 @@
+/**
+ * @monbolc/lowcode-plugin-setters — built Tailwind entry
+ *
+ * Built via `yarn build:css` (per-package Tailwind CLI step) and
+ * published to npm as `lib/styles.css`. Consumers who don't use
+ * Tailwind v4 directly can `import '@monbolc/lowcode-plugin-setters/styles.css'`
+ * to get the compiled utility classes used by the built-in setters.
+ *
+ * The setters themselves reference these utility classes by string
+ * name in their `className` prop; the L4 settings panel calls
+ * `createElement(lookup[descriptor.type], descriptor.props)` and
+ * the className flows through to the rendered BaseUI component.
+ */
+
+@import "tailwindcss";

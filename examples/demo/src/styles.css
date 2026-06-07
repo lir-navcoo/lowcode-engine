@@ -1,0 +1,20 @@
+/**
+ * Sapu demo — Tailwind v4 entry
+ *
+ * The @tailwindcss/vite plugin (in vite.config.ts) compiles this
+ * file on demand. Tailwind v4 = no PostCSS, no tailwind.config.js;
+ * all configuration lives in CSS via `@import "tailwindcss"` and
+ * `@theme` blocks.
+ *
+ * The plugin scans the @monbolc/* packages' source for utility
+ * class usage (via vite's path aliases) so the JIT picks up every
+ * class string used in skeleton.tsx, settings-panel.tsx,
+ * overlays.tsx, plugin-setters/built-in.tsx, etc.
+ */
+@import "tailwindcss";
+
+/* Scan source files across workspace packages so the JIT picks up
+   the utility classes used by the library code, not just the demo.
+   In Tailwind v4 the @source directive replaces the old
+   `content: [...]` from tailwind.config.js. */
+@source "../../../packages/*/src/**/*.{ts,tsx,js,jsx}";

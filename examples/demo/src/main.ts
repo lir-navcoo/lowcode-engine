@@ -5,6 +5,8 @@
  * against a hand-rolled component registry. Run via `yarn demo` at
  * the repo root, then open http://localhost:5173.
  */
+import './styles.css';
+
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { setupReactRenderer } from '@monbolc/lowcode-react-renderer';

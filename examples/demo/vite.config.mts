@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,11 +10,12 @@ const packagesDir = path.resolve(__dirname, '../../packages');
 // Vite config for the Sapu demo.
 // - Resolves @monbolc/* to the workspace packages' source (so the demo
 //   always uses the latest local code without a `yarn build` step).
+// - Compiles Tailwind v4 via @tailwindcss/vite, picking up utility
+//   classes from BOTH the demo source AND the @monbolc packages
+//   (declared via @source in src/styles.css).
 // - Opens the dev server on :5173.
-// - Tailwind v4 (`@tailwindcss/vite`) and the editor-skeleton CSS
-//   migration are added in P0.4b; for now this is a plain CSS demo.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@monbolc/lowcode-types':              path.join(packagesDir, 'types/src/index.ts'),

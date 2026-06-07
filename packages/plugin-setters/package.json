@@ -11,14 +11,16 @@
       "types": "./lib/index.d.ts",
       "import": "./es/index.js",
       "require": "./lib/index.js"
-    }
+    },
+    "./styles.css": "./lib/styles.css"
   },
   "files": [
     "lib",
     "es"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "yarn build:css && tsc -p tsconfig.json",
+    "build:css": "tailwindcss -i src/styles.css -o lib/styles.css --minify",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
     "clean": "rimraf lib es"
   },
@@ -44,11 +46,13 @@
   },
   "devDependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
+    "@tailwindcss/cli": "^4.3.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "rimraf": "^5.0.5",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5.4.5"
   },
   "publishConfig": {
@@ -64,7 +68,8 @@
     "lowcode",
     "engine",
     "setter",
-    "baseui"
+    "baseui",
+    "tailwind"
   ],
   "gitHead": "f2df4cee4b702fc980b0efaadf0b5a7b385c5af0"
 }
