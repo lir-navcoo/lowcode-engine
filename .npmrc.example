@@ -1,0 +1,12 @@
+# Example .npmrc — DO NOT COMMIT YOUR REAL .npmrc
+# Copy this file to .npmrc and fill in your own token.
+#
+# Get a token at: https://www.npmjs.com/settings/~/tokens
+# Recommended: "Granular Access Token" with "Bypass 2FA" for local dev,
+# OR enable 2FA on your npm account and use a regular publish token.
+#
+# Alternatively, log in interactively:
+#   npm login
+# (This writes to ~/.npmrc, which is also fine and not committed.)
+
+# registry.npmjs.org/:_authToken=npm_YOUR_TOKEN_HERE

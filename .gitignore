@@ -3,6 +3,10 @@ node_modules/
 .yarn/
 .pnp.*
 
+# npm auth token — never commit, never share in chat
+.npmrc
+npmrc.local
+
 # build output
 packages/*/lib/
 packages/*/es/
