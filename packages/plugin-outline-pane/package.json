@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-outline-pane",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Tree view of the page schema (outline pane) for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
