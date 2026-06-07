@@ -1,7 +1,7 @@
 {
   "name": "@monbolc/lowcode-workspace",
-  "version": "2.1.2",
-  "description": "Workspace, EditorWindow, Resource for SapuLowcodeEngine (L5). Single-window — multi-doc is achieved by multi-mount, not by an in-tree tab bar.",
+  "version": "2.1.3",
+  "description": "Workspace, EditorWindow, Resource for SapuLowcodeEngine (L5). Single-window \u2014 multi-doc is achieved by multi-mount, not by an in-tree tab bar.",
   "license": "MIT",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -23,9 +23,9 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-designer": "^2.1.2",
-    "@monbolc/lowcode-types": "^2.1.2",
-    "@monbolc/lowcode-utils": "^2.1.2"
+    "@monbolc/lowcode-designer": "^2.1.3",
+    "@monbolc/lowcode-types": "^2.1.3",
+    "@monbolc/lowcode-utils": "^2.1.3"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",

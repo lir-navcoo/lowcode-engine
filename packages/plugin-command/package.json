@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-command",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Command pattern + undo/redo history for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,8 +23,8 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.1.2",
-    "@monbolc/lowcode-utils": "^2.1.2"
+    "@monbolc/lowcode-types": "^2.1.3",
+    "@monbolc/lowcode-utils": "^2.1.3"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",
