@@ -130,10 +130,11 @@ export class SetPropCommand implements ICommand<{ nodeId: string; key: string; v
     return prev;
   }
 
-  undo(args: { nodeId: string; key: string; value: JSONValue }, prev: JSONValue | undefined): void {
+  undo(args: { nodeId: string; key: string; value: JSONValue }, prev: JSONValue | undefined): JSONValue | undefined {
     const node = this.doc.getNode(args.nodeId);
-    if (!node) return;
+    if (!node) return undefined;
     this.doc.setProps(node, { [args.key]: prev as JSONValue });
+    return prev;
   }
 }
 

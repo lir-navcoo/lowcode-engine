@@ -6,15 +6,18 @@
  * and is tested manually / via E2E; here we only validate the empty-
  * state path and that the adapter-runtime plumbing works.
  */
-import { describe, it, expect, beforeAll } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import React from 'react';
+import type { IPublicTypeNodeSchema } from '@monbolc/lowcode-types';
 
 import { OutlinePane } from '../src/api';
-import { OutlineView } from '../src/view';
+import { OutlineView, defaultRenderRow } from '../src/view';
+import type { RowHelpers } from '../src/view';
+import type { ITreeNode } from '../src/tree';
 
 beforeAll(() => {
   // Inject React 19.2.7 runtime into the adapter so OutlineView
@@ -28,6 +31,20 @@ beforeAll(() => {
     findDOMNode: null,
   });
 });
+
+const seedSchema: IPublicTypeNodeSchema = {
+  componentName: 'Page',
+  children: [
+    { componentName: 'Header' },
+    {
+      componentName: 'Body',
+      children: [
+        { componentName: 'Sidebar' },
+        { componentName: 'Main' },
+      ],
+    },
+  ],
+};
 
 describe('OutlineView', () => {
   it('shows the empty-state hint when no schema is set', () => {
@@ -49,5 +66,142 @@ describe('OutlineView', () => {
     const { container } = render(<OutlineView pane={pane} height={200} />);
     // With the stub runtime, the empty-state still renders (its div is null DOM).
     expect(container).toBeInTheDocument();
+  });
+});
+
+describe('OutlinePane.rename() (P1.6 ali-style display-title flow)', () => {
+  // The full OutlineView + Tree row path needs measurements (react-
+  // arborist) that happy-dom doesn't provide. Instead we test the
+  // underlying pane.rename() data path: it mutates the node's
+  // display title (not componentName) and fires the 'renamed' event.
+  it('changes the display title without touching componentName', () => {
+    const pane = new OutlinePane();
+    pane.setSchema(seedSchema);
+    const body = pane.nodes.find((n) => n.componentName === 'Body');
+    expect(body).toBeDefined();
+    expect(body?.title).toBe('Body');
+
+    pane.rename(body!.id, 'App');
+
+    expect(body?.componentName).toBe('Body');     // type untouched
+    expect(body?.title).toBe('App');              // display label changed
+  });
+
+  it('fires the renamed event with the new title', () => {
+    const pane = new OutlinePane();
+    pane.setSchema(seedSchema);
+    const body = pane.nodes.find((n) => n.componentName === 'Body')!;
+    const seen: Array<{ id: string; title: string }> = [];
+    pane.events.on('renamed', (e) => seen.push(e));
+
+    pane.rename(body.id, 'Layout');
+
+    expect(seen).toEqual([{ id: body.id, title: 'Layout' }]);
+  });
+
+  it('is a no-op when the id does not exist', () => {
+    const pane = new OutlinePane();
+    pane.setSchema(seedSchema);
+    const seen: unknown[] = [];
+    pane.events.on('renamed', (e) => seen.push(e));
+
+    pane.rename('does-not-exist', 'Whatever');
+
+    expect(seen).toEqual([]);
+  });
+});
+
+describe('defaultRenderRow (row-level UX, no react-arborist)', () => {
+  // The earlier "runtime not injected" test calls adapter.initRuntime(),
+  // which resets the runtime to a stub (createElement: () => null). We
+  // need the real React runtime for these row-render tests.
+  beforeAll(() => {
+    adapter.setRuntime({
+      Component: React.Component,
+      PureComponent: React.PureComponent,
+      createElement: React.createElement,
+      createContext: React.createContext,
+      forwardRef: React.forwardRef,
+      findDOMNode: null,
+    });
+  });
+
+  // Build a minimal non-root node (a child of Page, like Body).
+  const bodyNode: ITreeNode = {
+    id: 'body-1',
+    componentName: 'Body',
+    title: 'Body',
+    depth: 1,
+    canHaveChildren: true,
+    expanded: false,
+    selected: false,
+    childrenIds: [],
+    schema: { componentName: 'Body' },
+    parentId: 'root-1',
+  };
+
+  function makeHelpers(overrides: Partial<RowHelpers> = {}): RowHelpers {
+    const noop = () => undefined;
+    return {
+      isSelected: false,
+      isExpanded: false,
+      toggle: noop,
+      select: noop,
+      isEditing: false,
+      draft: '',
+      startRename: noop,
+      commitRename: noop,
+      cancelRename: noop,
+      canRename: true,
+      ...overrides,
+    };
+  }
+
+  it('title span exposes onDoubleClick that calls startRename', () => {
+    const startRename = vi.fn();
+    const el = defaultRenderRow(bodyNode, makeHelpers({ startRename }));
+    const { container } = render(el as React.ReactElement);
+    const spans = container.querySelectorAll('span');
+    // Index 0 = arrow, 1 = title, 2 = ✎, 3 = componentName.
+    const title = spans[1];
+    expect(title.textContent).toBe('Body');
+    fireEvent.doubleClick(title);
+    expect(startRename).toHaveBeenCalledTimes(1);
+  });
+
+  it('title span is not double-clickable when canRename is false (root row)', () => {
+    const startRename = vi.fn();
+    const rootNode: ITreeNode = { ...bodyNode, id: 'root', parentId: '' };
+    const el = defaultRenderRow(rootNode, makeHelpers({ canRename: false, startRename }));
+    const { container } = render(el as React.ReactElement);
+    const spans = container.querySelectorAll('span');
+    const title = spans[1];
+    expect(title.textContent).toBe('Body');
+    fireEvent.doubleClick(title);
+    expect(startRename).not.toHaveBeenCalled();
+  });
+
+  it('✎ button onClick calls startRename and stops propagation', () => {
+    const startRename = vi.fn();
+    const el = defaultRenderRow(bodyNode, makeHelpers({ startRename }));
+    const { container } = render(el as React.ReactElement);
+    // The ✎ span is the 3rd span (index 2): arrow, title, rename, componentName.
+    const spans = container.querySelectorAll('span');
+    const pencil = spans[2];
+    expect(pencil.textContent).toBe('✎');
+    fireEvent.click(pencil);
+    expect(startRename).toHaveBeenCalledTimes(1);
+  });
+
+  it('row click selects (with stopPropagation so the title click does not double-fire)', () => {
+    const startRename = vi.fn();
+    const select = vi.fn();
+    const el = defaultRenderRow(bodyNode, makeHelpers({ startRename, select }));
+    const { container } = render(el as React.ReactElement);
+    // Click the row's outer div.
+    const rowDiv = container.querySelector('div')!;
+    fireEvent.click(rowDiv);
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(startRename).not.toHaveBeenCalled();
   });
 });

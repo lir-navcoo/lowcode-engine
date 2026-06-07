@@ -11,6 +11,9 @@
   "scripts": {
     "build": "lerna run build --stream",
     "clean": "rimraf ./packages/*/lib ./packages/*/es ./packages/*/dist",
+    "demo": "cd examples/demo && vite",
+    "demo:build": "cd examples/demo && vite build",
+    "demo:preview": "cd examples/demo && vite preview",
     "lint": "eslint packages/*/src",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -27,11 +30,13 @@
     "@testing-library/user-event": "^14.5.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^8.57.0",
     "happy-dom": "^15.0.0",
     "lerna": "^8.1.0",
     "rimraf": "^5.0.5",
     "typescript": "^5.4.5",
+    "vite": "^5.4.0",
     "vitest": "^2.1.0"
   },
   "engines": {

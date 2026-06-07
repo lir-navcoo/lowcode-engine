@@ -29,10 +29,19 @@ export interface SkeletonProps {
   /** Initial width of left / right panes in percent. */
   leftSize?: number;
   rightSize?: number;
+  /**
+   * Called once the skeleton's internal OutlinePane is constructed.
+   * Consumers (demos, host apps) can use this to drive pane-level
+   * actions like `pane.rename(id, newTitle)` from outside the React
+   * tree. The pane is reused across schema changes; treat the
+   * reference as stable.
+   */
+  onPaneReady?: (pane: import('@monbolc/lowcode-plugin-outline-pane').OutlinePane) => void;
 }
 
 const STYLES = `
 .sapu-skel { height: 100%; width: 100%; font-family: system-ui, sans-serif; font-size: 12px; }
+.sapu-skel, .sapu-skel * { box-sizing: border-box; }
 .sapu-skel-pane { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid #e2e8f0; height: 100%; }
 .sapu-skel-pane:last-child { border-right: none; border-left: 1px solid #e2e8f0; }
 .sapu-skel-pane-header { padding: 8px 12px; font-weight: 600; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
@@ -69,6 +78,17 @@ export function Skeleton(props: SkeletonProps) {
   const [, force] = useState(0);
   const canvasHost = useRef<HTMLDivElement | null>(null);
 
+  // Notify the host once the pane is constructed. The host may want
+  // to call pane-level actions (rename, expand, etc.) from outside
+  // the React tree (e.g. a demo toolbar). We use a ref-stable callback
+  // so re-renders don't re-fire the notification.
+  const onPaneReady = props.onPaneReady;
+  useEffect(() => {
+    if (onPaneReady) onPaneReady(pane);
+    // Intentional: fire once on mount, not on every re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     pane.setSchema(props.project.document.root);
     force((n) => n + 1);
@@ -102,30 +122,38 @@ export function Skeleton(props: SkeletonProps) {
     canvasHost.current.appendChild(inner);
     const root: Root = createRoot(inner);
     root.render(el as Parameters<typeof root.render>[0]);
-    return () => root.unmount();
+    return () => {
+      // Defer the unmount to a microtask so it doesn't fire
+      // synchronously during another component's commit phase.
+      // React 19: "Attempted to synchronously unmount a root while
+      // React was already rendering" otherwise fires when the user
+      // mutates the schema (Add Footer etc.) and the simulator root
+      // gets torn down in the middle of a re-render cycle.
+      queueMicrotask(() => root.unmount());
+    };
   }, [props.project.document.root, props.components]);
 
   const onOutlineSelect = (id: string) => {
     props.project.select(id);
   };
 
-  return h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel' },
-    h()(Panel, { defaultSize: leftSize, minSize: 15 },
+  return h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: 'sapu-skel' },
+    h()(Panel, { key: 'left', defaultSize: leftSize, minSize: 15 },
       h()('div', { className: 'sapu-skel-pane' },
         h()('div', { className: 'sapu-skel-pane-header' }, 'Outline'),
         h()('div', { className: 'sapu-skel-pane-body' },
-          h()(OutlineView, { pane, height: 600, onRowClick: (id: string) => onOutlineSelect(id) }),
+          h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) }),
         ),
       ),
     ),
-    h()(PanelResizeHandle, { className: 'sapu-skel-resize' }),
-    h()(Panel, { defaultSize: 100 - leftSize - rightSize, minSize: 30 },
+    h()(PanelResizeHandle, { key: 'rh-left', className: 'sapu-skel-resize' }),
+    h()(Panel, { key: 'center', defaultSize: 100 - leftSize - rightSize, minSize: 30 },
       h()('div', { className: 'sapu-skel-canvas' },
         h()('div', { className: 'sapu-skel-canvas-inner', ref: canvasHost }),
       ),
     ),
-    h()(PanelResizeHandle, { className: 'sapu-skel-resize' }),
-    h()(Panel, { defaultSize: rightSize, minSize: 15 },
+    h()(PanelResizeHandle, { key: 'rh-right', className: 'sapu-skel-resize' }),
+    h()(Panel, { key: 'right', defaultSize: rightSize, minSize: 15 },
       h()('div', { className: 'sapu-skel-pane' },
         h()('div', { className: 'sapu-skel-pane-header' }, 'Settings'),
         h()('div', { className: 'sapu-skel-pane-body' },

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@monbolc/lowcode-types":              ["../../packages/types/src/index.ts"],
+      "@monbolc/lowcode-utils":              ["../../packages/utils/src/index.ts"],
+      "@monbolc/lowcode-ignitor":            ["../../packages/ignitor/src/index.ts"],
+      "@monbolc/lowcode-plugin-command":     ["../../packages/plugin-command/src/index.ts"],
+      "@monbolc/lowcode-editor-core":        ["../../packages/editor-core/src/index.ts"],
+      "@monbolc/lowcode-renderer-core":      ["../../packages/renderer-core/src/index.ts"],
+      "@monbolc/lowcode-plugin-outline-pane":["../../packages/plugin-outline-pane/src/index.ts"],
+      "@monbolc/lowcode-plugin-setters":     ["../../packages/plugin-setters/src/index.ts"],
+      "@monbolc/lowcode-react-renderer":     ["../../packages/react-renderer/src/index.ts"],
+      "@monbolc/lowcode-designer":           ["../../packages/designer/src/index.ts"],
+      "@monbolc/lowcode-editor-skeleton":    ["../../packages/editor-skeleton/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

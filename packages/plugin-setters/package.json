@@ -1,0 +1,55 @@
+{
+  "name": "@monbolc/lowcode-plugin-setters",
+  "version": "2.0.0",
+  "description": "Property setter components (BaseUI-based) for SapuLowcodeEngine (L2)",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "files": ["lib", "es"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
+    "clean": "rimraf lib es"
+  },
+  "dependencies": {
+    "@monbolc/lowcode-types": "^2.0.0",
+    "@monbolc/lowcode-utils": "^2.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@base-ui-components/react": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "@base-ui-components/react": { "optional": true }
+  },
+  "devDependencies": {
+    "@base-ui-components/react": "^1.0.0-rc.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
+    "directory": "packages/plugin-setters"
+  },
+  "keywords": ["lowcode", "engine", "setter", "baseui"]
+}

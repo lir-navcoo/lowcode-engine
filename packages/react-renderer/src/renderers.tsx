@@ -44,13 +44,11 @@ function renderChildren(
   const out: unknown[] = [];
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
-    const rendered = renderNode(child, props);
+    // Pass `__idx_${i}` as a fallback key. renderNode prefers
+    // `schema.key` if present.
+    const rendered = renderNode(child, props, `__idx_${i}`);
     if (rendered !== null && rendered !== undefined && rendered !== false) {
-      // Attach a stable key. Falls back to the index if the schema has
-      // no key (which shouldn't happen for properly built docs, but we
-      // don't want a runtime error if it does).
-      const key = (rendered as { key?: string }).key ?? child.key ?? `__idx_${i}`;
-      out.push({ ...(rendered as object), key });
+      out.push(rendered);
     }
   }
   return out;
@@ -61,15 +59,24 @@ function renderChildren(
  * falling back to a generic placeholder if not found. The result is
  * a React element, or null if the node can't be rendered.
  *
+ * `fallbackKey` is used when `schema.key` is absent (e.g. for
+ * programmatically built schemas that didn't assign one). It must
+ * be stable across renders for the same node index.
+ *
  * Note: even for unknown components, we still recurse into children
  * so that the page is still navigable in the editor.
  */
-function renderNode(schema: IPublicTypeNodeSchema, props: IRendererProps): unknown {
+function renderNode(
+  schema: IPublicTypeNodeSchema,
+  props: IRendererProps,
+  fallbackKey?: string,
+): unknown {
   if (!isNodeSchema(schema)) return null;
   const Comp = resolveComponent(schema, props.components);
   const children = renderChildren(schema, props);
+  const key = schema.key ?? fallbackKey;
   if (typeof Comp === 'function') {
-    return h()(Comp, { ...(schema.props ?? {}), key: schema.key }, ...children);
+    return h()(Comp, { ...(schema.props ?? {}), key }, ...children);
   }
   // Unknown component — render a placeholder, but keep rendering
   // children below it so the page layout still works.
@@ -77,6 +84,7 @@ function renderNode(schema: IPublicTypeNodeSchema, props: IRendererProps): unkno
     'div',
     {
       'data-unknown-component': schema.componentName,
+      key,
       style: {
         padding: '4px 8px',
         border: '1px dashed #f59e0b',
