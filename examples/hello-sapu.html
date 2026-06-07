@@ -4,48 +4,47 @@
   <meta charset="UTF-8" />
   <title>Hello Sapu — SapuLowcodeEngine demo</title>
   <style>
+    html, body { margin: 0; height: 100%; }
     body {
-      margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #f8fafc;
       color: #0f172a;
     }
-    .container { max-width: 880px; margin: 40px auto; padding: 24px; }
-    h1 { font-size: 24px; margin: 0 0 4px; }
-    .tag { font-size: 12px; color: #64748b; margin-bottom: 24px; }
-    .toolbar { margin-bottom: 12px; }
-    button {
-      padding: 6px 12px;
-      border: 1px solid #cbd5e1;
+    .demo-shell { display: flex; flex-direction: column; height: 100vh; }
+    .demo-header {
+      padding: 8px 16px;
       background: white;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      margin-right: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
-    button:hover { background: #f1f5f9; }
-    .stage {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 16px;
-      min-height: 320px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    .demo-header h1 { font-size: 14px; margin: 0; }
+    .demo-header .tag { font-size: 11px; color: #64748b; }
+    .demo-header button {
+      padding: 4px 10px; border: 1px solid #cbd5e1; background: white;
+      border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 4px;
     }
-    .meta { font-size: 12px; color: #475569; margin-top: 12px; }
-    .node { padding: 6px 10px; border-radius: 4px; }
-    .header  { background: #dbeafe; }
-    .body    { background: #f1f5f9; }
-    .sidebar { background: #fef3c7; }
-    .main    { background: #dcfce7; }
-    .footer  { background: #fce7f3; }
+    .demo-header button:hover { background: #f1f5f9; }
+    .demo-skeleton { flex: 1; min-height: 0; }
+    .demo-skel-fallback {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; color: #94a3b8; font-style: italic; font-size: 12px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Hello Sapu</h1>
-    <div class="tag">SapuLowcodeEngine · L0–L3 in your browser</div>
-    <div id="root"></div>
+  <div class="demo-shell">
+    <div class="demo-header">
+      <h1>Hello Sapu</h1>
+      <span class="tag">SapuLowcodeEngine · L0–L4 · @monbolc</span>
+      <div style="flex:1"></div>
+      <button id="add-footer">Add Footer</button>
+      <button id="rename-page">Rename Page → App</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div id="skeleton" class="demo-skeleton"></div>
   </div>
 
   <script type="importmap">
@@ -55,31 +54,40 @@
       "react/jsx-runtime": "https://esm.sh/react@19.2.7/jsx-runtime",
       "react-dom": "https://esm.sh/react-dom@19.2.7",
       "react-dom/client": "https://esm.sh/react-dom@19.2.7/client",
+      "react-resizable-panels": "https://esm.sh/react-resizable-panels@2.1.9",
       "@monbolc/lowcode-types": "https://esm.sh/@monbolc/lowcode-types@2.0.1",
       "@monbolc/lowcode-utils": "https://esm.sh/@monbolc/lowcode-utils@2.0.2",
       "@monbolc/lowcode-renderer-core": "https://esm.sh/@monbolc/lowcode-renderer-core@2.0.0",
-      "@monbolc/lowcode-react-renderer": "https://esm.sh/@monbolc/lowcode-react-renderer@2.0.1"
+      "@monbolc/lowcode-react-renderer": "https://esm.sh/@monbolc/lowcode-react-renderer@2.0.1",
+      "@monbolc/lowcode-plugin-outline-pane": "https://esm.sh/@monbolc/lowcode-plugin-outline-pane@2.0.2",
+      "@monbolc/lowcode-designer": "https://esm.sh/@monbolc/lowcode-designer@2.0.2",
+      "@monbolc/lowcode-editor-skeleton": "https://esm.sh/@monbolc/lowcode-editor-skeleton@2.0.2"
     }
   }
   </script>
 
   <script type="module">
-    import React, { useState, useMemo, useEffect } from 'react';
+    import React, { useState } from 'react';
     import { createRoot } from 'react-dom/client';
-    import { setupReactRenderer, ReactRenderer } from '@monbolc/lowcode-react-renderer';
+    import { setupReactRenderer } from '@monbolc/lowcode-react-renderer';
+    import { Project } from '@monbolc/lowcode-designer';
+    import { Skeleton } from '@monbolc/lowcode-editor-skeleton';
+    import { OutlineView } from '@monbolc/lowcode-plugin-outline-pane';
 
-    // 1. Install React 19.2.7 runtime into the adapter.
+    // 1. Install React 19.2.7 runtime.
     setupReactRenderer();
 
-    // 2. Component registry — map component names to React components.
+    // 2. Component registry — these are what the canvas simulator renders.
     const components = {
-      Header:  (p) => React.createElement('div', { ...p, className: 'node header'  }, 'Header'),
-      Body:    (p) => React.createElement('div', { ...p, className: 'node body'    }, 'Body'),
-      Sidebar: (p) => React.createElement('div', { ...p, className: 'node sidebar' }, 'Sidebar'),
-      Main:    (p) => React.createElement('div', { ...p, className: 'node main'    }, 'Main'),
-      Footer:  (p) => React.createElement('div', { ...p, className: 'node footer'  }, 'Footer'),
+      Header:  (p) => React.createElement('header', { ...p, style: { ...p.style, padding: 12, background: '#dbeafe', borderRadius: 4, marginBottom: 8 } }, '🏠 Header'),
+      Body:    (p) => React.createElement('section', { ...p, style: { ...p.style, display: 'flex', gap: 8 } }, p.children),
+      Sidebar: (p) => React.createElement('aside', { ...p, style: { ...p.style, width: 200, padding: 12, background: '#fef3c7', borderRadius: 4 } }, '📚 Sidebar'),
+      Main:    (p) => React.createElement('main',   { ...p, style: { ...p.style, flex: 1, padding: 12, background: '#dcfce7', borderRadius: 4 } }, '📄 Main'),
+      Footer:  (p) => React.createElement('footer',  { ...p, style: { ...p.style, padding: 12, background: '#fce7f3', borderRadius: 4, marginTop: 8 } }, '🦶 Footer'),
     };
 
+    // 3. Initial schema. (Note: keys are assigned at runtime by the
+    // DocumentModel when none is provided.)
     const initialSchema = {
       fileName: 'home.json',
       componentName: 'Page',
@@ -92,50 +100,54 @@
       ],
     };
 
+    // 4. The demo React app. It owns the Project (the single source of
+    // truth) and re-mounts the Skeleton whenever the schema changes.
     function App() {
       const [schema, setSchema] = useState(initialSchema);
+      const [project] = useState(() => new Project(schema));
+      // Keep the project in sync with the React state.
+      // (A more idiomatic version would use Project events to drive
+      // the React state, but for a demo this is enough.)
+      project.load(schema);
 
-      const element = useMemo(
-        () => new ReactRenderer({ schema, components }).render(),
-        [schema],
-      );
+      const onAdd = () => {
+        setSchema((s) => ({
+          ...s,
+          children: [...s.children, { componentName: 'Footer', props: { className: 'footer' } }],
+        }));
+      };
+      const onRename = () => {
+        setSchema((s) => ({ ...s, componentName: 'App' }));
+      };
+      const onReset = () => {
+        setSchema({
+          fileName: 'home.json',
+          componentName: 'Page',
+          children: [
+            { componentName: 'Header', props: { className: 'header' } },
+            { componentName: 'Body', props: { className: 'body' }, children: [
+              { componentName: 'Sidebar', props: { className: 'sidebar' } },
+              { componentName: 'Main',    props: { className: 'main'    } },
+            ] },
+          ],
+        });
+      };
 
-      return React.createElement(
-        React.Fragment,
-        null,
-        React.createElement(
-          'div',
-          { className: 'toolbar' },
-          React.createElement(
-            'button',
-            { onClick: () => setSchema((s) => ({ ...s, children: [...s.children, { componentName: 'Footer', props: { className: 'footer' } }] })) },
-            'Add Footer',
-          ),
-          React.createElement(
-            'button',
-            { onClick: () => setSchema((s) => ({ ...s, componentName: 'App' })) },
-            'Rename Page → App',
-          ),
-          React.createElement(
-            'button',
-            { onClick: () => setSchema(initialSchema) },
-            'Reset',
-          ),
-        ),
-        React.createElement('div', { className: 'stage' }, element),
-        React.createElement(
-          'div',
-          { className: 'meta' },
-          'Editing ',
-          React.createElement('code', null, schema.componentName),
-          ' — top-level children: ',
-          schema.children.length,
-        ),
-      );
+      // Wire toolbar buttons via the global window (since they're outside
+      // the React tree).
+      window.__demo__ = { onAdd, onRename, onReset };
+
+      // Render the Skeleton — the real L4 component.
+      return React.createElement(Skeleton, { project, components });
     }
 
-    // 3. Mount.
-    createRoot(document.getElementById('root')).render(React.createElement(App));
+    // 5. Mount.
+    createRoot(document.getElementById('skeleton')).render(React.createElement(App));
+
+    // 6. Toolbar wiring (after App is mounted so __demo__ is set).
+    document.getElementById('add-footer').onclick = () => window.__demo__.onAdd();
+    document.getElementById('rename-page').onclick = () => window.__demo__.onRename();
+    document.getElementById('reset').onclick = () => window.__demo__.onReset();
   </script>
 </body>
 </html>
