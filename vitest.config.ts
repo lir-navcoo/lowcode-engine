@@ -32,6 +32,7 @@ export default defineConfig({
       '@monbolc/lowcode-designer': new URL('./packages/designer/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-editor-skeleton': new URL('./packages/editor-skeleton/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-workspace': new URL('./packages/workspace/src/index.ts', import.meta.url).pathname,
+      '@monbolc/lowcode-shell': new URL('./packages/shell/src/index.ts', import.meta.url).pathname,
     },
   },
 });

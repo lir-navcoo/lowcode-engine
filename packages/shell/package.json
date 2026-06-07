@@ -1,7 +1,7 @@
 {
   "name": "@monbolc/lowcode-shell",
-  "version": "2.1.3",
-  "description": "SapuLowcodeEngine shell — the host-facing facade (L6). Sapu stance: no proxies, no deprecation layer. Plugins get a plain object with the engine + workspace + project references. ~790 lines vs upstream 5,155 (~85% smaller).",
+  "version": "2.1.4",
+  "description": "SapuLowcodeEngine shell \u2014 the host-facing facade (L6). Sapu stance: no proxies, no deprecation layer. Plugins get a plain object with the engine + workspace + project references. ~790 lines vs upstream 5,155 (~85% smaller).",
   "license": "MIT",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -23,12 +23,12 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-designer": "^2.1.3",
-    "@monbolc/lowcode-editor-skeleton": "^2.1.3",
-    "@monbolc/lowcode-plugin-setters": "^2.1.3",
-    "@monbolc/lowcode-types": "^2.1.3",
-    "@monbolc/lowcode-utils": "^2.1.3",
-    "@monbolc/lowcode-workspace": "^2.1.3"
+    "@monbolc/lowcode-designer": "^2.1.4",
+    "@monbolc/lowcode-editor-skeleton": "^2.1.4",
+    "@monbolc/lowcode-plugin-setters": "^2.1.4",
+    "@monbolc/lowcode-types": "^2.1.4",
+    "@monbolc/lowcode-utils": "^2.1.4",
+    "@monbolc/lowcode-workspace": "^2.1.4"
   },
   "peerDependencies": {
     "react": "^19.2.0",

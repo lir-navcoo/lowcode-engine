@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-utils",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Pure utility functions and type guards for SapuLowcodeEngine (L1)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.1.3"
+    "@monbolc/lowcode-types": "^2.1.4"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",

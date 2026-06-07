@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-outline-pane",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Tree view of the page schema (outline pane) for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,10 +23,10 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-editor-core": "^2.1.3",
-    "@monbolc/lowcode-renderer-core": "^2.1.3",
-    "@monbolc/lowcode-types": "^2.1.3",
-    "@monbolc/lowcode-utils": "^2.1.3",
+    "@monbolc/lowcode-editor-core": "^2.1.4",
+    "@monbolc/lowcode-renderer-core": "^2.1.4",
+    "@monbolc/lowcode-types": "^2.1.4",
+    "@monbolc/lowcode-utils": "^2.1.4",
     "react-arborist": "^3.9.0"
   },
   "peerDependencies": {
