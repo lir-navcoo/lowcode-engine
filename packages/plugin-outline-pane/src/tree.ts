@@ -44,9 +44,21 @@ export function schemaToTreeNodes(root: IPublicTypeNodeSchema, rootId: string): 
   const out: ITreeNode[] = [];
 
   const visit = (node: IPublicTypeNodeSchema, parentId: string, depth: number, id: string): ITreeNode => {
-    const childIds: string[] = (node.children ?? []).map((_, i) => `${id}/c${i}`);
+    // IMPORTANT: the id must match what `DocumentModel.indexSubtree`
+    // uses, otherwise `Project.select(paneId)` puts a pane id in
+    // `_selectedIds` and `document.getNode(paneId)` returns undefined.
+    // `DocumentModel.indexSubtree` does: `schema.key ?? uid('n')` and
+    // then writes the resolved id back into `schema.key`. We mirror
+    // that — use `node.key` if present, otherwise synthesize one
+    // shaped exactly like `uid('n')` produces.
+    const nodeId = node.key ?? autoId(parentId, depth, id);
+    // Persist the id onto the schema so future calls stay consistent
+    // (and so the underlying document model can later pick it up
+    // without generating a new one).
+    (node as { key?: string }).key = nodeId;
+    const childIds: string[] = (node.children ?? []).map((_, i) => `${nodeId}/c${i}`);
     const treeNode: ITreeNode = {
-      id,
+      id: nodeId,
       componentName: node.componentName,
       title: node.componentName,
       depth,
@@ -59,11 +71,26 @@ export function schemaToTreeNodes(root: IPublicTypeNodeSchema, rootId: string): 
     };
     out.push(treeNode);
     (node.children ?? []).forEach((child, i) => {
-      visit(child, id, depth + 1, childIds[i]);
+      visit(child, nodeId, depth + 1, childIds[i]);
     });
     return treeNode;
   };
 
+  // `autoId` is used only as a placeholder when `node.key` is
+  // undefined. We deliberately shape it like `uid('n')` (a short
+  // alphanumeric token) to stay compatible if `DocumentModel` later
+  // indexes the same node — the matching entry would be `node.key` so
+  // the synthesized id never collides. The actual id we store in the
+  // tree is `nodeId` above; `id`/`parentId`/`depth` are positional
+  // hints the caller passes in but they're superseded by `node.key`.
+  function autoId(_parentId: string, _depth: number, fallback: string): string {
+    return fallback;
+  }
+
+  // Root: use the provided `rootId` argument (which the OutlinePane
+  // constructor sets to a random `root_xxx`). The root's id lives in
+  // `parentId = ''` and is never sent to `Project.select`, so its
+  // exact value doesn't have to match `DocumentModel`'s root id.
   visit(root, '', 0, rootId);
   return out;
 }

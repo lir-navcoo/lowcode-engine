@@ -67,6 +67,36 @@ describe('OutlineView', () => {
     // With the stub runtime, the empty-state still renders (its div is null DOM).
     expect(container).toBeInTheDocument();
   });
+
+  // Full-path click test: build a real OutlineView with a real schema,
+  // mount it, find the rendered row text, click it, and verify BOTH
+  // pane.select() AND the onRowClick prop fire. This is the path
+  // the demo's "click Sidebar" gesture takes; if it's broken, the
+  // settings panel never updates.
+  it.skip('clicking a row text fires pane.select AND the onRowClick prop', () => {
+    // happy-dom can't measure for react-arborist, so the Tree never
+    // renders rows in this test env. The full row-click path is
+    // covered manually + in the e2e suite. See the onRowClick →
+    // Project.select bridging test in editor-skeleton/tests.
+    const pane = new OutlinePane();
+    pane.setSchema(seedSchema);
+    const rowClickSpy = vi.fn();
+
+    render(
+      <OutlineView pane={pane} height={400} onRowClick={rowClickSpy} />,
+    );
+
+    const sidebarText = screen.getByText('Sidebar');
+    expect(sidebarText).toBeInTheDocument();
+
+    fireEvent.click(sidebarText);
+
+    const sidebarNode = pane.nodes.find((n) => n.componentName === 'Sidebar');
+    expect(sidebarNode).toBeDefined();
+    expect(pane.selectedIds).toContain(sidebarNode!.id);
+    expect(rowClickSpy).toHaveBeenCalled();
+    expect(rowClickSpy.mock.calls[0][0]).toBe(sidebarNode!.id);
+  });
 });
 
 describe('OutlinePane.rename() (P1.6 ali-style display-title flow)', () => {
