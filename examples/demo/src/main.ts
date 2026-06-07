@@ -172,17 +172,20 @@ function App() {
   // clicking a node in one outline does NOT affect the other.
   //
   // Toggle: button label flips between "Open second doc" and
-  // "Close second doc". On open we mount a fresh <Skeleton>; on
-  // close we unmount it cleanly (deferred microtask, like the
-  // Skeleton's own simulator teardown) and dispose the L5
-  // workspace.
+  // "Close second doc". On open we APPEND a fresh host div to the
+  // row container (so the first Skeleton doesn't lose its
+  // full-width state) and mount a fresh <Skeleton>; on close we
+  // unmount it cleanly (deferred microtask, like the Skeleton's
+  // own simulator teardown), dispose the L5 workspace, and REMOVE
+  // the host div so the first Skeleton expands to full width.
   const [secondRoot, setSecondRoot] = useState<Root | null>(null);
   const [secondWs, setSecondWs] = useState<Workspace | null>(null);
   const [secondActive, setSecondActive] = useState(false);
   const onToggleSecond = () => {
     if (secondActive) {
-      // CLOSE: unmount the second <Skeleton> and dispose the L5
-      // workspace. Both are safe to call multiple times.
+      // CLOSE: unmount the second <Skeleton>, dispose the L5
+      // workspace, then REMOVE the host div so the first Skeleton
+      // reclaims the full row width.
       if (secondRoot) {
         // queueMicrotask matches the pattern in editor-skeleton
         // (simulator root cleanup) — React 19 rejects synchronous
@@ -190,17 +193,22 @@ function App() {
         queueMicrotask(() => secondRoot.unmount());
       }
       secondWs?.dispose();
+      const host = document.getElementById('skeleton-2');
+      if (host) host.remove();
       setSecondRoot(null);
       setSecondWs(null);
       setSecondActive(false);
-      // Clear the host div so a re-open starts from a clean slate.
-      const host = document.getElementById('skeleton-2');
-      if (host) host.innerHTML = '';
     } else {
-      // OPEN: construct a fresh Project + Resource + Workspace,
-      // mount a new <Skeleton> in the host div.
-      const host = document.getElementById('skeleton-2');
-      if (!host) return;
+      // OPEN: construct a fresh host div, append to the row
+      // container (so it's a sibling of #skeleton), then mount a
+      // fresh <Skeleton> in it.
+      const row = document.getElementById('skeleton-row');
+      if (!row) return;
+      const host = document.createElement('div');
+      host.id = 'skeleton-2';
+      host.className = 'demo-skeleton';
+      host.style.cssText = 'flex:1; min-width:0; border-left:1px solid #e2e8f0;';
+      row.appendChild(host);
       const schema: IPublicTypeRootSchema = {
         fileName: 'second.json',
         componentName: 'Page',
