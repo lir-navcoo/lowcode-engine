@@ -27,5 +27,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@base-ui-components/react": "^1.0.0-rc.0",
+    "react-arborist": "^3.9.0"
   }
 }
