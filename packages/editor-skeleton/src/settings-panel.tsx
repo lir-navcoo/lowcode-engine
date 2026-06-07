@@ -35,7 +35,7 @@ function parseValue(s: string): JSONValue {
   if (s === 'true') return true;
   if (s === 'false') return false;
   if (s !== '' && !Number.isNaN(Number(s))) return Number(s);
-  if (s.startsWith('{') || s.startsWith('[')) {
+  if (s.startsWith('{') || s.startsWith('[') || s.startsWith('"')) {
     try { return JSON.parse(s); } catch { /* fall through */ }
   }
   return s;
