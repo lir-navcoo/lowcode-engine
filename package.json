@@ -12,18 +12,27 @@
     "build": "lerna run build --stream",
     "clean": "rimraf ./packages/*/lib ./packages/*/es ./packages/*/dist",
     "lint": "eslint packages/*/src",
-    "test": "lerna run test --stream",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit && for p in packages/*/tsconfig.json; do tsc -p \"$p\" --noEmit; done",
     "pub:patch": "lerna publish patch --yes --force-publish --no-changelog",
     "pub:minor": "lerna publish minor --yes --force-publish --no-changelog",
     "pub:major": "lerna publish major --yes --force-publish --no-changelog"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
+    "happy-dom": "^15.0.0",
     "lerna": "^8.1.0",
     "rimraf": "^5.0.5",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=20.0.0"

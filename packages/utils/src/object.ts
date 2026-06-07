@@ -25,13 +25,13 @@ export function isNil(value: unknown): value is Nil {
 
 /**
  * Deep clone. Handles plain objects, arrays, primitives, Date, RegExp, Map, Set.
- * Falls back to structuredClone when available (Node 17+, modern browsers).
+ * Class instances are passed through unchanged (cloning them is usually wrong).
+ * Note: we deliberately do NOT use `structuredClone` because it would also
+ * clone class instances into shape-equivalent objects, which is rarely
+ * what callers want.
  */
 export function deepClone<T>(value: T): T {
   if (value === null || typeof value !== 'object') return value;
-  if (typeof structuredClone === 'function') {
-    return structuredClone(value);
-  }
   if (value instanceof Date) return new Date(value.getTime()) as unknown as T;
   if (value instanceof RegExp) {
     return new RegExp(value.source, value.flags) as unknown as T;
@@ -56,7 +56,7 @@ export function deepClone<T>(value: T): T {
     }
     return out as T;
   }
-  // Class instances: return as-is (cloning them is usually wrong)
+  // Class instance or anything else: pass through unchanged.
   return value;
 }
 

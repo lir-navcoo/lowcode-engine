@@ -89,10 +89,12 @@ export class ConsoleLogger implements Logger {
     const tag = this.prefix ? `[${this.prefix}]` : '';
     const text = `${tag} ${msg}`.trim();
     const fn = console[LEVEL_METHOD[level] as 'debug'] ?? console.log;
+    // Always pass `fields` as the second arg (undefined if not set) so
+    // consumers can rely on a stable two-arg signature.
     if (fields && Object.keys(fields).length > 0) {
       (fn as (msg: string, ...args: unknown[]) => void)(text, fields);
     } else {
-      (fn as (msg: string) => void)(text);
+      (fn as (msg: string, ...args: unknown[]) => void)(text, undefined);
     }
   }
 }

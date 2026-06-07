@@ -16,7 +16,13 @@ import { Emitter } from '@monbolc/lowcode-utils';
 import type { ITreeNode } from './tree';
 import type { IOutlinePane } from './api';
 
-const h = adapter.getRuntime().createElement;
+/**
+ * Resolver for the framework's `createElement`. Read fresh on every
+ * render so consumers can install the runtime AFTER the module has
+ * already been loaded (important for testing).
+ */
+const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
+  adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
 
 export interface OutlineViewProps {
   pane: IOutlinePane;
@@ -67,7 +73,7 @@ function usePaneRevision(pane: IOutlinePane): number {
 const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
   const indent = node.depth * 16;
   const arrow = node.canHaveChildren
-    ? h('span', {
+    ? h()('span', {
         onClick: (e: { stopPropagation: () => void }) => {
           e.stopPropagation();
           helpers.toggle();
@@ -81,8 +87,8 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
           transition: 'transform 120ms',
         },
       }, '▶')
-    : h('span', { style: { display: 'inline-block', width: 12 } }, '');
-  return h('div', {
+    : h()('span', { style: { display: 'inline-block', width: 12 } }, '');
+  return h()('div', {
     onClick: (e: { metaKey: boolean; shiftKey: boolean; stopPropagation: () => void }) => {
       e.stopPropagation();
       helpers.select({ meta: e.metaKey, shift: e.shiftKey });
@@ -100,8 +106,8 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
     },
   }, [
     arrow,
-    h('span', { style: { color: '#475569' } }, node.title),
-    h('span', {
+    h()('span', { style: { color: '#475569' } }, node.title),
+    h()('span', {
       style: {
         marginLeft: 'auto',
         fontSize: 10,
@@ -118,7 +124,7 @@ export function OutlineView(props: OutlineViewProps) {
   const data = props.pane.nodes;
 
   if (data.length === 0) {
-    return h('div', {
+    return h()('div', {
       style: {
         padding: 16,
         color: '#94a3b8',
@@ -128,7 +134,7 @@ export function OutlineView(props: OutlineViewProps) {
     }, 'No schema loaded');
   }
 
-  return h(Tree, {
+  return h()(Tree, {
     data,
     idAccessor: (n: ITreeNode) => n.id,
     openByDefault: false,

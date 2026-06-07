@@ -40,25 +40,40 @@ export function getByPath(obj: unknown, path: string, defaultValue?: unknown): u
 }
 
 /**
- * Set a value at the given dotted path, creating intermediate objects as needed.
- * Returns the (mutated) input object.
+ * Set a value at the given dotted path, creating intermediate objects
+ * (or arrays, when the next segment is numeric) as needed. Returns the
+ * (mutated) input object.
+ *
+ *   setByPath({}, 'a.b.c', 1)         // { a: { b: { c: 1 } } }
+ *   setByPath({}, 'arr[0].x', 9)      // { arr: [{ x: 9 }] }
  */
 export function setByPath<T extends object>(obj: T, path: string, value: unknown): T {
   const segments = parsePath(path);
   if (segments.length === 0) return obj;
+
+  // Walk all but the last segment, descending or creating containers.
   let current: Record<string, unknown> = obj as Record<string, unknown>;
   for (let i = 0; i < segments.length - 1; i++) {
     const seg = segments[i];
     const next = current[seg];
-    if (isPlainObject(next)) {
-      current = next;
+    if (isPlainObject(next) || Array.isArray(next)) {
+      current = next as Record<string, unknown>;
     } else {
-      const created: Record<string, unknown> = {};
+      // Create a new container. Use an array if the *next* segment is numeric.
+      const nextSegIsNumeric = /^\d+$/.test(segments[i + 1]);
+      const created: Record<string, unknown> = nextSegIsNumeric ? [] : {};
       current[seg] = created;
       current = created;
     }
   }
-  current[segments[segments.length - 1]] = value;
+
+  // Set the leaf.
+  const last = segments[segments.length - 1];
+  if (/^\d+$/.test(last) && Array.isArray(current)) {
+    (current as unknown as unknown[])[Number(last)] = value;
+  } else {
+    current[last] = value;
+  }
   return obj;
 }
 
