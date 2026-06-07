@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-outline-pane",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "Tree view of the page schema (outline pane) for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -13,17 +13,20 @@
       "require": "./lib/index.js"
     }
   },
-  "files": ["lib", "es"],
+  "files": [
+    "lib",
+    "es"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.0.0",
-    "@monbolc/lowcode-utils": "^2.0.0",
-    "@monbolc/lowcode-editor-core": "^2.0.0",
-    "@monbolc/lowcode-renderer-core": "^2.0.0",
+    "@monbolc/lowcode-editor-core": "^2.1.0",
+    "@monbolc/lowcode-renderer-core": "^2.1.0",
+    "@monbolc/lowcode-types": "^2.1.0",
+    "@monbolc/lowcode-utils": "^2.1.0",
     "react-arborist": "^3.9.0"
   },
   "peerDependencies": {
@@ -31,8 +34,12 @@
     "react-dom": "^19.2.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
@@ -51,5 +58,11 @@
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
     "directory": "packages/plugin-outline-pane"
   },
-  "keywords": ["lowcode", "engine", "outline", "tree", "react"]
+  "keywords": [
+    "lowcode",
+    "engine",
+    "outline",
+    "tree",
+    "react"
+  ]
 }

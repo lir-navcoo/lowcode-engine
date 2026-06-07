@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-editor-core",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Core API: DI container + i18n + plugin registry for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -13,16 +13,19 @@
       "require": "./lib/index.js"
     }
   },
-  "files": ["lib", "es"],
+  "files": [
+    "lib",
+    "es"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.0.0",
-    "@monbolc/lowcode-utils": "^2.0.0",
-    "@monbolc/lowcode-plugin-command": "^2.0.0"
+    "@monbolc/lowcode-plugin-command": "^2.1.0",
+    "@monbolc/lowcode-types": "^2.1.0",
+    "@monbolc/lowcode-utils": "^2.1.0"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",
@@ -37,5 +40,12 @@
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
     "directory": "packages/editor-core"
   },
-  "keywords": ["lowcode", "engine", "editor", "di", "i18n", "plugin"]
+  "keywords": [
+    "lowcode",
+    "engine",
+    "editor",
+    "di",
+    "i18n",
+    "plugin"
+  ]
 }

@@ -13,7 +13,10 @@
       "require": "./lib/index.js"
     }
   },
-  "files": ["lib", "es"],
+  "files": [
+    "lib",
+    "es"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
@@ -24,14 +27,20 @@
     "@monbolc/lowcode-utils": "^2.0.0"
   },
   "peerDependencies": {
+    "@base-ui-components/react": "^1.0.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "@base-ui-components/react": "^1.0.0"
+    "react-dom": "^19.2.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true },
-    "@base-ui-components/react": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@base-ui-components/react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
@@ -51,5 +60,10 @@
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
     "directory": "packages/plugin-setters"
   },
-  "keywords": ["lowcode", "engine", "setter", "baseui"]
+  "keywords": [
+    "lowcode",
+    "engine",
+    "setter",
+    "baseui"
+  ]
 }
