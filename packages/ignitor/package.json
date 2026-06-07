@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-ignitor",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "SapuLowcodeEngine bootstrap dev entry (L0)",
   "license": "MIT",
   "main": "lib/index.js",

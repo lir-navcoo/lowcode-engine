@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-designer",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Document model, Project state, Dragon, Simulator for SapuLowcodeEngine (L3)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,11 +23,11 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-editor-core": "^2.1.0",
-    "@monbolc/lowcode-react-renderer": "^2.1.0",
-    "@monbolc/lowcode-renderer-core": "^2.1.0",
-    "@monbolc/lowcode-types": "^2.1.0",
-    "@monbolc/lowcode-utils": "^2.1.0"
+    "@monbolc/lowcode-editor-core": "^2.1.1",
+    "@monbolc/lowcode-react-renderer": "^2.1.1",
+    "@monbolc/lowcode-renderer-core": "^2.1.1",
+    "@monbolc/lowcode-types": "^2.1.1",
+    "@monbolc/lowcode-utils": "^2.1.1"
   },
   "peerDependencies": {
     "react": "^19.2.0",
