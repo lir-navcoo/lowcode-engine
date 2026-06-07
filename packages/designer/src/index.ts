@@ -6,6 +6,7 @@
  *   - Node: ergonomic wrapper around a single schema node
  *   - Project: top-level container (document + selection + dragon)
  *   - Dragon: drag state machine
+ *   - Simulator: preview wrapper around the schema
  *   - DOM utilities: rect math, id tagging, hit testing
  */
 
@@ -19,6 +20,9 @@ export type { ProjectEvents } from './project';
 
 export { Dragon } from './dragon';
 export type { DragonEvents, DragonState } from './dragon';
+
+export { Simulator } from './simulator';
+export type { SimulatorOptions } from './simulator';
 
 export {
   getRect,

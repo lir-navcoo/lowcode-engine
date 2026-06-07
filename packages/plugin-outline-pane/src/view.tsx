@@ -122,6 +122,12 @@ export function OutlineView(props: OutlineViewProps) {
   usePaneRevision(props.pane);
 
   const data = props.pane.nodes;
+  const renderRow = props.renderRow ?? defaultRenderRow;
+  const onRowClick = props.onRowClick;
+  // Capture pane + renderRow in a closure so the row children function
+  // can use them. (react-arborist does not forward rowProps to the
+  // children function, so we need this approach.)
+  const paneRef = props.pane;
 
   if (data.length === 0) {
     return h()('div', {
@@ -142,17 +148,9 @@ export function OutlineView(props: OutlineViewProps) {
     height: props.height,
     indent: 16,
     rowHeight: 24,
-    rowProps: ({ node }: { node: { data: ITreeNode } }) => ({
-      node: node.data,
-      pane: props.pane,
-      renderRow: props.renderRow ?? defaultRenderRow,
-      onRowClick: props.onRowClick,
-    }),
-  }, ({ node, ...rest }: { node: { data: ITreeNode }; [k: string]: unknown }) => {
+  }, ({ node }: { node: { data: ITreeNode } }) => {
     const rowNode: ITreeNode = node.data;
-    const extras = rest as { pane: IOutlinePane; renderRow: typeof defaultRenderRow };
-    const pane: IOutlinePane = extras.pane;
-    const renderRow = extras.renderRow;
+    const pane: IOutlinePane = paneRef;
     const helpers: RowHelpers = {
       isSelected: pane.isSelected(rowNode.id),
       isExpanded: pane.isExpanded(rowNode.id),
@@ -171,6 +169,7 @@ export function OutlineView(props: OutlineViewProps) {
           }
         }
         pane.select([rowNode.id]);
+        if (onRowClick) onRowClick(rowNode.id, { meta: modifiers.meta, shift: modifiers.shift });
       },
     };
     return renderRow(rowNode, helpers);

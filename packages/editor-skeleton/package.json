@@ -1,7 +1,7 @@
 {
-  "name": "@monbolc/lowcode-plugin-outline-pane",
-  "version": "2.0.2",
-  "description": "Tree view of the page schema (outline pane) for SapuLowcodeEngine (L2)",
+  "name": "@monbolc/lowcode-editor-skeleton",
+  "version": "2.0.0",
+  "description": "3-pane editor layout (outline / canvas / settings) for SapuLowcodeEngine (L4)",
   "license": "MIT",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -21,10 +21,11 @@
   },
   "dependencies": {
     "@monbolc/lowcode-types": "^2.0.0",
-    "@monbolc/lowcode-utils": "^2.0.0",
-    "@monbolc/lowcode-editor-core": "^2.0.0",
+    "@monbolc/lowcode-utils": "^2.0.2",
     "@monbolc/lowcode-renderer-core": "^2.0.0",
-    "react-arborist": "^3.9.0"
+    "@monbolc/lowcode-react-renderer": "^2.0.1",
+    "@monbolc/lowcode-designer": "^2.0.0",
+    "@monbolc/lowcode-plugin-outline-pane": "^2.0.1"
   },
   "peerDependencies": {
     "react": "^19.2.0",
@@ -49,7 +50,7 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
-    "directory": "packages/plugin-outline-pane"
+    "directory": "packages/editor-skeleton"
   },
-  "keywords": ["lowcode", "engine", "outline", "tree", "react"]
+  "keywords": ["lowcode", "engine", "editor", "skeleton", "ui"]
 }
