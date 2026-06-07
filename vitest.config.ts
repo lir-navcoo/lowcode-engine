@@ -23,6 +23,7 @@ export default defineConfig({
       // built lib/es), so the source under test sees the latest code.
       '@monbolc/lowcode-types': new URL('./packages/types/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-utils': new URL('./packages/utils/src/index.ts', import.meta.url).pathname,
+      '@monbolc/lowcode-ignitor': new URL('./packages/ignitor/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-plugin-command': new URL('./packages/plugin-command/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-editor-core': new URL('./packages/editor-core/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-renderer-core': new URL('./packages/renderer-core/src/index.ts', import.meta.url).pathname,
