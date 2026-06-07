@@ -35,6 +35,20 @@ import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 setupReactRenderer();
 
 // ---------------------------------------------------------------------------
+// 1a. `hexToCss` — normalize a hex color string into a CSS `background`
+//     value. Accepts `0xfff3c7` (HexColor setter output) or `#fff3c7`
+//     (plain CSS) and returns the CSS form. Returns `undefined` for
+//     empty / non-string input so callers can `?? fallback`.
+// ---------------------------------------------------------------------------
+function hexToCss(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  if (raw.startsWith('0x') || raw.startsWith('0X')) {
+    return `#${raw.slice(2)}`;
+  }
+  return raw;
+}
+
+// ---------------------------------------------------------------------------
 // 2. Custom setter — `HexColor`.
 //    Setters are pure data: return a `SetterDescriptor` (string-typed vdom).
 //    The L4 panel resolves `'Input'` to BaseUI.Input and renders it.
@@ -67,7 +81,12 @@ const HexColor: SetterComponent = ({ value, onChange }: SetterProps) => {
 const components: Record<string, React.FC<any>> = {
   Header:  (p) => React.createElement('header',  { ...p, style: { ...p.style, padding: 12, background: '#dbeafe', borderRadius: 4, marginBottom: 8 } }, '🏠 Header'),
   Body:    (p) => React.createElement('section', { ...p, style: { ...p.style, display: 'flex', gap: 8 } }, p.children),
-  Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: p.bg ?? '#fef3c7', borderRadius: 4 } }, '📚 Sidebar'),
+  // `p.bg` may arrive in either CSS-hex form (`#fff3c7`) or
+  // 0x-prefixed form (`0xfff3c7`, the HexColor setter's output).
+  // CSS only understands the first; the converter preserves the
+  // 0x format the setter produces so the canvas + the value
+  // shown in the setter stay in sync.
+  Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: hexToCss(p.bg) ?? '#fef3c7', borderRadius: 4 } }, '📚 Sidebar'),
   Main:    (p) => React.createElement('main',    { ...p, style: { ...p.style, flex: 1, padding: 12, background: '#dcfce7', borderRadius: 4 } }, '📄 Main'),
   Footer:  (p) => React.createElement('footer',  { ...p, style: { ...p.style, padding: 12, background: '#fce7f3', borderRadius: 4, marginTop: 8 } }, '🦶 Footer'),
 };
