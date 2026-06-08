@@ -90,8 +90,9 @@ jobs:
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             echo "===== DRY RUN — lerna publish NOT invoked ====="
             echo ""
-            echo "--- npm auth ---"
-            npm whoami
+            echo "--- npm auth (via /-/whoami, same env var lerna uses) ---"
+            curl -sS -H "Authorization: Bearer $NODE_AUTH_TOKEN" https://registry.npmjs.org/-/whoami
+            echo ""
             echo ""
             echo "--- local lerna packages ---"
             npx lerna list --json --no-private
