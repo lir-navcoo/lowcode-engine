@@ -1,8 +1,12 @@
 # Roadmap
 
-> Last refreshed: 2026-06-08. Update this file whenever a task is completed, blocked, or a new direction is decided.
+> Last refreshed: 2026-06-09. Update this file whenever a task is completed, blocked, or a new direction is decided.
+> Post-v2.4 follow-ups (P11–P19) are documented in
+> `memory/sapu-lowcode-engine-status.md` — this file
+> focuses on the L0–L7 package state and the original
+> P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 400 tests passing
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 481 unit + 11 e2e tests passing
 
 14 packages published to `@monbolc`:
 
@@ -20,12 +24,13 @@
 | L3 | `@monbolc/lowcode-designer` | 2.2.0 | ✅ shipped |
 | L4 | `@monbolc/lowcode-editor-skeleton` | 2.2.0 | ✅ shipped (BaseUI + Tailwind v4, 4 widgets) |
 | L5 | `@monbolc/lowcode-workspace` | 2.2.0 | ✅ shipped (24 tests, ~280 lines) |
-| L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (21 tests, ~530 lines) |
-| **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (18 tests, ~310 lines — init + default-preset + theme)** |
+| L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
+| **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 400 tests + 1 skip / 42 files, all passing in ~2.6s.
+`yarn test` ✅ 481 unit tests + 1 skip / 45 files, all passing in ~2.7s.
+`yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
-`yarn typecheck` ✅ 0 errors across all 13 packages + demo.
+`yarn typecheck` ✅ 0 errors across all 14 packages + demo.
 
 `examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof + "Inject crash" button for L6.7 error pipeline proof.
 
