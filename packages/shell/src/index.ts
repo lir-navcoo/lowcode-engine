@@ -27,6 +27,8 @@ export { EngineEventBus } from './events';
 export { SapuEngine } from './sapu-engine';
 export type { ISapuEngine, MountOptions } from './sapu-engine';
 
+export { PublicDragon } from './dragon';
+
 export { ShellI18n } from './i18n';
 export type { I18nMessage, I18nDictionary, SupportedLocale } from './i18n';
 export { defaultMessages, defaultLocale, registerDefaultMessages } from './locale';

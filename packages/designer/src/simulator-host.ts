@@ -2,56 +2,77 @@
  * @monbolc/lowcode-designer — BuiltinSimulatorHost
  *
  * Wires the canvas DOM to the Dragon state machine. Listens for
- * `pointermove` / `pointerup` (and `pointerleave` to cancel), feeds
+ * `pointerdown` / `pointermove` / `pointerup` on the canvas, feeds
  * the Dragon the current pointer + computed drop target, and on a
- * successful commit:
+ * successful commit dispatches the right `DocumentModel` mutation
+ * (insert for boost, move for move-mode).
  *
- *   - if the drag was a `boost` (palette → canvas), create a new
- *     schema node from the BoostMeta at the drop target.
- *   - if the drag was a `move` (existing node), call
- *     `DocumentModel.move(node, newParent, newIndex)`.
+ * **v2.3 changes** (from the slim v2.2 version):
+ *   - `computeDropTarget` now delegates to `computeInsertLocation`
+ *     (the three-mode algorithm: point-in-rect / nearest / edge-snap
+ *     + inline/row axis detection). Ali-faithful.
+ *   - `handleDown` skips `pointerdown` on form-event targets
+ *     (`<input>`, `<textarea>`, `<select>`) and on any element
+ *     matching `customizeIgnoreSelectors` (defaults to `.next-*`,
+ *     `.editor-container`).
+ *   - `registerAsSensor(dragon)` wires the host into the new
+ *     instrumented Dragon API as a `IPublicTypeSensor<Node>`. The
+ *     old manual API (start/move/commit) still works for back-compat.
+ *   - Owns a `Viewport` (bounds math) + a `Scroller` (auto-scroll
+ *     when the pointer is near the canvas edge).
  *
- * The drop target is computed from a `hitTest` of the element under
- * the pointer:
- *   - upper third of the hit element → 'before'
- *   - middle third               → 'inside'
- *   - lower third                → 'after'
- *
- * If nothing is hit, the target is the root (parentId = null, index =
- * end of root's children). This makes the canvas itself a valid drop
- * zone for empty pages.
- *
- * Note: this is a minimal L3/L4 implementation. Ali's upstream has
- * ancestor-walk `handleAccept` (nesting whitelist) and
- * `drillDownExcludes`; those are deferred to a follow-up. For now
- * any node can be dropped into any other.
+ * The drop-target math lives in `./locate.ts`; this file is
+ * glue + DOM listeners + the insert / move side effects.
  */
 
-import { Project } from './project';
-import type { DropTarget } from './dragon';
-import { getHitInfo, hitTest } from './dom';
-import type { IPublicTypeNodeSchema, JSONValue } from '@monbolc/lowcode-types';
+import type { Project } from './project';
+import type { DropTarget, Dragon } from './dragon';
+import { getHitInfo } from './dom';
+import { computeInsertLocation, type LocateChild } from './locate';
+import { Viewport } from './viewport';
+import { Scroller } from './scroller';
+import type {
+  IPublicTypeBoostMeta,
+  IPublicTypeDragObject,
+  IPublicTypeLocateEvent,
+  IPublicTypeLocation,
+  IPublicTypeNodeLike,
+  IPublicTypeSensor,
+  IPublicTypeNodeSchema,
+  JSONValue,
+} from '@monbolc/lowcode-types';
 
 export interface SimulatorHostOptions {
   /** The canvas container — same element the simulator renders into. */
   canvas: HTMLElement;
   /** Drop event hook. Called once per successful commit. */
-  onDrop?: (info: { kind: 'move' | 'boost'; target: DropTarget; meta?: { componentName: string; initialProps?: Record<string, unknown> }; nodeId?: string }) => void;
+  onDrop?: (info: { kind: 'move' | 'boost'; target: DropTarget; meta?: IPublicTypeBoostMeta; nodeId?: string }) => void;
   /**
    * If true, ignore drops that would target the same parent+index
    * the dragged node is already at. Default true — avoids the
    * "drag a node where it already is" footgun.
    */
   noOpOnSameSpot?: boolean;
+  /**
+   * CSS selectors to ignore on click (don't select the node when
+   * the user clicks an element matching one of these). Ali's
+   * defaults: `.next-*`, `.editor-container`. Sapu keeps the same
+   * defaults so plugins written for ali work out of the box.
+   */
+  customizeIgnoreSelectors?: string[];
 }
 
-/**
- * Pointer-move distance (in CSS px) above which a canvas
- * `pointerdown` is treated as the start of a drag (move mode) rather
- * than a click that selects the node. 4px matches the browser's
- * default click-vs-drag heuristic closely enough; anything smaller
- * trips on natural hand jitter.
- */
+/** Tags that should NOT trigger a node selection on pointerdown.
+ *  These are form controls whose native UX is independent of the
+ *  design surface. */
+const FORM_EVENT_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON']);
+
+const DEFAULT_IGNORE_SELECTORS = ['.next-*', '.editor-container'];
+
+/** Pointer-move distance (in CSS px) above which a canvas
+ *  `pointerdown` is treated as the start of a drag (move mode) rather
+ *  than a click that selects the node. 4px matches the Dragon's
+ *  shake gate (same value, different layer). */
 const DRAG_START_THRESHOLD = 4;
 
 export class BuiltinSimulatorHost {
@@ -59,23 +80,26 @@ export class BuiltinSimulatorHost {
   private readonly project: Project;
   private readonly onDrop?: SimulatorHostOptions['onDrop'];
   private readonly noOpOnSameSpot: boolean;
+  private readonly ignoreSelectors: string[];
   private bound = false;
+  // DOM listeners
+  private readonly onDown = (e: PointerEvent) => this.handleDown(e);
   private readonly onMove = (e: PointerEvent) => this.handleMove(e);
   private readonly onUp = (e: PointerEvent) => this.handleUp(e);
-  private readonly onCancel = () => this.handleCancel();
-  // Click-vs-drag tracking for the pointerdown that initiated the
-  // last interaction. We capture (id, x, y) at pointerdown; if the
-  // pointer hasn't moved past the threshold by pointerup we treat
-  // it as a click (selection only). If it has, we promote to a
-  // `dragon.start(...)` so the move path picks it up.
+  // Click-vs-drag tracking
   private pendingClick: { id: string; x: number; y: number } | null = null;
-  private readonly onDown = (e: PointerEvent) => this.handleDown(e);
+  // Viewport + scroller (new in v2.3)
+  readonly viewport: Viewport;
+  private readonly scroller: Scroller;
 
   constructor(project: Project, options: SimulatorHostOptions) {
     this.project = project;
     this.canvas = options.canvas;
     this.onDrop = options.onDrop;
     this.noOpOnSameSpot = options.noOpOnSameSpot ?? true;
+    this.ignoreSelectors = options.customizeIgnoreSelectors ?? DEFAULT_IGNORE_SELECTORS;
+    this.viewport = new Viewport({ canvas: options.canvas });
+    this.scroller = new Scroller({ viewport: this.viewport });
   }
 
   /** Attach DOM listeners. Idempotent. */
@@ -87,10 +111,6 @@ export class BuiltinSimulatorHost {
     // Use window-level pointerup so a drop outside the canvas still
     // commits (the ghost might have drifted out).
     window.addEventListener('pointerup', this.onUp);
-    // Escape cancels. Bound to window so it works regardless of focus.
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.handleCancel();
-    });
   }
 
   /** Detach DOM listeners. Call on editor unmount. */
@@ -101,27 +121,38 @@ export class BuiltinSimulatorHost {
     this.canvas.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
     this.pendingClick = null;
+    this.scroller.cancel();
   }
+
+  // ==========================================================================
+  // Drop target computation
+  // ==========================================================================
 
   /**
    * Compute a DropTarget for the given pointer position. Exposed
    * publicly so the canvas can preview the drop indicator on each
    * move. Pure — no Dragon interaction.
    *
-   * Algorithm:
-   *   1. `hitTest` to find the deepest rendered element with
-   *      `data-lce-id` under the pointer.
-   *   2. Walk up the element tree until we find a node that's
-   *      NOT a leaf container (so we have somewhere to drop
-   *      'before' / 'after' / 'inside').
-   *   3. Use vertical thirds of the hit element to pick
-   *      before/after/inside.
-   *   4. If nothing is hit, target root at end-of-children.
+   * v2.3 algorithm: **thirds decide parent vs inside** at the
+   * top level; **`computeInsertLocation` decides the index** only
+   * for the inside case. Why this split?
+   *
+   *   - For the sibling (before/after) decision, the pointer is
+   *     necessarily INSIDE the hit's rect — so feeding
+   *     `computeInsertLocation` the hit's own children
+   *     short-circuits to "Self on hit" and we lose the
+   *     before/after info.
+   *   - The "thirds on the hit's rect" heuristic (top → before,
+   *     middle → inside, bottom → after) is the conventional
+   *     designer UX and matches ali's `IPublicTypeLocation`
+   *     detail semantics.
+   *   - For the index inside the container we DO want the
+   *     full three-mode algorithm (point-in-rect, nearest,
+   *     edge-snap, plus inline/row axis) — that's where
+   *     `computeInsertLocation` earns its keep.
    */
   computeDropTarget(x: number, y: number): DropTarget | null {
     const root = this.project.document.root;
-    const rootId = root.key as string | undefined;
-
     const hit = getHitInfo(this.canvas, x, y);
     if (!hit.hitId) {
       // Empty canvas → append to root.
@@ -130,36 +161,194 @@ export class BuiltinSimulatorHost {
     }
     const hitNode = this.project.document.getNode(hit.hitId);
     if (!hitNode) return null;
+    const hitRect = this._rectForNode(hitNode.id);
+    if (!hitRect) return null;
 
-    const topThird = hit.height / 3;
-    const bottomThird = (2 * hit.height) / 3;
+    // Top-level decision: thirds on the hit's own rect.
+    const relY = y - hitRect.top;
+    const topThird = hitRect.height / 3;
+    const bottomThird = (hitRect.height * 2) / 3;
 
-    // `parent` is the hit node's parent Node, or null when the hit
-    // node IS the root. `siblings` is typed as `Array<{ id: string }>`
-    // so we can mix `Node.children` (Node[]) with root.children
-    // (IPublicTypeNodeSchema[]). For root.children we synthesise a
-    // wrapper that exposes the same `.id` getter via the schema's
-    // stable `key` field — DocumentModel assigns keys on load.
+    if (this._isInCenterBand(y, hitRect) && (hitNode.schema.children ?? []).length > 0) {
+      // Drop INSIDE the hit. Use the three-mode algorithm to pick
+      // the index among the hit's children.
+      const hitChildren = (hitNode.schema.children ?? []) as IPublicTypeNodeSchema[];
+      const children = this._buildLocateChildren(hitChildren);
+      const loc = computeInsertLocation<IPublicTypeNodeLike>({
+        pointer: { x, y },
+        container: hitNode.schema as IPublicTypeNodeLike,
+        containerRect: hitRect,
+        children,
+      });
+      return this._locationToDropTarget(loc, hitNode.id);
+    }
+
+    // Drop as a SIBLING of the hit. Thirds → before / after index.
     const parent = hitNode.parent;
     const parentId = parent?.id ?? null;
-    const siblings: Array<{ id: string }> = parent
+    // Locate the hit's index within its parent's children (siblings).
+    const siblings = parent
       ? parent.children
-      : (root.children ?? []).map((c) => ({ id: (c.key as string) ?? '' }));
-    const idx = siblings.findIndex((c) => c.id === hit.hitId);
-
-    if (hit.relativeY < topThird) {
-      // 'before' the hit — drop as a sibling, just before it.
-      if (idx < 0) return { parentId, index: 0, placement: 'before' };
-      return { parentId, index: idx, placement: 'before' };
+      : (root.children ?? []).map((c) => ({ id: (c.key as string) ?? '', schema: c }));
+    const hitIdx = siblings.findIndex((s: { id: string }) => s.id === hitNode.id);
+    if (hitIdx < 0) return null;
+    if (relY < topThird) {
+      return { parentId, index: hitIdx, placement: 'before' };
     }
-    if (hit.relativeY > bottomThird) {
-      // 'after' the hit.
-      if (idx < 0) return { parentId, index: siblings.length, placement: 'after' };
-      return { parentId, index: idx + 1, placement: 'after' };
+    if (relY > bottomThird) {
+      return { parentId, index: hitIdx + 1, placement: 'after' };
     }
-    // 'inside' the hit — append to the hit's children.
-    return { parentId: hit.hitId, index: (hitNode.schema.children ?? []).length, placement: 'inside' };
+    // Exact centre (rare with pointer events, but the spec leaves
+    // it in): default to "before" the hit. Center-band + empty
+    // children falls through here too, so defaulting to before is
+    // the same as a sibling-drop near the top.
+    return { parentId, index: hitIdx, placement: 'before' };
   }
+
+  /** Translate an `IPublicTypeLocation` to the legacy `DropTarget` shape.
+   *
+   * For `Self`: drop INTO the target as a child. The index is the
+   * current child count of the target (i.e. append at the end).
+   * This matches the user expectation: clicking the centre of an
+   * empty area inside a container should land the new node at
+   * the bottom of that container's children, not at index 0
+   * (which would push existing children down).
+   */
+  private _locationToDropTarget(
+    loc: ReturnType<typeof computeInsertLocation>,
+    fallbackParentId: string | null,
+  ): DropTarget {
+    if (loc.detail.type === 'Self') {
+      const targetId = loc.target?.id ?? fallbackParentId;
+      const childCount = this._childCountOf(targetId);
+      return {
+        parentId: targetId,
+        index: childCount,
+        placement: 'inside',
+      };
+    }
+    return {
+      parentId: loc.target?.id ?? fallbackParentId,
+      index: loc.detail.index,
+      placement: (loc.detail.near?.pos ?? 'before') as 'before' | 'after',
+    };
+  }
+
+  /** Count the children of a node by id. The root is a schema
+   *  (not a Node), so it falls back to the document's root schema. */
+  private _childCountOf(id: string | null): number {
+    if (!id) {
+      return this.project.document.root.children?.length ?? 0;
+    }
+    const node = this.project.document.getNode(id);
+    return node?.children?.length ?? 0;
+  }
+
+  private _isInCenterBand(y: number, rect: DOMRect): boolean {
+    const centerY = rect.top + rect.height / 2;
+    // Within 1/3 of the rect's height of the center → "inside" the hit.
+    return Math.abs(y - centerY) < rect.height / 3;
+  }
+
+  private _rectForNode(nodeId: string): DOMRect | null {
+    const el = this.canvas.querySelector(`[data-lce-id="${nodeId.replace(/"/g, '\\"')}"]`) as HTMLElement | null;
+    return el ? el.getBoundingClientRect() : null;
+  }
+
+  private _buildLocateChildren(
+    schemas: readonly IPublicTypeNodeSchema[],
+  ): LocateChild<IPublicTypeNodeLike>[] {
+    const out: LocateChild<IPublicTypeNodeLike>[] = [];
+    for (const s of schemas) {
+      if (!s.key) continue;
+      const rect = this._rectForNode(s.key);
+      if (!rect) continue;
+      out.push({
+        node: { id: s.key, componentName: s.componentName },
+        rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+      });
+    }
+    return out;
+  }
+
+  private _buildLocateChildrenFromNodes(
+    nodes: ReadonlyArray<{ id: string; schema: IPublicTypeNodeSchema }>,
+  ): LocateChild<IPublicTypeNodeLike>[] {
+    const out: LocateChild<IPublicTypeNodeLike>[] = [];
+    for (const n of nodes) {
+      const rect = this._rectForNode(n.id);
+      if (!rect) continue;
+      out.push({
+        node: { id: n.id, componentName: n.schema.componentName },
+        rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+      });
+    }
+    return out;
+  }
+
+  // ==========================================================================
+  // Sensor adapter (v2.3 instrumented-mode bridge)
+  // ==========================================================================
+
+  /**
+   * Register this host as a sensor on the given Dragon. After this
+   * call, the Dragon's instrumented mode (`boost(dragObject, e)`)
+   * will route per-tick locate events through this host's
+   * `computeDropTarget` + `viewport` math.
+   *
+   * Returns the registered sensor (use the returned name to
+   * `removeSensor` later, e.g. in `unmount()`).
+   */
+  registerAsSensor<TNode extends IPublicTypeNodeLike>(
+    dragon: Dragon<TNode>,
+  ): IPublicTypeSensor<TNode> {
+    // The sensor's inner handlers need an explicit `TNode`-bound
+    // `LocateEvent` type; without it TypeScript's contextual typing
+    // collapses TNode to `unknown` and `dragon.addSensor` rejects
+    // the value. We declare a local alias so the inline object
+    // literal binds to TNode.
+    type LEvent = IPublicTypeLocateEvent<TNode>;
+    type Loc = IPublicTypeLocation<TNode>;
+    const opaqueDrag: IPublicTypeDragObject<TNode> = { type: 'Any', extra: null };
+
+    const sensor: IPublicTypeSensor<TNode> = {
+      name: 'sapu.simulator-host',
+      isEnter: (e: LEvent): boolean => {
+        const r = this.viewport.bounds;
+        return e.globalX >= r.left && e.globalX <= r.right && e.globalY >= r.top && e.globalY <= r.bottom;
+      },
+      fixEvent: (e: MouseEvent | DragEvent): LEvent => {
+        // For the slim version, globalX/Y and canvasX/Y coincide
+        // (sapu has no iframe simulator). If we later add one, this
+        // is where the cross-iframe translation lives.
+        return {
+          globalX: e.clientX,
+          globalY: e.clientY,
+          canvasX: e.clientX,
+          canvasY: e.clientY,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          target: e.target as Element | null,
+          dragObject: opaqueDrag,
+          originalEvent: e,
+        };
+      },
+      locate: (_e: LEvent): Loc | null => {
+        // The host's manual `dragon.move(x, y, target)` path
+        // already drives the drop target; the sensor
+        // just gates `isEnter`. The Dragon's instrumented
+        // mode will fire `drag` events but the actual
+        // drop geometry comes from the host.
+        return null;
+      },
+    };
+    dragon.addSensor(sensor);
+    return sensor;
+  }
+
+  // ==========================================================================
+  // DOM event handlers (manual mode — back-compat with v2.2 Dragon)
+  // ==========================================================================
 
   private handleDown(e: PointerEvent): void {
     // If a drag (boost or move) is already in progress, don't
@@ -168,33 +357,32 @@ export class BuiltinSimulatorHost {
     // Only respond to primary button. Right-click / middle-click /
     // pen barrel button all fall through.
     if (e.button !== 0) return;
+    // v2.3: skip form-event targets so clicking an input inside
+    // a custom component doesn't change selection.
+    if (this._isFormEvent(e)) return;
+    // v2.3: skip elements matching customizeIgnoreSelectors.
+    if (this._isIgnored(e)) return;
     const hit = getHitInfo(this.canvas, e.clientX, e.clientY);
     if (!hit.hitId) {
-      // Empty canvas — leave selection alone. The user might be
-      // clicking on the page chrome (the simulator's outer div) and
-      // not on a rendered node; selecting nothing on empty-click is
-      // the most predictable behaviour.
+      // Empty canvas — leave selection alone.
       this.pendingClick = null;
       return;
     }
     // Selection always updates on pointerdown — even if the user
-    // turns out to be starting a drag. The drag will move the node,
-    // and the moved node remains selected afterwards (matching
-    // every design tool I've used).
+    // turns out to be starting a drag.
     this.project.select(hit.hitId);
-    // Stash the click for click-vs-drag promotion.
     this.pendingClick = { id: hit.hitId, x: e.clientX, y: e.clientY };
   }
 
   private handleMove(e: PointerEvent): void {
+    // v2.3: drive the auto-scroller when a drag is in progress.
     if (this.project.dragon.isDragging) {
+      this.scroller.scrolling(e);
       const target = this.computeDropTarget(e.clientX, e.clientY);
       this.project.dragon.move(e.clientX, e.clientY, target);
       return;
     }
-    // No active drag yet — see if a pending click has crossed the
-    // drag threshold. If so, promote it to a `dragon.start(...)`
-    // and let the next pointermove drive the move path.
+    // No active drag yet — promote a pending click past the threshold.
     const pending = this.pendingClick;
     if (!pending) return;
     const dx = e.clientX - pending.x;
@@ -204,28 +392,37 @@ export class BuiltinSimulatorHost {
     }
     this.pendingClick = null;
     this.project.dragon.start(pending.id, pending.x, pending.y);
-    // Compute the initial drop target so the dragon's first move
-    // event carries it (the Overlays layer can render an
-    // insertion indicator without a one-tick lag).
     const target = this.computeDropTarget(pending.x, pending.y);
     this.project.dragon.move(pending.x, pending.y, target);
   }
 
   private handleUp(_e: PointerEvent): void {
-    // Always clear the click-vs-drag tracker — a successful click
-    // has fired the select() in handleDown; a successful drag has
-    // either been committed (below) or will be cancelled by the
-    // dragon.cancel() in handleCancel.
     this.pendingClick = null;
+    this.scroller.cancel();
     if (!this.project.dragon.isDragging) return;
     const result = this.project.dragon.commit();
     if (!result) return;
     this.commitDrop(result);
   }
 
-  private handleCancel(): void {
-    if (!this.project.dragon.isDragging) return;
-    this.project.dragon.cancel();
+  private _isFormEvent(e: PointerEvent): boolean {
+    const target = e.target as Element | null;
+    if (!target) return false;
+    return FORM_EVENT_TAGS.has(target.tagName);
+  }
+
+  private _isIgnored(e: PointerEvent): boolean {
+    const target = e.target as Element | null;
+    if (!target) return false;
+    for (const sel of this.ignoreSelectors) {
+      try {
+        if (target.matches(sel)) return true;
+        if (target.closest(sel)) return true;
+      } catch {
+        // ignore invalid selectors
+      }
+    }
+    return false;
   }
 
   private commitDrop(
@@ -240,10 +437,6 @@ export class BuiltinSimulatorHost {
         ? this.project.document.getNode(result.target.parentId) ?? null
         : null;
       if (this.noOpOnSameSpot && node.parent?.id === result.target.parentId) {
-        // Same mix-of-types problem as computeDropTarget: when the
-        // dragged node is a direct child of root, `node.parent` is
-        // null and we read `root.children` (IPublicTypeNodeSchema[]).
-        // We only need `id` for the no-op check, so wrap on the fly.
         const curSiblings: Array<{ id: string }> = node.parent
           ? node.parent.children
           : (this.project.document.root.children ?? []).map((c) => ({ id: (c.key as string) ?? '' }));
@@ -254,14 +447,8 @@ export class BuiltinSimulatorHost {
       this.onDrop?.({ kind: 'move', target: result.target, nodeId: result.nodeId });
       return;
     }
-    // boost: create a new schema node.
-    // The schema ALWAYS gets a `props: {}` (even if `initialProps`
-    // is undefined) so the L4 settings panel has a stable target to
-    // write into via `setProp`. Without this, dragging a vanilla
-    // `Button` from the palette would land a node with no `props`
-    // field at all — `inferSetterName` would skip it, the user
-    // couldn't add a `className`, and the schema would diverge
-    // from the convention every other node follows.
+    // Boost: create a new schema node (always with `props: {}` so
+    // the settings panel has a stable target).
     const initialProps = result.meta.initialProps as Record<string, JSONValue> | undefined;
     const schema: IPublicTypeNodeSchema = {
       componentName: result.meta.componentName,
@@ -276,13 +463,6 @@ export class BuiltinSimulatorHost {
       target: result.target,
       meta: { componentName: result.meta.componentName, initialProps },
     });
-    // Select the freshly-inserted node so the settings panel
-    // immediately shows its props.
     this.project.select(inserted.id);
   }
 }
-
-/** Look up an element under (x, y) and return its `data-lce-id` value
- *  if any, walking up the tree. Convenience wrapper around `hitTest`
- *  for callers that just need the id. */
-export { hitTest };

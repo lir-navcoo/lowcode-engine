@@ -22,12 +22,17 @@
 
 import { Project } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
-import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
+import type {
+  IPublicModelDragon,
+  IPublicTypeNodeLike,
+  IPublicTypeRootSchema,
+} from '@monbolc/lowcode-types';
 import { CommandManager, type ICommandManager } from '@monbolc/lowcode-plugin-command';
 
 import { EngineEventBus } from './events';
 import type { IPlugin, IPluginContext } from './plugin';
 import { ShellI18n } from './i18n';
+import { PublicDragon } from './dragon';
 
 export interface MountOptions {
   /** The root schema the editor will load. */
@@ -50,6 +55,20 @@ export interface ISapuEngine {
    * register their own commands.
    */
   readonly commands: ICommandManager;
+  /**
+   * The v2.3 public Dragon facade. Created lazily on `mount()`
+   * (it wraps `project.dragon`, which doesn't exist until then).
+   * Plugins receive the same instance via `IPluginContext.dragon`
+   * — it's the canonical reference for the lifetime of the engine.
+   *
+   * The facade is a thin pass-through to the inner `Dragon` in
+   * `@monbolc/lowcode-designer`; the wrapper just narrows the
+   * public surface (`dragging`, `boosting`, `sensors`, `boost`,
+   * `from`, `addSensor`, `removeSensor`, `onDragstart`, `onDrag`,
+   * `onDragend`, `cancel`) and returns disposers from the
+   * `onX` subscriptions.
+   */
+  readonly dragon: IPublicModelDragon<IPublicTypeNodeLike>;
   getProject(): Project;
   mount(options: MountOptions): Project;
   destroy(): void;
@@ -66,10 +85,21 @@ export class SapuEngine implements ISapuEngine {
 
   private readonly _plugins = new Map<string, IPlugin>();
   private _project: Project | null = null;
+  private _publicDragon: PublicDragon | null = null;
   private _destroyed = false;
 
   get plugins(): ReadonlyArray<IPlugin> {
     return Array.from(this._plugins.values());
+  }
+
+  get dragon(): PublicDragon {
+    if (!this._publicDragon) {
+      throw new Error(
+        '[SapuEngine] dragon accessed before mount(). ' +
+          'Call engine.mount({schema, components}) first.',
+      );
+    }
+    return this._publicDragon;
   }
 
   getProject(): Project {
@@ -90,6 +120,11 @@ export class SapuEngine implements ISapuEngine {
       throw new Error('[SapuEngine] mount() called twice. Call destroy() first.');
     }
     this._project = new Project(options.schema);
+    // The public Dragon wraps the inner `project.dragon`. Built
+    // here (not in the constructor) so plugins that mount their
+    // own listeners BEFORE the first `registerPlugin` still see
+    // a fully-initialized Dragon.
+    this._publicDragon = PublicDragon.create(this._project.dragon);
     // Fire the ready event synchronously so listeners attached
     // before mount() can observe it (e.g. analytics, error reporters).
     this.events.emit('engineReady', {});
@@ -113,6 +148,7 @@ export class SapuEngine implements ISapuEngine {
     }
     this._plugins.clear();
     this._project = null;
+    this._publicDragon = null;
     this.events.emit('engineDestroyed', {});
   }
 
@@ -175,6 +211,11 @@ export class SapuEngine implements ISapuEngine {
    * `registerPlugin` / `unregisterPlugin` are bound to this engine
    * so a plugin author can chain `ctx.registerPlugin(otherPlugin)`
    * from inside their own init().
+   *
+   * v2.3: the public Dragon is exposed here. Plugins that need
+   * to register sensors or subscribe to `dragstart` / `drag` /
+   * `dragend` go through `ctx.dragon` — same instance as
+   * `engine.dragon`, no shim.
    */
   private _buildContext(): IPluginContext {
     return {
@@ -182,6 +223,7 @@ export class SapuEngine implements ISapuEngine {
       events: this.events,
       i18n: this.i18n,
       commands: this.commands,
+      dragon: this.dragon,
       registerPlugin: (p) => this.registerPlugin(p),
       unregisterPlugin: (name) => { this.unregisterPlugin(name); },
       t: (key, vars) => this.i18n.t(key, vars),

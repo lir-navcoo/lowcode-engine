@@ -14,9 +14,11 @@
 import type { Project } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
 import type { ICommandManager } from '@monbolc/lowcode-plugin-command';
+import type { IPublicModelDragon, IPublicTypeNodeLike } from '@monbolc/lowcode-types';
 
 import type { EngineEventBus } from './events';
 import type { ShellI18n } from './i18n';
+import type { PublicDragon } from './dragon';
 
 /**
  * The surface a plugin is handed at registration time. Sapu's
@@ -41,6 +43,13 @@ export interface IPluginContext {
   i18n: ShellI18n;
   /** The L2 command manager — same reference as `engine.commands`. */
   commands: ICommandManager;
+  /**
+   * The v2.3 public Dragon facade — same reference as
+   * `engine.dragon`. Plugins use it to register drop-target
+   * sensors, subscribe to `dragstart` / `drag` / `dragend`,
+   * or wire DOM elements as drag sources via `dragon.from`.
+   */
+  dragon: PublicDragon | IPublicModelDragon<IPublicTypeNodeLike>;
   /** Register another plugin from inside this one. */
   registerPlugin(plugin: IPlugin): void;
   /** Unregister a previously-registered plugin by name. */

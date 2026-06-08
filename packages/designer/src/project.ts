@@ -53,7 +53,6 @@ export class Project {
     this.dragon.events.on('start', (e) => this.events.emit('start', e));
     this.dragon.events.on('startBoost', (e) => this.events.emit('startBoost', e));
     this.dragon.events.on('move', (e) => this.events.emit('move', e));
-    this.dragon.events.on('end', (e) => this.events.emit('end', e));
     this.dragon.events.on('dropBoost', (e) => this.events.emit('dropBoost', e));
     this.dragon.events.on('cancelBoost', (e) => this.events.emit('cancelBoost', e));
   }

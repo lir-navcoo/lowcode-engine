@@ -410,3 +410,15 @@ export type IPublicTypeResult<T, E = Error> =
 export interface IPublicTypeClass<T> {
   new (...args: any[]): T;
 }
+
+// ---------- 14. Drag-and-drop public surface (see ./drag.ts) ----------
+
+export type {
+  IPublicTypeNodeLike,
+  IPublicTypeBoostMeta,
+  IPublicTypeDragObject,
+  IPublicTypeLocateEvent,
+  IPublicTypeLocation,
+  IPublicTypeSensor,
+  IPublicModelDragon,
+} from './drag';

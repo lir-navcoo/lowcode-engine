@@ -138,4 +138,99 @@ describe('Dragon + DocumentModel drop', () => {
     expect(project.document.root.children!.length).toBe(3);
     expect(project.document.root.children![2].componentName).toBe('Footer');
   });
+
+  // ---- v2.3 new behavior: shake gate, ESC cancel, copy state ----
+  //
+  // These are the instrumented-mode features. We call
+  // `boost(dragObject, e)` to enter instrumented mode (DOM listeners
+  // bound), then drive the gesture with synthetic events dispatched
+  // on `document` (the Dragon's bound target).
+
+  it('shake gate: 4px gate — first sub-threshold move does not emit dragstart', () => {
+    const dragstarts: unknown[] = [];
+    project.dragon.events.on('dragstart', (e) => dragstarts.push(e));
+
+    // Use the new instrumented API: synthetic MouseEvent with full shape.
+    const downEvent = makeMouseEvent(100, 100, { altKey: false, ctrlKey: false });
+    project.dragon.boost({ type: 'NodeData', data: { componentName: 'X' } }, downEvent);
+
+    // Sub-threshold move (3px): no dragstart, no drag event.
+    document.dispatchEvent(makeMouseEvent(102, 101, { altKey: false, ctrlKey: false }));
+    expect(dragstarts).toHaveLength(0);
+
+    // Past the gate (5px): dragstart + drag fire.
+    document.dispatchEvent(makeMouseEvent(105, 100, { altKey: false, ctrlKey: false }));
+    expect(dragstarts).toHaveLength(1);
+
+    // Cleanup
+    document.dispatchEvent(makeMouseEvent(0, 0, { altKey: false, ctrlKey: false })); // ignore synthetic 0,0
+    document.dispatchEvent(makeMouseEvent(200, 200, { altKey: false, ctrlKey: false })); // mouseup
+  });
+
+  it('ESC mid-drag cancels the gesture (instrumented mode)', () => {
+    const dragends: Array<{ cancelled: boolean }> = [];
+    const cancelBoosts: unknown[] = [];
+    project.dragon.events.on('dragend', (e) => dragends.push({ cancelled: e.cancelled }));
+    project.dragon.events.on('cancelBoost', (e) => cancelBoosts.push(e));
+
+    project.dragon.boost(
+      { type: 'NodeData', data: { componentName: 'X' } },
+      makeMouseEvent(0, 0, { altKey: false, ctrlKey: false }),
+    );
+    // Move past shake gate to "start" the drag.
+    document.dispatchEvent(makeMouseEvent(50, 50, { altKey: false, ctrlKey: false }));
+    // ESC.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    // mouseup should be a no-op (already cancelled).
+    document.dispatchEvent(makeMouseEvent(100, 100, { altKey: false, ctrlKey: false }));
+
+    expect(dragends).toHaveLength(1);
+    expect(dragends[0]!.cancelled).toBe(true);
+    expect(cancelBoosts).toHaveLength(1);
+    expect(project.dragon.isDragging).toBe(false);
+  });
+
+  it('copy state: altKey on boost sets copy=true on every event', () => {
+    const dragstarts: Array<{ copy: boolean }> = [];
+    const drags: Array<{ copy: boolean }> = [];
+    const dragends: Array<{ copy: boolean }> = [];
+    project.dragon.events.on('dragstart', (e) => dragstarts.push({ copy: e.copy }));
+    project.dragon.events.on('drag', (e) => drags.push({ copy: e.copy }));
+    project.dragon.events.on('dragend', (e) => dragends.push({ copy: e.copy }));
+
+    project.dragon.boost(
+      { type: 'NodeData', data: { componentName: 'X' } },
+      makeMouseEvent(0, 0, { altKey: true, ctrlKey: false }),
+    );
+    expect(project.dragon.copy).toBe(true);
+
+    // Past shake gate.
+    document.dispatchEvent(makeMouseEvent(20, 20, { altKey: true, ctrlKey: false }));
+    expect(dragstarts[0]?.copy).toBe(true);
+    expect(drags[0]?.copy).toBe(true);
+
+    // Move WITHOUT alt: copy flips to false.
+    document.dispatchEvent(makeMouseEvent(40, 40, { altKey: false, ctrlKey: false }));
+    expect(drags[drags.length - 1]?.copy).toBe(false);
+
+    // Cleanup.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(dragends[0]?.copy).toBe(false); // last-known value at end
+  });
 });
+
+/** Build a `MouseEvent`-shaped object the Dragon can read clientX/Y
+ *  + altKey/ctrlKey from. The Dragon only reads these 4 fields, so
+ *  we don't need a full DOM MouseEvent. We dispatch via document
+ *  for the `mousemove` / `mouseup` / `keydown` listeners. */
+function makeMouseEvent(x: number, y: number, opts: { altKey: boolean; ctrlKey: boolean }): MouseEvent {
+  return new MouseEvent('mousemove', {
+    bubbles: true,
+    cancelable: true,
+    clientX: x,
+    clientY: y,
+    button: 0,
+    altKey: opts.altKey,
+    ctrlKey: opts.ctrlKey,
+  });
+}
