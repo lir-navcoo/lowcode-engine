@@ -19,9 +19,10 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:cjs && npm run build:es",
     "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
-    "clean": "rimraf lib es"
+    "clean": "rimraf lib es",
+    "build:cjs": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@monbolc/lowcode-types": "^2.1.5",
