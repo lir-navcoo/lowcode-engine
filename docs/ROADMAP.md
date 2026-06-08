@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 593 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 611 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 593 unit tests + 1 skip / 55 files, all passing in ~3.3s.
+`yarn test` ✅ 611 unit tests + 1 skip / 56 files, all passing in ~3.4s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -206,7 +206,22 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
   - TS DOM lib doesn't expose `getClientRects` on `Text` (only `Element`). Guarded with `instanceof Element`; Text rects are subsumed by parent Element rects, so skipping is a safe no-op for the union. Ali's port casts to `any`; sapu keeps type safety.
   - Test was confused about per-instance vs per-node-instance-list: `computeComponentInstanceRect` is per-INSTANCE (one element's multiple client rects, e.g. multi-line inline span), not per-node-instance-list. Rewrote the disjoint-rect test to multi-rect-on-one-element.
 - **Why P2.2c closed**: the only ali-faithful gap was this — multi-instance rect union. Without it, Phase D's bem-tool files (border-selecting, border-resizing) and the OffsetObserver consumers would have to invent their own rect math. With it, the rest of Phase C (dragon sensor array union, viewport scale/scroll) and Phase D can focus on React + BaseUI translation.
-- **What's still pending in Phase C**: `dragon.ts` HTML5 DnD branch + sensor array union + `fixEvent` cross-frame (no-op for no-iframe) + `chooseSensor` + `multiInstanceUnionRect`; `viewport.ts` `setScroll` + `toGlobalPoint/fromGlobalPoint` + Observable-lite `scrollX/Y/scale`; `locate.ts` `isRowContainer/isChildInline/isVertical/isVerticalContainer`; `document.ts` `autorun/reaction` shims; OffsetObserver auto-creation helper on Project.
+- **What's still pending in Phase C**: `dragon.ts` HTML5 DnD branch + sensor array union + `fixEvent` cross-frame (no-op for no-iframe) + `chooseSensor` + `multiInstanceUnionRect`; `locate.ts` `isRowContainer/isChildInline/isVertical/isVerticalContainer`; `document.ts` `autorun/reaction` shims; OffsetObserver auto-subscribe to viewport observables (re-compute on scroll/scale change, not just on idle).
+
+### P2.2d — Ali-mirror Phase C.Y Viewport Observable-lite — **DONE 2026-06-09 (491 LoC + 18 tests, 593 → 611)**
+
+- **Where**: `packages/designer/src/viewport.ts` (refactored) + `designer/offset-observer.ts` (comment) + `tests/viewport-observable.test.ts` (NEW)
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C, after P2.2c)
+- **Resolution**: closes the next gap — ali's Viewport exposes `scrollX` / `scrollY` / `scale` / `scrolling` as MobX `@obx.ref` (auto-tracking). Sapu mirrors the surface using Phase A's `Observable-lite` so Phase D's bem-tool files can subscribe via `autorun` / `reaction` and re-render on viewport changes.
+  - **`viewport.ts` refactor**: `_scale: number` → `_scale: Observable<number>`; new `_scrollX: Observable<number>` (auto-seed from `canvas.scrollLeft`), `_scrollY: Observable<number>`, `_scrolling: Observable<boolean>` (auto-resets 80ms after last `scroll` event, ali-faithful: `host.ts:155`). Plain getters (`scale`, `scrollX`, `scrollY`, `scrolling`) kept for Phase B `IViewportLite` compat. New `*Obs` accessors for Phase D consumers.
+  - **`setScale(s)`** validates (NaN / non-positive throws, ali-faithful) + updates the Observable. `setScroll(x, y)` new method that updates the Observables + calls `scrollTo` on the target.
+  - **`setScrollTarget(target)`** wires a `scroll` listener that auto-updates `scrollX/Y` + flips `_scrolling` true → 80ms timer flips it back. Swap-target case removes the old listener. Constructor now calls `setScrollTarget(options.canvas)` so the default canvas target has the listener from the start.
+  - **`destroy()`** removes the scroll listener + clears the 80ms timer.
+  - **`IViewportLite` (offset-observer.ts)**: comment updated — `scrolling` now means "any scroll in progress" (user drag OR `scrollBy`), not just auto-scroll. Plain getter still satisfies the contract; no API break.
+- **Tests** (+18): `viewport-observable.test.ts` covers scale (default / setScale / change event / no-op same / NaN+0+negative reject / autorun re-runs — 6 cases), scrollX/Y (setScroll / change event / no-op / scroll event — 4 cases), scrolling (starts false / scroll flips true → 80ms back / successive scroll resets timer / destroy clears timer / Observable subscription — 5 cases), contentBounds scale-aware (1), setScrollTarget swap (1), destroy removes scroll listener (1).
+- **Bug fixes during verify** (documented in commit `df4bae4`):
+  - Constructor was setting `_scrollTarget = options.canvas` but NOT attaching the `scroll` listener (only `setScrollTarget` did). Fixed by calling `setScrollTarget(options.canvas)` in the constructor so the default canvas target has the listener from the start. Caught by 5 failing scroll tests; first run had 5/18 fail, after the fix 18/18 pass.
+- **Why P2.2d closed**: the Phase D bem-tool files (border-selecting, border-detecting, border-resizing) all need to react to viewport scroll / scale changes to re-position their overlays. Without Observable-lite on the Viewport, the bem-tool files would have to poll. With it, `autorun` + the `*Obs` accessors give them the same UX ali gets from MobX, with no MobX in the dep tree.
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 

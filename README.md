@@ -10,7 +10,7 @@
 
 > **从零重写** 的企业级低代码引擎。基于 **React 19.2.7** + **BaseUI 1.0** + **Tailwind CSS v4**。NPM scope `@monbolc`。比 `alibaba/lowcode-engine` v1.3.2 小约 **85%**，0 第三方新增依赖，0 `@alilc`/`@alifd` 残留。
 >
-> **SapuLowcodeEngine** is a from-scratch rewrite of `alibaba/lowcode-engine` v1.3.2, modernized for React 19, BaseUI, and Tailwind v4. 14 packages, 593 unit tests + 11 e2e, 0 third-party deps added.
+> **SapuLowcodeEngine** is a from-scratch rewrite of `alibaba/lowcode-engine` v1.3.2, modernized for React 19, BaseUI, and Tailwind v4. 14 packages, 611 unit tests + 11 e2e, 0 third-party deps added.
 
 ## 快速开始 / Quick start
 
