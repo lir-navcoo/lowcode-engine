@@ -14,16 +14,15 @@
  * are inlined in the `className` props below.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { OutlinePane, OutlineView } from '@monbolc/lowcode-plugin-outline-pane';
-import { BuiltinSimulatorHost, Project, Simulator } from '@monbolc/lowcode-designer';
+import { Project } from '@monbolc/lowcode-designer';
 
 import { SettingsPanel } from './settings-panel';
-import { Overlays } from './overlays';
 import { ComponentPalette } from './component-palette';
+import { DefaultDesignerView, type DesignerViewHelpers } from './designer-view';
 import { OutlineIcon, ComponentsIcon } from './widgets';
 
 /** Built-in left views. The host can pass a `leftView` prop to
@@ -90,6 +89,18 @@ export interface SkeletonProps {
    */
   leftView?: LeftView;
   onLeftViewChange?: (view: LeftView) => void;
+  /**
+   * 完全替换画布视图. 接收 helpers (project / components / setterConfig /
+   * componentMeta) 并返回任意 React 节点. 不传 → 用 `<DefaultDesignerView>`
+   * (Simulator + Overlays + BuiltinSimulatorHost 的默认组合).
+   *
+   * 替换视图必须自行:
+   *   1. 渲染 project.document.root
+   *   2. 给画布节点打 data-lce-id 属性 (Overlays 用它定位选中框)
+   *   3. 在画布节点上挂 pointer 事件 → dragon (可以直接 new BuiltinSimulatorHost)
+   * 详细契约见 docs/packages/editor-skeleton.md "画布可替换" 节.
+   */
+  designerView?: (helpers: DesignerViewHelpers) => ReactNode;
 }
 
 /**
@@ -107,14 +118,6 @@ const CN = {
   paneHeader: 'px-3 py-2 font-semibold bg-slate-50 border-b border-slate-200',
   // Pane body: fills the rest of the column, scrolls, 8px padding.
   paneBody: 'flex-1 overflow-auto p-2',
-  // Canvas (center pane): fills, slate-50 bg, 16px padding, scrolls.
-  canvas: 'flex-1 bg-slate-50 p-4 overflow-auto h-full',
-  // Canvas inner: white card with border, full height minimum.
-  // `relative` is load-bearing: Overlays append absolutely-positioned
-  // children to this div. Without it they escape to the next
-  // positioned ancestor (often <body>), making selection borders
-  // visually misaligned with the element they outline.
-  canvasInner: 'relative bg-white min-h-full p-4 border border-slate-200',
   // Empty-state hint (used by SettingsPanel).
   empty: 'text-slate-400 italic p-6 text-center',
   // Resize handle: 4px wide slate bar, hover + active states.
@@ -139,17 +142,6 @@ export function Skeleton(props: SkeletonProps) {
   // can render without coupling to the DocumentModel directly.
   const [pane] = useState(() => new OutlinePane());
   const [, force] = useState(0);
-  const canvasHost = useRef<HTMLDivElement | null>(null);
-  // Holds the live React root + the inner container div that the
-  // simulator mounts into. We keep a reference (not state) because
-  // changes here don't need to re-render the Skeleton — only the
-  // canvas child needs to re-render. The document-change effect
-  // below calls `rootRef.current.root.render(sim.render())` to
-  // re-render the simulator IN PLACE on every in-place mutation,
-  // which is the bug the simulator-mount effect alone can't catch
-  // (its deps don't change when `document.insert()` mutates the
-  // existing root schema in place).
-  const rootRef = useRef<{ root: Root; container: HTMLDivElement } | null>(null);
 
   // Which built-in view is shown in the left pane. Mirrors ali's
   // pattern: a thin icon strip on the FAR left picks the view, the
@@ -167,17 +159,6 @@ export function Skeleton(props: SkeletonProps) {
     props.onLeftViewChange?.(v);
   };
 
-  // The canvas host element is stored as BOTH a ref (for the
-  // simulator-mount effect that reads it during commit) and state
-  // (for BuiltinSimulatorHost and Overlays, which need the live
-  // element to re-attach listeners / re-measure on remount). The ref
-  // callback updates both.
-  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
-  const setCanvasRef = (el: HTMLDivElement | null): void => {
-    canvasHost.current = el;
-    setCanvasEl(el);
-  };
-
   // Notify the host once the pane is constructed. The host may want
   // to call pane-level actions (rename, expand, etc.) from outside
   // the React tree (e.g. a demo toolbar). We use a ref-stable callback
@@ -189,88 +170,25 @@ export function Skeleton(props: SkeletonProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mirror the document schema into the outline pane. Re-runs on any
+  // document mutation (rootChanged / nodeAdded / ...) so the outline
+  // tree reflects the latest state. The force() bump is what causes
+  // the outline's React tree to re-read from the pane — outline view
+  // uses the pane as its source of truth, not props.
   useEffect(() => {
     pane.setSchema(props.project.document.root);
     force((n) => n + 1);
-    const onChange = () => {
+    const onChange = (): void => {
       pane.setSchema(props.project.document.root);
       force((n) => n + 1);
-      // Re-render the simulator IN PLACE on every document mutation.
-      // The document model mutates the root schema in place
-      // (document.insert / remove / move / setProp all walk the
-      // existing tree) — `props.project.document.root` is the SAME
-      // reference across mutations, so the mount effect below
-      // doesn't re-fire. We do, however, want the canvas to reflect
-      // the new state. The cleanest way: build a fresh element from
-      // the (mutated) schema and call `root.render(...)` on the
-      // existing React root. React will diff and patch the DOM
-      // (much faster than unmount/remount, and it preserves any
-      // stateful child components if they're keyed on the node id).
-      const r = rootRef.current;
-      if (r) {
-        const sim = new Simulator(props.project.document.root, { components: props.components });
-        r.root.render(sim.render() as ReactNode);
-      }
     };
-    props.project.document.events.on('rootChanged', onChange);
-    props.project.document.events.on('nodeAdded', onChange);
-    props.project.document.events.on('nodeRemoved', onChange);
-    props.project.document.events.on('nodeMoved', onChange);
-    props.project.document.events.on('nodeRenamed', onChange);
-    props.project.document.events.on('nodePropsChanged', onChange);
+    const ev = props.project.document.events;
+    const names = ['rootChanged', 'nodeAdded', 'nodeRemoved', 'nodeMoved', 'nodeRenamed', 'nodePropsChanged'] as const;
+    names.forEach((n) => ev.on(n, onChange));
     return () => {
-      props.project.document.events.off('rootChanged', onChange);
-      props.project.document.events.off('nodeAdded', onChange);
-      props.project.document.events.off('nodeRemoved', onChange);
-      props.project.document.events.off('nodeMoved', onChange);
-      props.project.document.events.off('nodeRenamed', onChange);
-      props.project.document.events.off('nodePropsChanged', onChange);
+      names.forEach((n) => ev.off(n, onChange));
     };
-  }, [pane, props.project, props.components]);
-
-  // Mount the simulator into the canvas host div. This effect runs
-  // only when the project swaps wholesale (root reference changes
-  // or the components registry changes) — finer-grained mutations
-  // are handled by the document-change effect above, which calls
-  // `root.render(...)` on the root we mount here.
-  useEffect(() => {
-    if (!canvasHost.current) return;
-    const sim = new Simulator(props.project.document.root, { components: props.components });
-    const el = sim.render();
-    canvasHost.current.innerHTML = '';
-    const inner = document.createElement('div');
-    canvasHost.current.appendChild(inner);
-    const root: Root = createRoot(inner);
-    root.render(el as Parameters<typeof root.render>[0]);
-    // Stash the root + container so the document-change effect can
-    // call `root.render(...)` in place on every mutation.
-    rootRef.current = { root, container: inner };
-    return () => {
-      // Defer the unmount to a microtask so it doesn't fire
-      // synchronously during another component's commit phase.
-      // React 19: "Attempted to synchronously unmount a root while
-      // React was already rendering" otherwise fires when the user
-      // mutates the schema (Add Footer etc.) and the simulator root
-      // gets torn down in the middle of a re-render cycle.
-      queueMicrotask(() => {
-        root.unmount();
-        if (rootRef.current?.root === root) rootRef.current = null;
-      });
-    };
-  }, [props.project.document.root, props.components]);
-
-  // Wire BuiltinSimulatorHost to the canvas DOM once the canvas
-  // element is mounted. The host is the bridge between pointer
-  // events and the Dragon: it computes the drop target on each
-  // pointermove and commits the move/boost on pointerup. We
-  // depend on `canvasEl` (not the ref) so the effect re-fires
-  // only when React actually attaches a fresh DOM node.
-  useEffect(() => {
-    if (!canvasEl) return;
-    const host = new BuiltinSimulatorHost(props.project, { canvas: canvasEl });
-    host.mount();
-    return () => host.unmount();
-  }, [canvasEl, props.project]);
+  }, [pane, props.project]);
 
   const onOutlineSelect = (id: string) => {
     props.project.select(id);
@@ -346,11 +264,23 @@ export function Skeleton(props: SkeletonProps) {
           props.topArea
             ? h()('div', { key: 'top', className: CN.topArea }, props.topArea())
             : null,
-          h()('div', { className: CN.canvas + ' flex-1' },
-            h()('div', { className: CN.canvasInner, ref: setCanvasRef },
-              h()(Overlays, { project: props.project, canvasContainer: canvasEl }),
-            ),
-          ),
+          // 画布区: 传了 `designerView` 就用 host 的, 否则用默认
+          // <DefaultDesignerView> (Simulator + Overlays + BuiltinSimulatorHost).
+          // 画布 div 自身 + 内部 class 由 DefaultDesignerView 提供; host 替换时
+          // 也通过 designerView(helpers) 拿到 project / components 自己渲染.
+          props.designerView
+            ? props.designerView({
+                project: props.project,
+                components: props.components,
+                setterConfig: props.setterConfig,
+                componentMeta: props.componentMeta,
+              })
+            : h()(DefaultDesignerView, {
+                project: props.project,
+                components: props.components,
+                setterConfig: props.setterConfig,
+                componentMeta: props.componentMeta,
+              }),
         ),
       ),
       h()(PanelResizeHandle, { key: 'rh-right', className: CN.resize }),

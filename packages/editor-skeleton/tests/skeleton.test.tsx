@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
 import { adapter } from '@monbolc/lowcode-renderer-core';
+import { installReactRuntime, uninstallReactRuntime, setupReactRenderer } from '@monbolc/lowcode-react-renderer';
 import { deepClone } from '@monbolc/lowcode-utils';
 import { Project } from '@monbolc/lowcode-designer';
 import { Skeleton } from '../src/skeleton';
@@ -10,14 +11,14 @@ import { ComponentPalette } from '../src/component-palette';
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
 beforeAll(() => {
-  adapter.setRuntime({
-    Component: React.Component,
-    PureComponent: React.PureComponent,
-    createElement: React.createElement,
-    createContext: React.createContext,
-    forwardRef: React.forwardRef,
-    findDOMNode: null,
-  });
+  // P2.2: 默认画布走 <DefaultDesignerView>, Simulator 内部 createRoot
+  // 需要 React runtime + 6 个 renderers. setupReactRenderer 仍可调用
+  // (deprecated 2.2.0 → remove 3.0.0, 测试用它最省事).
+  setupReactRenderer();
+});
+
+afterAll(() => {
+  uninstallReactRuntime();
 });
 
 const SEED: IPublicTypeRootSchema = {
@@ -109,6 +110,73 @@ describe('Skeleton', () => {
     );
     fireEvent.click(screen.getByTitle('Component palette'));
     expect(last).toBe('components');
+  });
+
+  // P2.2 — designerView slot. 不传 → 默认画布; 传了 → host 组件接管.
+  it('renders the default canvas (Simulator-mounted Page) when no designerView is passed', () => {
+    // schema.componentName='Page' 是 reserved routing key (走 PageRendererImpl,
+    // 不调 user Page 组件). 包一层 Root → Page 让 Page 真的被调用.
+    const project = new Project({
+      fileName: 'w.json',
+      componentName: 'Root',
+      children: [{ componentName: 'Page' }],
+    });
+    const Page = () => React.createElement('div', { 'data-testid': 'default-page' }, 'default');
+    const Root = ({ children }: { children?: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'default-root' }, children);
+    render(<Skeleton project={project} components={{ Page, Root }} />);
+    expect(screen.getByTestId('default-page')).toBeInTheDocument();
+  });
+
+  it('invokes designerView(helpers) and renders the host component instead of the default canvas', () => {
+    const project = new Project(deepClone(SEED));
+    let captured: { hasProject: boolean; hasComponents: boolean } | null = null;
+    render(
+      <Skeleton
+        project={project}
+        components={COMPONENTS}
+        designerView={(helpers) => {
+          captured = {
+            hasProject: helpers.project === project,
+            hasComponents: helpers.components === COMPONENTS,
+          };
+          return <div data-testid="custom-canvas">custom</div>;
+        }}
+      />,
+    );
+    // host 组件渲染了
+    expect(screen.getByTestId('custom-canvas')).toBeInTheDocument();
+    expect(screen.getByText('custom')).toBeInTheDocument();
+    // 默认画布没渲染 (没有 default-page)
+    expect(screen.queryByTestId('default-page')).toBeNull();
+    // helpers 正确透传
+    expect(captured).not.toBeNull();
+    expect(captured!.hasProject).toBe(true);
+    expect(captured!.hasComponents).toBe(true);
+  });
+
+  it('forwards setterConfig and componentMeta to the designerView helpers', () => {
+    const project = new Project(deepClone(SEED));
+    const setterConfig = { Button: { color: 'HexColor' } };
+    const componentMeta = { Button: { color: '#fff' } };
+    let captured: { setterConfig?: unknown; componentMeta?: unknown } = {};
+    render(
+      <Skeleton
+        project={project}
+        components={COMPONENTS}
+        setterConfig={setterConfig}
+        componentMeta={componentMeta}
+        designerView={(helpers) => {
+          captured = {
+            setterConfig: helpers.setterConfig,
+            componentMeta: helpers.componentMeta,
+          };
+          return <div data-testid="helpers-canvas" />;
+        }}
+      />,
+    );
+    expect(captured.setterConfig).toBe(setterConfig);
+    expect(captured.componentMeta).toBe(componentMeta);
   });
 });
 

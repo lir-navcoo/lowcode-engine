@@ -13,6 +13,9 @@ export type { SettingsPanelProps } from './settings-panel';
 export { Overlays } from './overlays';
 export type { OverlaysProps } from './overlays';
 
+export { DefaultDesignerView } from './designer-view';
+export type { DesignerViewHelpers, DesignerViewProps } from './designer-view';
+
 export { ComponentPalette } from './component-palette';
 export type { ComponentPaletteProps } from './component-palette';
 

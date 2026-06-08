@@ -180,6 +180,20 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
   - `createField` + the 9 `Area` types — Sapu skipped the `SettingTopEntry` / `SettingField` abstraction (SettingsPanel is the only settings surface).
   - Workbench tabbing UI — L5 multi-mount of `<Skeleton>` replaces the upstream Workbench tab strip; the demo's "Open second doc" button proves it.
 
+### P2.4 — L4 画布可替换 widget (designerView prop) — **DONE 2026-06-08 (1 prop + 9 tests)**
+
+- **Where**: `packages/editor-skeleton/src/designer-view.tsx` (新, ~120 行) + `skeleton.tsx` 减 50 行 + 2 个测试文件 (`designer-view.test.tsx` 6 case, `skeleton.test.tsx` +3 case)
+- **Resolution**:
+  - 把 `skeleton.tsx` 里 6 处硬编码的画布相关代码 (imports / rootRef / canvasEl state / 2 个 effect / BuiltinSimulatorHost / JSX 出口) 全抽到新文件 `designer-view.tsx`, 行为字节级一致
+  - `SkeletonProps.designerView?: (helpers: DesignerViewHelpers) => ReactNode` — 函数形态, 与 `topArea` / `leftArea` 现有 prop 风格一致
+  - `DefaultDesignerView` 单独 export — host 想绕过 3-pane 布局直接用默认画布也行
+  - 替换视图必须: 1) 渲染 `project.document.root` 2) 给画布节点打 `data-lce-id` 3) 在画布节点上挂 pointer 事件 → dragon (可以直接 `new BuiltinSimulatorHost`)
+- **测试**:
+  - `designer-view.test.tsx` (6 case): 默认 Tailwind class、className override、Simulator mount、document events 订阅重画、project swap cleanup、BuiltinSimulatorHost 生命周期
+  - `skeleton.test.tsx` (+3 case): 不传 → 默认画布; 传了 → host 组件接管且默认不渲染; helpers 透传 setterConfig/componentMeta
+- **Why now**: 上游的 `plugin-designer` 是个 157 行的全包插件, sapu 不单独发包, 把它吸收成 `designerView` prop 是"组件级暴露"的自然延伸 (与 toast "not a service registry" / modal "no Dock registry" 立场一致)
+- **P2 后续**: 不引入 `props.simulatorHost?` (BuiltinSimulatorHost 抽成 host-prop) — L3 的具体类不强制 L4 知道; 等真有 host 需要自己写 host 类时再开 P2.5+
+
 ## React 19 features to leverage (per `feedback-react19-and-baseui`)
 
 sapu uses React 19.2.7. New code and refactors should use React 19's new features where they apply. Don't default to React 16/18 idioms out of habit.
