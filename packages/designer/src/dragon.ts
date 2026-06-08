@@ -136,6 +136,17 @@ export class Dragon<
   // ---------- Sensor registry ----------
 
   private _sensors: IPublicTypeSensor<TNode>[] = [];
+  /**
+   * Phase C.AD: ali-faithful `lastSensor` memory. The Dragon
+   * keeps the previously-active sensor across `handleMove`
+   * calls so a brief pointer-leave from a sensor's territory
+   * (e.g. crossing between two adjacent sensor regions) does
+   * NOT lose the sensor — the next move falls back to
+   * `lastSensor` when no current sensor's `isEnter` fires.
+   * Cleared on `cancel()` / successful `drop()` / sensor
+   * removal.
+   */
+  private _lastSensor: IPublicTypeSensor<TNode> | null = null;
   get sensors(): readonly IPublicTypeSensor<TNode>[] {
     return this._sensors;
   }
@@ -223,6 +234,96 @@ export class Dragon<
     this._sensors = this._sensors.filter((s) => s.name !== name);
     if (before !== this._sensors.length && this._activeSensor?.name === name) {
       this._activeSensor = null;
+    }
+    if (this._lastSensor?.name === name) {
+      this._lastSensor = null;
+    }
+  }
+
+  /**
+   * Phase C.AD: ali-faithful `chooseSensor(e)`. Pick the
+   * active sensor for a drag-move event. Three-step algorithm
+   * (matches `alibaba/lowcode-engine/packages/designer/src/designer/dragon.ts:468-491`):
+   *
+   *   1. Walk `_sensors` in registration order. The FIRST
+   *      sensor whose `isEnter(fixed)` fires AND whose
+   *      `sensorAvailable` is not `false` becomes the active
+   *      sensor. Ali-faithful.
+   *   2. If NO current sensor matches, fall back to
+   *      `_lastSensor` (the sensor that was active on the
+   *      PREVIOUS move). This is the gap the slim sensor
+   *      loop left open: a brief pointer-leave would have
+   *      flipped `_activeSensor` to `null`, then the
+   *      next move would re-pick (possibly the same sensor,
+   *      possibly a different one) — visual UX flicker
+   *      for any sensor that holds external state
+   *      (highlight rings, hover indicators).
+   *   3. If `_lastSensor` is also unavailable (or was
+   *      removed), `_activeSensor` is `null` for this
+   *      move; the host's `_dropTarget` stays as it was
+   *      (no flicker from `null`-ing a previously-set
+   *      drop target).
+   *
+   * On sensor change, calls `_lastSensor.deactiveSensor()`
+   * (via `_safeDeactivate` so a missing / throwing
+   * implementation doesn't break the dispatch).
+   *
+   * **Cross-frame note**: sapu has no iframe simulator, so
+   * ali's `masterSensors` (the iframe-content-frame sensors)
+   * are not relevant. The slim version is the in-canvas-only
+   * subset of ali's chooseSensor.
+   */
+  chooseSensor(e: MouseEvent): void {
+    // 1. Try a fresh pick: walk sensors, first matching isEnter wins.
+    let picked: IPublicTypeSensor<TNode> | null = null;
+    let pickedFixed: IPublicTypeLocateEvent<TNode> | null = null;
+    for (const sensor of this._sensors) {
+      if (sensor.sensorAvailable === false) continue;
+      const fixed = sensor.fixEvent(e);
+      if (sensor.isEnter(fixed)) {
+        picked = sensor;
+        pickedFixed = fixed;
+        break;
+      }
+    }
+    // 2. No fresh pick → fall back to the last active sensor.
+    //    This is the gap the slim loop left: a brief pointer-
+    //    leave would lose the sensor entirely.
+    if (!picked) {
+      picked = this._lastSensor;
+      pickedFixed = picked ? picked.fixEvent(e) : null;
+    }
+    // 3. No change → bail (no deactive, no re-assign).
+    if (picked === this._activeSensor) return;
+    // Sensor changed: deactivate the old one (best-effort).
+    this._safeDeactivate(this._activeSensor);
+    // Update `_lastSensor` BEFORE `_activeSensor` so the next
+    // call's lastSensor fallback re-picks the sensor we just
+    // made active. (If we did it after, the fallback on the
+    // NEXT call would re-pick the just-deactivated sensor,
+    // which is also fine, but doing it before is the natural
+    // "remember what we're about to make active" semantics.)
+    this._lastSensor = picked ?? this._activeSensor;
+    this._activeSensor = picked;
+    // The `_dropTarget` is recomputed by the caller from
+    // `picked.locate(pickedFixed)`. We don't touch it here.
+  }
+
+  /**
+   * Best-effort deactivation. Wraps `sensor?.deactiveSensor?.()`
+   * so a missing or throwing implementation doesn't break the
+   * dispatch chain. Errors are swallowed to console (the
+   * sensor is responsible for its own cleanup; the Dragon's
+   * job is just to not crash on a bad sensor).
+   */
+  private _safeDeactivate(sensor: IPublicTypeSensor<TNode> | null): void {
+    if (!sensor) return;
+    try {
+      sensor.deactiveSensor?.();
+    } catch (err) {
+      if (typeof console !== 'undefined') {
+        console.error('[Dragon] sensor.deactiveSensor threw:', err);
+      }
     }
   }
 
@@ -464,17 +565,15 @@ export class Dragon<
     this._x = e.clientX;
     this._y = e.clientY;
 
-    // Sensor dispatch: pick the first sensor whose `isEnter` says
-    // the pointer is over it, and ask it for a `Location`.
+    // Sensor dispatch: pick the active sensor via `chooseSensor`
+    // and ask it for a `Location`. `chooseSensor` encapsulates
+    // the ali-faithful `lastSensor` fallback (see method doc).
     if (this._dragObject) {
-      for (const sensor of this._sensors) {
-        const fixed = sensor.fixEvent(e);
-        if (sensor.isEnter(fixed)) {
-          this._activeSensor = sensor;
-          const loc = sensor.locate(fixed);
-          this._dropTarget = this._locationToDropTarget(loc);
-          break;
-        }
+      this.chooseSensor(e);
+      if (this._activeSensor) {
+        const fixed = this._activeSensor.fixEvent(e);
+        const loc = this._activeSensor.locate(fixed);
+        this._dropTarget = this._locationToDropTarget(loc);
       }
     }
 
@@ -566,6 +665,10 @@ export class Dragon<
     this._copy = false;
     this._shaken = false;
     this._dropTarget = null;
+    this._safeDeactivate(this._activeSensor);
     this._activeSensor = null;
+    // Phase C.AD: clear the lastSensor memory on every reset
+    // (drop / cancel / commit). The next gesture starts fresh.
+    this._lastSensor = null;
   }
 }

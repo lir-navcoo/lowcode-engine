@@ -144,10 +144,27 @@ export type IPublicTypeLocation<TNode extends IPublicTypeNodeLike = IPublicTypeN
 export interface IPublicTypeSensor<TNode extends IPublicTypeNodeLike = IPublicTypeNodeLike> {
   /** Unique sensor name (used by `removeSensor(name)`). */
   readonly name: string;
+  /**
+   * Ali-faithful: false when this sensor is temporarily unable
+   * to respond (e.g. a panel is hidden). The Dragon's
+   * `chooseSensor` skips `sensorAvailable: false` sensors when
+   * picking the active one. Optional — sensors that don't
+   * implement this default to "always available" (the slim
+   * host's sensor, the outline-pane sensor, etc.). */
+  readonly sensorAvailable?: boolean;
   /** Whether the pointer is over this sensor's territory. */
   isEnter(e: IPublicTypeLocateEvent<TNode>): boolean;
   /** Normalize a raw DOM event into a `LocateEvent`. */
   fixEvent(e: MouseEvent | DragEvent): IPublicTypeLocateEvent<TNode>;
+  /**
+   * Ali-faithful: called by the Dragon when this sensor was
+   * the active sensor and a different sensor just took over
+   * (or the gesture ended). Default no-op via the Dragon's
+   * `_safeDeactivate`. Sensors that hold external state
+   * (highlight rings, hover indicators) override this to clean
+   * up. Optional — slim sensors without state don't need to
+   * implement this. */
+  deactiveSensor?(): void;
   /** Compute the drop location under the pointer, or `null` if no valid target. */
   locate(e: IPublicTypeLocateEvent<TNode>): IPublicTypeLocation<TNode> | null;
 }
