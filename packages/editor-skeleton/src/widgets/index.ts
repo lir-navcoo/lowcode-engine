@@ -11,4 +11,4 @@ export type { SapuModalProps } from './modal';
 export { SapuFloatingPanel } from './floating-panel';
 export type { SapuFloatingPanelProps } from './floating-panel';
 
-export { CloseIcon } from './icons';
+export { CloseIcon, OutlineIcon, ComponentsIcon } from './icons';

@@ -39,6 +39,7 @@ import { Resource, Workspace } from '@monbolc/lowcode-workspace';
 import { SapuErrorBoundary, type ISapuEngine } from '@monbolc/lowcode-shell';
 import { init, createDefaultPreset } from '@monbolc/lowcode-engine';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
+import { OutlineIcon, ComponentsIcon } from '@monbolc/lowcode-editor-skeleton/widgets/icons';
 import {
   registerSetter,
   type SetterComponent,
@@ -104,6 +105,14 @@ const components: Record<string, React.FC<any>> = {
   Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: hexToCss(p.bg) ?? '#fef3c7', borderRadius: 4 } }, 'Sidebar'),
   Main:    (p) => React.createElement('main',    { ...p, style: { ...p.style, flex: 1, padding: 12, background: '#dcfce7', borderRadius: 4 } }, 'Main'),
   Footer:  (p) => React.createElement('footer',  { ...p, style: { ...p.style, padding: 12, background: '#fce7f3', borderRadius: 4, marginTop: 8 } }, 'Footer'),
+  // Generic building blocks. `Div` is a neutral container — no
+  // styling, just forwards children. `Text` renders its `text` prop
+  // as the child string (the schema model has no "text" channel,
+  // so we use a `text` prop and ignore the React-children
+  // convention). The settings panel's `inferSetterName` sees
+  // `text: string` and renders an `Input` setter for it.
+  Div:   (p) => React.createElement('div',   { ...p, style: { ...p.style, padding: 8, border: '1px dashed #cbd5e1', borderRadius: 4, minHeight: 24 } }, p.children),
+  Text:  (p) => React.createElement('span',  { ...p, style: { ...p.style, fontSize: 13, color: '#0f172a' } }, typeof p.text === 'string' ? p.text : 'Text'),
 };
 
 // ---------------------------------------------------------------------------
@@ -118,6 +127,13 @@ const initialSchema = {
       { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xfff3c7' } },
       { componentName: 'Main',    props: { className: 'main'    } },
     ] },
+    // A generic `Div` container (so the user can see what an empty
+    // container looks like, and drag child components into it) and
+    // a `Text` showing the `text` prop wired through to the DOM.
+    // Both also appear in the Component palette, so they're
+    // drag-and-drop targets as well.
+    { componentName: 'Div',  props: { className: 'div-demo' } },
+    { componentName: 'Text', props: { text: 'Hello from Text' } },
   ],
 };
 
@@ -125,7 +141,7 @@ const initialSchema = {
 // 5. The demo React app.
 // ---------------------------------------------------------------------------
 function App({ engine }: { engine: ISapuEngine }) {
-  const [schema, setSchema] = useState<IPublicTypeRootSchema>(initialSchema as IPublicTypeRootSchema);
+  const [schema, setSchema] = useState<IPublicTypeRootSchema>(initialSchema as unknown as IPublicTypeRootSchema);
   // The L7 init() returns a SapuEngine; we use `getProject()` as the
   // single source of truth for the document. Same engine for the
   // whole session — re-mounts would require a new init() call.
@@ -204,8 +220,10 @@ function App({ engine }: { engine: ISapuEngine }) {
           { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xfff3c7' } },
           { componentName: 'Main',    props: { className: 'main'    } },
         ] },
+        { componentName: 'Div',  props: { className: 'div-demo' } },
+        { componentName: 'Text', props: { text: 'Hello from Text' } },
       ],
-    } as IPublicTypeRootSchema);
+    } as unknown as IPublicTypeRootSchema);
   };
   const onToggleCustom = () => setCustomOn((v) => !v);
 
@@ -385,8 +403,10 @@ function App({ engine }: { engine: ISapuEngine }) {
   // The demo uses CONTROLLED mode (`leftView` + `onLeftViewChange`
   // wired to <Skeleton>) so the user can flip between the Outline
   // tree and the Component palette (drag-and-drop source).
-  // Labels are 3-letter abbreviations so they render the same
-  // across fonts/OSes; full word goes in the title tooltip.
+  // Each button shows a small inline SVG (no text glyph, no emoji
+  // — matches what the Skeleton's default leftArea does when no
+  // custom slot is provided). The title attribute carries the
+  // accessible name + a hover tooltip.
   const leftArea = () =>
     React.createElement(
       'div',
@@ -394,26 +414,28 @@ function App({ engine }: { engine: ISapuEngine }) {
       React.createElement(
         'button',
         {
+          type: 'button',
           className:
             'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-            'rounded hover:bg-slate-100 text-[10px] font-mono ' +
+            'rounded hover:bg-slate-100 ' +
             (leftView === 'outline' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : ''),
           onClick: () => setLeftView('outline'),
           title: 'Outline view',
         },
-        'Out',
+        React.createElement(OutlineIcon as any, {}),
       ),
       React.createElement(
         'button',
         {
+          type: 'button',
           className:
             'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-            'rounded hover:bg-slate-100 text-[10px] font-mono ' +
+            'rounded hover:bg-slate-100 ' +
             (leftView === 'components' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : ''),
           onClick: () => setLeftView('components'),
           title: 'Component palette (drag to canvas)',
         },
-        'Cmp',
+        React.createElement(ComponentsIcon as any, {}),
       ),
     );
 
@@ -459,7 +481,7 @@ function App({ engine }: { engine: ISapuEngine }) {
 // SapuEngine. We then hand the engine to <App engine={...}/>
 // which renders the Skeleton against `engine.getProject()`.
 init(document.getElementById('skeleton')!, {
-  schema: initialSchema as IPublicTypeRootSchema,
+  schema: initialSchema as unknown as IPublicTypeRootSchema,
   components,
   preset: createDefaultPreset({ locale: 'en-US' }),
 }).then((engine) => {

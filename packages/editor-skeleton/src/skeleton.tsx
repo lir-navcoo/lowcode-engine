@@ -14,7 +14,7 @@
  * are inlined in the `className` props below.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { adapter } from '@monbolc/lowcode-renderer-core';
@@ -24,6 +24,7 @@ import { BuiltinSimulatorHost, Project, Simulator } from '@monbolc/lowcode-desig
 import { SettingsPanel } from './settings-panel';
 import { Overlays } from './overlays';
 import { ComponentPalette } from './component-palette';
+import { OutlineIcon, ComponentsIcon } from './widgets/icons';
 
 /** Built-in left views. The host can pass a `leftView` prop to
  *  control which one is active; the default `leftArea` icon strip
@@ -131,6 +132,16 @@ export function Skeleton(props: SkeletonProps) {
   const [pane] = useState(() => new OutlinePane());
   const [, force] = useState(0);
   const canvasHost = useRef<HTMLDivElement | null>(null);
+  // Holds the live React root + the inner container div that the
+  // simulator mounts into. We keep a reference (not state) because
+  // changes here don't need to re-render the Skeleton — only the
+  // canvas child needs to re-render. The document-change effect
+  // below calls `rootRef.current.root.render(sim.render())` to
+  // re-render the simulator IN PLACE on every in-place mutation,
+  // which is the bug the simulator-mount effect alone can't catch
+  // (its deps don't change when `document.insert()` mutates the
+  // existing root schema in place).
+  const rootRef = useRef<{ root: Root; container: HTMLDivElement } | null>(null);
 
   // Which built-in view is shown in the left pane. Mirrors ali's
   // pattern: a thin icon strip on the FAR left picks the view, the
@@ -176,6 +187,22 @@ export function Skeleton(props: SkeletonProps) {
     const onChange = () => {
       pane.setSchema(props.project.document.root);
       force((n) => n + 1);
+      // Re-render the simulator IN PLACE on every document mutation.
+      // The document model mutates the root schema in place
+      // (document.insert / remove / move / setProp all walk the
+      // existing tree) — `props.project.document.root` is the SAME
+      // reference across mutations, so the mount effect below
+      // doesn't re-fire. We do, however, want the canvas to reflect
+      // the new state. The cleanest way: build a fresh element from
+      // the (mutated) schema and call `root.render(...)` on the
+      // existing React root. React will diff and patch the DOM
+      // (much faster than unmount/remount, and it preserves any
+      // stateful child components if they're keyed on the node id).
+      const r = rootRef.current;
+      if (r) {
+        const sim = new Simulator(props.project.document.root, { components: props.components });
+        r.root.render(sim.render() as ReactNode);
+      }
     };
     props.project.document.events.on('rootChanged', onChange);
     props.project.document.events.on('nodeAdded', onChange);
@@ -191,9 +218,13 @@ export function Skeleton(props: SkeletonProps) {
       props.project.document.events.off('nodeRenamed', onChange);
       props.project.document.events.off('nodePropsChanged', onChange);
     };
-  }, [pane, props.project]);
+  }, [pane, props.project, props.components]);
 
-  // Mount the simulator into the canvas host div.
+  // Mount the simulator into the canvas host div. This effect runs
+  // only when the project swaps wholesale (root reference changes
+  // or the components registry changes) — finer-grained mutations
+  // are handled by the document-change effect above, which calls
+  // `root.render(...)` on the root we mount here.
   useEffect(() => {
     if (!canvasHost.current) return;
     const sim = new Simulator(props.project.document.root, { components: props.components });
@@ -203,6 +234,9 @@ export function Skeleton(props: SkeletonProps) {
     canvasHost.current.appendChild(inner);
     const root: Root = createRoot(inner);
     root.render(el as Parameters<typeof root.render>[0]);
+    // Stash the root + container so the document-change effect can
+    // call `root.render(...)` in place on every mutation.
+    rootRef.current = { root, container: inner };
     return () => {
       // Defer the unmount to a microtask so it doesn't fire
       // synchronously during another component's commit phase.
@@ -210,7 +244,10 @@ export function Skeleton(props: SkeletonProps) {
       // React was already rendering" otherwise fires when the user
       // mutates the schema (Add Footer etc.) and the simulator root
       // gets torn down in the middle of a re-render cycle.
-      queueMicrotask(() => root.unmount());
+      queueMicrotask(() => {
+        root.unmount();
+        if (rootRef.current?.root === root) rootRef.current = null;
+      });
     };
   }, [props.project.document.root, props.components]);
 
@@ -231,32 +268,38 @@ export function Skeleton(props: SkeletonProps) {
     props.project.select(id);
   };
 
-  // Default left-area icon strip. Two stacked buttons, one per
+  // Default left-area icon strip. Two stacked icon buttons, one per
   // built-in `LeftView`. The active view gets a tinted background so
   // the user can tell at a glance which panel is showing. Hosts that
   // want to drive the left area themselves (e.g. add extra icons)
   // pass their own `leftArea` prop and bypass this default.
   //
-  // Labels are 3-letter abbreviations rather than emoji so they
-  // render identically across fonts/OSes without pulling in an
-  // emoji glyph fallback. Title attributes (the tooltip) carry
-  // the full word for accessibility.
+  // Each button shows a small inline SVG (no text glyph, no emoji
+  // — the buttons stay readable across fonts / OSes / locales).
+  // The `title` attribute carries the accessible name and a hover
+  // tooltip.
   const renderDefaultLeftArea = (): unknown => {
-    const btn = (v: LeftView, label: string, title: string): unknown =>
+    const btn = (
+      v: LeftView,
+      icon: unknown,
+      title: string,
+    ): unknown =>
       h()('button', {
         key: v,
+        type: 'button',
         onClick: () => pickView(v),
         title,
         'data-active': leftView === v ? 'true' : 'false',
+        'data-left-view': v,
         className:
-          'w-7 h-7 flex items-center justify-center rounded text-[10px] font-mono ' +
+          'w-7 h-7 flex items-center justify-center rounded ' +
           (leftView === v
             ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300'
             : 'text-slate-600 hover:bg-slate-100'),
-      }, label);
+      }, icon);
     return h()('div', { className: 'flex flex-col items-center gap-1' },
-      btn('outline', 'Out', 'Outline view'),
-      btn('components', 'Cmp', 'Component palette'),
+      btn('outline',    h()(OutlineIcon,    {}), 'Outline view'),
+      btn('components', h()(ComponentsIcon, {}), 'Component palette'),
     );
   };
 
