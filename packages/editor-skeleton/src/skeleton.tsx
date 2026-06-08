@@ -19,6 +19,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { OutlinePane, OutlineView } from '@monbolc/lowcode-plugin-outline-pane';
 import { Project } from '@monbolc/lowcode-designer';
+import type { ICommandManager } from '@monbolc/lowcode-plugin-command';
 import type { IPublicModelDragon, IPublicTypeNodeLike } from '@monbolc/lowcode-types';
 
 import { SettingsPanel } from './settings-panel';
@@ -75,6 +76,17 @@ export interface SkeletonProps {
    * omitting it keeps the v2.2 manual path for back-compat.
    */
   dragon?: IPublicModelDragon<IPublicTypeNodeLike>;
+  /**
+   * v2.4: optional command manager from the host's engine.
+   * When provided, the outline's row-delete action and
+   * any palette→canvas drop flow through `commands.execute`
+   * (so undo/redo works). When omitted, the row-delete
+   * calls `project.document.remove(node)` directly (no undo).
+   * Hosts that want undo should also register the
+   * `@sapu/builtin-document-commands` plugin (added in
+   * `createDefaultPlugins()` in v2.4).
+   */
+  commands?: ICommandManager;
   /**
    * Content for the **top area** (a thin toolbar row that spans the
    * full editor width above the 3-pane layout). Mirrors ali's
@@ -243,12 +255,16 @@ export function Skeleton(props: SkeletonProps) {
   // active; body swaps between the outline tree and the drag-source
   // component palette.
   const leftHeader = leftView === 'outline' ? 'Outline' : 'Components';
-  // v2.4: outline row delete. Routes through the host's removal
-  // logic — the demo wires it to a `RemoveCommand` via
-  // `engine.commands`; other hosts can wire it to whatever
-  // they want. The root id is the document's root key so the
-  // × button is never shown on the root row.
+  // v2.4: outline row delete. When the host passed `commands`,
+  // route through the command manager so the delete is
+  // undoable. Without `commands`, fall back to the direct
+  // DocumentModel call (no undo, but works for hosts that
+  // haven't wired the command system yet).
   const onOutlineRemove = (id: string): void => {
+    if (props.commands) {
+      void props.commands.execute('document.remove', { nodeId: id });
+      return;
+    }
     const node = props.project.document.getNode(id);
     if (!node) return;
     props.project.document.remove(node);

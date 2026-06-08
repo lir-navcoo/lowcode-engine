@@ -545,6 +545,12 @@ function App({ engine }: { engine: ISapuEngine }) {
           // Skeleton will then show the dragstart/drag/dragend
           // events as the user drags a palette row.
           dragon: engine.dragon,
+          // v2.4: pass the engine's command manager so the outline
+          // × button routes through `document.remove` (undoable).
+          // The default `@sapu/builtin-document-commands` plugin
+          // (registered by `createDefaultPlugins()`) wires the
+          // command implementations.
+          commands: engine.commands,
         }),
       ),
       // P5 PublicDragon facade proof: a fixed bottom-right panel
