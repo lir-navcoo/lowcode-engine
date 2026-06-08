@@ -43,6 +43,13 @@ const Input: SetterComponent = ({ value, onChange, field }) => {
   // The 'Input' setter also handles "number" fields by detecting
   // the field name / default value type. The L4 panel passes
   // `type: 'number'` to BaseUI.Input which is a native <input>.
+  // We go CONTROLLED (`value` + `onChange`) rather than uncontrolled
+  // (`defaultValue` + `onBlur`) because BaseUI's FieldControl reads
+  // defaultValue into its own internal state on mount and React 19
+  // then warns "A component is changing the default value state of
+  // an uncontrolled FieldControl after being initialized." Going
+  // controlled sidesteps that warning and gives us round-trip
+  // editing without a focus-out commit step.
   const isNumber =
     field.name.toLowerCase().includes('number') ||
     typeof field.defaultValue === 'number';
@@ -50,9 +57,9 @@ const Input: SetterComponent = ({ value, onChange, field }) => {
     type: 'Input',
     props: {
       className: INPUT_CLASS,
-      defaultValue: v,
+      value: v,
       type: isNumber ? 'number' : 'text',
-      onBlur: (e: { target: { value: string } }) => {
+      onChange: (e: { target: { value: string } }) => {
         const newVal = isNumber ? Number(e.target.value) : e.target.value;
         onChange(newVal as JSONValue);
       },
@@ -67,13 +74,16 @@ const Input: SetterComponent = ({ value, onChange, field }) => {
 
 const TextArea: SetterComponent = ({ value, onChange }) => {
   const v = value === null || value === undefined ? '' : String(value);
+  // Controlled: see Input for the BaseUI/React 19 reason. With
+  // native <textarea> it's not strictly required, but keeping all
+  // setters on the same pattern avoids two codepaths.
   return {
     type: 'textarea',
     props: {
       className: INPUT_CLASS + ' resize-y min-h-[60px]',
-      defaultValue: v,
+      value: v,
       rows: 3,
-      onBlur: (e: { target: { value: string } }) => onChange(e.target.value),
+      onChange: (e: { target: { value: string } }) => onChange(e.target.value),
     },
   };
 };
@@ -164,8 +174,8 @@ const ColorPicker: SetterComponent = ({ value, onChange }) => {
         'h-7 w-9 cursor-pointer rounded border border-slate-300 p-0 ' +
         'focus:outline-none focus:border-blue-500',
       type: 'color',
-      defaultValue: v,
-      onBlur: (e: { target: { value: string } }) => onChange(e.target.value),
+      value: v,
+      onChange: (e: { target: { value: string } }) => onChange(e.target.value),
     },
   };
 };
@@ -225,7 +235,12 @@ const RadioGroup: SetterComponent = ({ value, onChange, field }) => {
               type: 'radio',
               name: field.name,
               value: opt.value,
-              defaultChecked: opt.value === selected,
+              // Controlled `checked` (not `defaultChecked`) so React
+              // never has to switch modes after mount. Without this,
+              // toggling a radio then re-rendering the setter (e.g.
+              // when the parent updates `value` from the callback)
+              // fires React 19's "uncontrolled→controlled" warning.
+              checked: opt.value === selected,
               className: 'cursor-pointer mr-1',
               onChange: () => onChange(opt.value as JSONValue),
             },
@@ -268,8 +283,8 @@ const DatePicker: SetterComponent = ({ value, onChange }) => {
     props: {
       type: 'date',
       className: INPUT_CLASS,
-      defaultValue: v,
-      onBlur: (e: { target: { value: string } }) => {
+      value: v,
+      onChange: (e: { target: { value: string } }) => {
         // Empty input → null. Otherwise pass through as ISO date.
         const next = e.target.value;
         onChange((next ? next : null) as JSONValue);

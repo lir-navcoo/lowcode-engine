@@ -52,6 +52,20 @@ export interface SkeletonProps {
    * See `examples/demo/src/main.ts` for a working example.
    */
   setterConfig?: Record<string, Record<string, string>>;
+  /**
+   * Content for the **top area** (a thin toolbar row that spans the
+   * full editor width above the 3-pane layout). Mirrors ali's
+   * `topArea` / `subTopArea` pattern. The host renders whatever
+   * toolbar buttons / dropdowns it wants here. Falsy → empty row.
+   */
+  topArea?: () => React.ReactNode;
+  /**
+   * Content for the **left area** (a thin icon strip to the LEFT of
+   * the existing outline panel). Mirrors ali's `leftArea` / `leftFixedArea`
+   * pattern. The host renders icon buttons here (e.g. "switch to
+   * Outline" / "switch to Components"). Falsy → empty strip.
+   */
+  leftArea?: () => React.ReactNode;
 }
 
 /**
@@ -72,11 +86,25 @@ const CN = {
   // Canvas (center pane): fills, slate-50 bg, 16px padding, scrolls.
   canvas: 'flex-1 bg-slate-50 p-4 overflow-auto h-full',
   // Canvas inner: white card with border, full height minimum.
-  canvasInner: 'bg-white min-h-full p-4 border border-slate-200',
+  // `relative` is load-bearing: Overlays append absolutely-positioned
+  // children to this div. Without it they escape to the next
+  // positioned ancestor (often <body>), making selection borders
+  // visually misaligned with the element they outline.
+  canvasInner: 'relative bg-white min-h-full p-4 border border-slate-200',
   // Empty-state hint (used by SettingsPanel).
   empty: 'text-slate-400 italic p-6 text-center',
   // Resize handle: 4px wide slate bar, hover + active states.
   resize: 'w-1 bg-slate-200 cursor-col-resize hover:bg-slate-400 data-[resize-handle-active]:bg-blue-500',
+  // Top area: a thin toolbar row that sits above the canvas INSIDE
+  // the center pane (mirrors ali's `subTopArea` exactly). Falsy
+  // content → empty div (still reserves 0–28px so the layout stays
+  // predictable). NOT absolute / NOT floating — the canvas shrinks
+  // to make room, just like ali does.
+  topArea: 'flex items-center gap-1 px-2 py-1 bg-white border-b border-slate-200 min-h-[28px]',
+  // Left area: thin icon strip to the LEFT of the outline panel.
+  // Mirrors ali's `leftArea` (icon column). Slate-50 background,
+  // 1px right border, fixed width (40px), flex column.
+  leftArea: 'flex flex-col items-center gap-1 py-2 bg-slate-50 border-r border-slate-200 w-10 shrink-0',
 } as const;
 
 export function Skeleton(props: SkeletonProps) {
@@ -159,29 +187,47 @@ export function Skeleton(props: SkeletonProps) {
     props.project.select(id);
   };
 
-  return h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: CN.skel },
-    h()(Panel, { key: 'left', defaultSize: leftSize, minSize: 15 },
-      h()('div', { className: CN.pane },
-        h()('div', { className: CN.paneHeader }, 'Outline'),
-        h()('div', { className: CN.paneBody },
-          h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) }),
+  return h()('div', { className: CN.skel },
+    h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: CN.skel },
+      // Left area: thin icon strip OUTSIDE the resizable panels so it
+      // stays at a fixed width and never collides with the outline.
+      h()('div', { key: 'la', className: CN.leftArea },
+        props.leftArea?.(),
+      ),
+      h()(Panel, { key: 'left', defaultSize: leftSize, minSize: 15 },
+        h()('div', { className: CN.pane },
+          h()('div', { className: CN.paneHeader }, 'Outline'),
+          h()('div', { className: CN.paneBody },
+            h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) }),
+          ),
         ),
       ),
-    ),
-    h()(PanelResizeHandle, { key: 'rh-left', className: CN.resize }),
-    h()(Panel, { key: 'center', defaultSize: 100 - leftSize - rightSize, minSize: 30 },
-      h()('div', { className: CN.canvas },
-        h()('div', { className: CN.canvasInner, ref: setCanvasRef },
-          h()(Overlays, { project: props.project, canvasContainer: canvasEl }),
+      h()(PanelResizeHandle, { key: 'rh-left', className: CN.resize }),
+      h()(Panel, { key: 'center', defaultSize: 100 - leftSize - rightSize, minSize: 30 },
+        h()('div', { className: 'flex flex-col h-full' },
+          // Top area: a row above the canvas, in normal flow. Mirrors
+          // ali's `subTopArea` — NOT a floating overlay, NOT a
+          // full-width strip. Just a sub-toolbar the host can fill
+          // with whatever. Falsy content → empty div with 0 height
+          // (the conditional collapses the div entirely so the
+          // canvas is unaffected).
+          props.topArea
+            ? h()('div', { key: 'top', className: CN.topArea }, props.topArea())
+            : null,
+          h()('div', { className: CN.canvas + ' flex-1' },
+            h()('div', { className: CN.canvasInner, ref: setCanvasRef },
+              h()(Overlays, { project: props.project, canvasContainer: canvasEl }),
+            ),
+          ),
         ),
       ),
-    ),
-    h()(PanelResizeHandle, { key: 'rh-right', className: CN.resize }),
-    h()(Panel, { key: 'right', defaultSize: rightSize, minSize: 15 },
-      h()('div', { className: CN.pane },
-        h()('div', { className: CN.paneHeader }, 'Settings'),
-        h()('div', { className: CN.paneBody },
-          h()(SettingsPanel, { project: props.project, setterConfig: props.setterConfig }),
+      h()(PanelResizeHandle, { key: 'rh-right', className: CN.resize }),
+      h()(Panel, { key: 'right', defaultSize: rightSize, minSize: 15 },
+        h()('div', { className: CN.pane },
+          h()('div', { className: CN.paneHeader }, 'Settings'),
+          h()('div', { className: CN.paneBody },
+            h()(SettingsPanel, { project: props.project, setterConfig: props.setterConfig }),
+          ),
         ),
       ),
     ),

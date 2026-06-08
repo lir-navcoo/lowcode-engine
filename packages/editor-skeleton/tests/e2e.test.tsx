@@ -107,4 +107,35 @@ describe('E2E: L0–L4 stack', () => {
     // The new Sidebar node should now appear in the document
     expect(project.document.root.children!.map((c) => c.componentName)).toContain('Sidebar');
   });
+
+  // -----------------------------------------------------------------
+  //  Plugin extension slots (P-leftArea) — host-supplied topArea /
+  //  leftArea render above / to-the-left of the 3-pane layout.
+  //  Ali's `topArea` / `leftArea` are the original reference.
+  // -----------------------------------------------------------------
+  it('renders host-provided topArea and leftArea content when supplied', () => {
+    const project = new Project(deepClone(SEED));
+    render(
+      <Skeleton
+        project={project}
+        components={components}
+        topArea={() => <button>↺ Undo</button>}
+        leftArea={() => <button>📦</button>}
+      />,
+    );
+    expect(screen.getByText('↺ Undo')).toBeInTheDocument();
+    expect(screen.getByText('📦')).toBeInTheDocument();
+  });
+
+  it('omits slot content when topArea/leftArea are not provided (no crash)', () => {
+    const project = new Project(deepClone(SEED));
+    render(<Skeleton project={project} components={components} />);
+    // No toolbar buttons rendered — the slot containers exist but are
+    // empty. This is the default for hosts that don't need them.
+    expect(screen.queryByText('↺ Undo')).toBeNull();
+    expect(screen.queryByText('📦')).toBeNull();
+    // The 3-pane headers still appear.
+    expect(screen.getByText('Outline')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
 });

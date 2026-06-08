@@ -62,19 +62,19 @@ describe('Input setter (BaseUI.Input)', () => {
     expect(num.props?.type).toBe('number');
   });
 
-  it('emits defaultValue as a string for text and number too', () => {
+  it('emits value as a string for text and number too', () => {
     const d = Input(propsFor(42, { ...baseField, name: 'portNumber' } as unknown as SetterProps['field']));
-    expect(d.props?.defaultValue).toBe('42');
+    expect(d.props?.value).toBe('42');
   });
 
-  it('onBlur converts the value to a number for number fields', () => {
+  it('onChange converts the value to a number for number fields', () => {
     const calls: unknown[] = [];
     const d = Input({
       ...propsFor(0, { ...baseField, name: 'portNumber' } as unknown as SetterProps['field']),
       onChange: (v) => calls.push(v),
     });
-    const onBlur = d.props?.onBlur as (e: { target: { value: string } }) => void;
-    onBlur({ target: { value: '99' } });
+    const onChange = d.props?.onChange as (e: { target: { value: string } }) => void;
+    onChange({ target: { value: '99' } });
     expect(calls).toEqual([99]);
   });
 });
@@ -91,11 +91,11 @@ describe('TextArea setter (raw <textarea>)', () => {
     expect(cls).toContain('resize-y');
   });
 
-  it('commits on blur with the raw string', () => {
+  it('commits on every change with the raw string (controlled)', () => {
     const calls: unknown[] = [];
     const d = TextArea({ ...propsFor('initial'), onChange: (v) => calls.push(v) });
-    const onBlur = d.props?.onBlur as (e: { target: { value: string } }) => void;
-    onBlur({ target: { value: 'new value' } });
+    const onChange = d.props?.onChange as (e: { target: { value: string } }) => void;
+    onChange({ target: { value: 'new value' } });
     expect(calls).toEqual(['new value']);
   });
 });
@@ -203,14 +203,14 @@ describe('ColorPicker setter (raw <input type="color">)', () => {
 
   it('falls back to #000000 for non-string values', () => {
     const d = ColorPicker(propsFor(42));
-    expect(d.props?.defaultValue).toBe('#000000');
+    expect(d.props?.value).toBe('#000000');
   });
 
-  it('commits on blur', () => {
+  it('commits on every change (controlled)', () => {
     const calls: unknown[] = [];
     const d = ColorPicker({ ...propsFor('#000000'), onChange: (v) => calls.push(v) });
-    const onBlur = d.props?.onBlur as (e: { target: { value: string } }) => void;
-    onBlur({ target: { value: '#abcdef' } });
+    const onChange = d.props?.onChange as (e: { target: { value: string } }) => void;
+    onChange({ target: { value: '#abcdef' } });
     expect(calls).toEqual(['#abcdef']);
   });
 });
@@ -273,7 +273,7 @@ describe('RadioGroup setter (BaseUI.RadioGroup, G)', () => {
     expect(radioCount).toBe(2);
   });
 
-  it('marks the matching option as defaultChecked', () => {
+  it('marks the matching option as checked (controlled)', () => {
     const field = {
       ...baseField,
       extraProps: {
@@ -285,8 +285,8 @@ describe('RadioGroup setter (BaseUI.RadioGroup, G)', () => {
     } as unknown as SetterProps['field'];
     const d = RadioGroup(propsFor('b', field));
     const radios = (d.children as SetterDescriptor[]).filter((c) => c.type === 'input');
-    expect(radios[0].props?.defaultChecked).toBe(false);
-    expect(radios[1].props?.defaultChecked).toBe(true);
+    expect(radios[0].props?.checked).toBe(false);
+    expect(radios[1].props?.checked).toBe(true);
   });
 
   it('onChange fires when a radio is toggled', () => {
@@ -308,31 +308,31 @@ describe('DatePicker setter (raw <input type="date">, G)', () => {
     const d = DatePicker(propsFor('2025-12-31'));
     expect(d.type).toBe('input');
     expect(d.props?.type).toBe('date');
-    expect(d.props?.defaultValue).toBe('2025-12-31');
+    expect(d.props?.value).toBe('2025-12-31');
   });
 
   it('normalizes a full ISO string to yyyy-mm-dd', () => {
     const d = DatePicker(propsFor('2025-12-31T10:30:00.000Z'));
-    expect(d.props?.defaultValue).toBe('2025-12-31');
+    expect(d.props?.value).toBe('2025-12-31');
   });
 
   it('normalizes a Date instance to yyyy-mm-dd', () => {
     const d = DatePicker(propsFor(new Date('2024-06-15T00:00:00Z')));
-    expect(d.props?.defaultValue).toBe('2024-06-15');
+    expect(d.props?.value).toBe('2024-06-15');
   });
 
   it('falls back to empty string for unparseable input', () => {
     const d = DatePicker(propsFor('not a date'));
-    expect(d.props?.defaultValue).toBe('');
+    expect(d.props?.value).toBe('');
   });
 
-  it('onBlur fires onChange with null when value is empty, otherwise the ISO string', () => {
+  it('onChange fires with null when value is empty, otherwise the ISO string', () => {
     const calls: unknown[] = [];
     const d = DatePicker({ ...propsFor(''), onChange: (v) => calls.push(v) });
-    const onBlur = d.props?.onBlur as (e: { target: { value: string } }) => void;
-    onBlur({ target: { value: '' } });
+    const onChange = d.props?.onChange as (e: { target: { value: string } }) => void;
+    onChange({ target: { value: '' } });
     expect(calls).toEqual([null]);
-    onBlur({ target: { value: '2026-01-01' } });
+    onChange({ target: { value: '2026-01-01' } });
     expect(calls).toEqual([null, '2026-01-01']);
   });
 });

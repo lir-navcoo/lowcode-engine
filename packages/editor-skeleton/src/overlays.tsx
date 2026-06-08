@@ -184,5 +184,42 @@ export function Overlays(props: OverlaysProps) {
     }
   });
 
+  // Reposition on scroll/resize. Selection borders are positioned via
+  // `getBoundingClientRect()`, so when the canvas scrolls or the
+  // window resizes the borders go stale and drift off the element.
+  // We listen on the scrollable ancestors + window resize and re-render.
+  useEffect(() => {
+    const canvas = props.canvasContainer;
+    if (!canvas) return;
+    // Walk up the tree and listen to all scrollable ancestors
+    // (typically canvasInner's parent = canvas pane).
+    const scrollables: Element[] = [];
+    let el: Element | null = canvas.parentElement;
+    while (el) {
+      const style = getComputedStyle(el);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll' ||
+          style.overflowX === 'auto' || style.overflowX === 'scroll') {
+        scrollables.push(el);
+      }
+      el = el.parentElement;
+    }
+    const repaint = () => {
+      renderBorders(canvas, props.project.selectedIds);
+      const ds = props.project.dragon.state;
+      if (ds.draggingNodeId) {
+        const node = props.project.document.getNode(ds.draggingNodeId);
+        const label = node ? `↔ ${node.componentName}` : '↔ ?';
+        renderDragGhost(canvas, ds.x, ds.y, label);
+        renderInsertion(canvas, ds.dropTarget);
+      }
+    };
+    scrollables.forEach((s) => s.addEventListener('scroll', repaint, { passive: true }));
+    window.addEventListener('resize', repaint);
+    return () => {
+      scrollables.forEach((s) => s.removeEventListener('scroll', repaint));
+      window.removeEventListener('resize', repaint);
+    };
+  }, [props.canvasContainer, props.project]);
+
   return null;
 }
