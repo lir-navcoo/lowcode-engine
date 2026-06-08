@@ -561,8 +561,66 @@ export class BuiltinSimulatorHost {
   }
 
   private _rectForNode(nodeId: string): DOMRect | null {
-    const el = this.canvas.querySelector(`[data-lce-id="${nodeId.replace(/"/g, '\\"')}"]`) as HTMLElement | null;
-    return el ? el.getBoundingClientRect() : null;
+    return this.getNodeRect(nodeId);
+  }
+
+  /**
+   * Phase C.AC: ali-faithful multi-instance rect union. When a
+   * component is rendered N times on the canvas (ali calls
+   * these "instances" of a single Node), all N share the same
+   * `data-lce-id`. The drop-target math needs the UNION of
+   * their rects so the third / nearest / edge-snap algorithms
+   * have the right geometric context.
+   *
+   * Sapu's slim `querySelector` returned only the FIRST
+   * instance's first element — wrong for multi-instance cases
+   * (e.g. 3 Sidebar nodes in a Dashboard layout, each rendered
+   * to its own DOM container). This method uses
+   * `querySelectorAll` + a per-rect union to compute the
+   * bounding rect of ALL instances.
+   *
+   * Returns `null` when no instance is mounted (e.g. the node
+   * was removed from the document but the drop math was still
+   * pointing at it).
+   *
+   * Note: sapu has no iframe simulator, so we don't need
+   * ali's `host.inIframe()` / `frame.contentDocument` check
+   * that the multi-instance drop math does in ali.
+   */
+  getNodeRect(nodeId: string): DOMRect | null {
+    // CSS.escape() is the standard way to escape arbitrary
+    // characters in a CSS attribute value. happy-dom's
+    // `querySelectorAll` accepts the CSS-escape sequences
+    // (`\\`, `\\'`, etc.) consistently, unlike hand-rolled
+    // `\"` / `\'` which are browser-only and rejected by
+    // happy-dom. Ali-faithful: ali's port also uses CSS.escape
+    // semantics in newer code paths; the slim sapu version
+    // uses CSS.escape directly.
+    const elements = Array.from(
+      this.canvas.querySelectorAll(`[data-lce-id="${CSS.escape(nodeId)}"]`),
+    ) as HTMLElement[];
+    if (elements.length === 0) return null;
+    // Single-instance fast path: just return the rect (no
+    // per-rect union loop overhead).
+    if (elements.length === 1) {
+      const r = elements[0]!.getBoundingClientRect();
+      return new DOMRect(r.left, r.top, r.width, r.height);
+    }
+    // Multi-instance union: walk every element's rect, expand
+    // the running `{x, y, r, b}` box. Ali-faithful: same
+    // algorithm as the rect-union in `computeComponentInstanceRect`,
+    // but applied across DOM elements (not getClientRects).
+    let minX = Infinity, minY = Infinity, maxR = -Infinity, maxB = -Infinity;
+    for (const el of elements) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue; // skip collapsed
+      if (r.left < minX) minX = r.left;
+      if (r.top < minY) minY = r.top;
+      if (r.right > maxR) maxR = r.right;
+      if (r.bottom > maxB) maxB = r.bottom;
+    }
+    if (minX === Infinity) return null; // all collapsed
+    return new DOMRect(minX, minY, maxR - minX, maxB - minY);
   }
 
   private _buildLocateChildren(
