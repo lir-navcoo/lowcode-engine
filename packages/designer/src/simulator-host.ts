@@ -43,6 +43,22 @@ import type {
   JSONValue,
 } from '@monbolc/lowcode-types';
 
+/** v2.4: per-component move hooks. Ali-faithful (`onMoveHook` +
+ *  `onChildMoveHook` in `node.componentMeta.advanced.callbacks`).
+ *  Sapu mirrors the JS-side registry shape: a map keyed by
+ *  `componentName` whose values are the host's predicates.
+ *
+ *  - `onMoveHook(node)` returns false to lock the node against
+ *    being moved/dropped. The drop is rejected.
+ *  - `onChildMoveHook(node, parent)` returns false to lock the
+ *    `parent` against accepting new children. Ali uses this for
+ *    "static" container types (e.g. a list that shouldn't grow).
+ */
+export interface ComponentMoveHooks {
+  onMoveHook?: (node: Node) => boolean;
+  onChildMoveHook?: (node: Node, parent: Node) => boolean;
+}
+
 export interface SimulatorHostOptions {
   /** The canvas container — same element the simulator renders into. */
   canvas: HTMLElement;
@@ -61,6 +77,14 @@ export interface SimulatorHostOptions {
    * defaults so plugins written for ali work out of the box.
    */
   customizeIgnoreSelectors?: string[];
+  /**
+   * v2.4: per-component move hooks. Map of `componentName →
+   *  { onMoveHook, onChildMoveHook }`. Ali-faithful: a host
+   *  that registers `onMoveHook: () => false` for a component
+   *  makes it undraggable (component-meta.ts:213). Sapu accepts
+   *  the same map shape; the host (or a plugin) populates it.
+   */
+  componentMeta?: Record<string, ComponentMoveHooks>;
 }
 
 /** Tags that should NOT trigger a node selection on pointerdown.
@@ -82,6 +106,7 @@ export class BuiltinSimulatorHost {
   private readonly onDrop?: SimulatorHostOptions['onDrop'];
   private readonly noOpOnSameSpot: boolean;
   private readonly ignoreSelectors: string[];
+  private readonly componentMeta: Record<string, ComponentMoveHooks>;
   private bound = false;
   // DOM listeners
   private readonly onDown = (e: PointerEvent) => this.handleDown(e);
@@ -103,6 +128,7 @@ export class BuiltinSimulatorHost {
     this.onDrop = options.onDrop;
     this.noOpOnSameSpot = options.noOpOnSameSpot ?? true;
     this.ignoreSelectors = options.customizeIgnoreSelectors ?? DEFAULT_IGNORE_SELECTORS;
+    this.componentMeta = options.componentMeta ?? {};
     this.viewport = new Viewport({ canvas: options.canvas });
     this.scroller = new Scroller({ viewport: this.viewport });
   }
@@ -224,6 +250,23 @@ export class BuiltinSimulatorHost {
       }
       cursor = cursor.parent;
     }
+    // P10.2: per-component move hooks. If the dragged node's
+    // `onMoveHook` returns false, the drop is rejected (ali's
+    // `component-meta.ts:213` default). Same shape for the
+    // hit node's parent's `onChildMoveHook` — if it returns
+    // false, the parent refuses to accept the drop. Both
+    // checks are no-ops when the host didn't register any
+    // hooks (the common case for the demo).
+    const draggingId = this.project.dragon.state.draggingNodeId;
+    if (draggingId) {
+      const draggedNode = this.project.document.getNode(draggingId);
+      if (draggedNode) {
+        const meta = this.componentMeta[draggedNode.componentName];
+        if (meta?.onMoveHook && !meta.onMoveHook(draggedNode)) {
+          return null;
+        }
+      }
+    }
     const hitNode = this.project.document.getNode(hit.hitId);
     if (!hitNode) return null;
     const hitRect = this._rectForNode(hitNode.id);
@@ -245,7 +288,10 @@ export class BuiltinSimulatorHost {
         containerRect: hitRect,
         children,
       });
-      return this._locationToDropTarget(loc, hitNode.id);
+      // P10.2: when the drop lands inside the hit, the hit IS
+      // the parent → check the hit's onChildMoveHook.
+      const inside = this._locationToDropTarget(loc, hitNode.id);
+      return this._applyChildMoveHook(inside, hitNode, hitNode);
     }
 
     // Drop as a SIBLING of the hit. Thirds → before / after index.
@@ -258,16 +304,44 @@ export class BuiltinSimulatorHost {
     const hitIdx = siblings.findIndex((s: { id: string }) => s.id === hitNode.id);
     if (hitIdx < 0) return null;
     if (relY < topThird) {
-      return { parentId, index: hitIdx, placement: 'before' };
+      return this._applyChildMoveHook({ parentId, index: hitIdx, placement: 'before' }, parent, hitNode);
     }
     if (relY > bottomThird) {
-      return { parentId, index: hitIdx + 1, placement: 'after' };
+      return this._applyChildMoveHook({ parentId, index: hitIdx + 1, placement: 'after' }, parent, hitNode);
     }
     // Exact centre (rare with pointer events, but the spec leaves
     // it in): default to "before" the hit. Center-band + empty
     // children falls through here too, so defaulting to before is
     // the same as a sibling-drop near the top.
-    return { parentId, index: hitIdx, placement: 'before' };
+    return this._applyChildMoveHook({ parentId, index: hitIdx, placement: 'before' }, parent, hitNode);
+  }
+
+  /**
+   * P10.2: if the resolved drop target's parent has an
+   * `onChildMoveHook` registered and it returns false for the
+   * dragged node, reject the drop. Ali-faithful
+   * (host.ts:1198-1204). The check is gated on the parent
+   * having a `componentMeta` entry — most components don't,
+   * so the check is a cheap no-op in the common case.
+   */
+  private _applyChildMoveHook(
+    target: DropTarget,
+    parent: Node | null,
+    hitNode: Node,
+  ): DropTarget | null {
+    if (!parent) return target; // root → no parent to consult
+    const meta = this.componentMeta[parent.componentName];
+    if (!meta?.onChildMoveHook) return target;
+    const draggingId = this.project.dragon.state.draggingNodeId;
+    const dragged = draggingId ? this.project.document.getNode(draggingId) : null;
+    if (!dragged) return target;
+    if (!meta.onChildMoveHook(dragged, parent)) {
+      return null;
+    }
+    // We touched the parent + hitNode only for the side-effect;
+    // the parameter list keeps the lint-clean.
+    void hitNode;
+    return target;
   }
 
   /** Translate an `IPublicTypeLocation` to the legacy `DropTarget` shape.

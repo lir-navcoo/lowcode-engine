@@ -226,6 +226,106 @@ describe('BuiltinSimulatorHost.computeDropTarget — locked ancestor (v2.3.5)', 
     expect(target).not.toBeNull();
   });
 });
+
+// ===== P10.2 — onMoveHook + onChildMoveHook =====
+describe('BuiltinSimulatorHost.computeDropTarget — move hooks (v2.4)', () => {
+  let project: Project;
+  let canvas: HTMLElement;
+  let host: BuiltinSimulatorHost;
+  let rootId: string;
+  let bodyId: string;
+  beforeEach(() => {
+    project = new Project(deepClone(SEED));
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    canvas.innerHTML = `
+      <div data-lce-id="__header__" style="position:absolute; top:0; height:60px"></div>
+      <div data-lce-id="__body__"   style="position:absolute; top:60px; height:60px"></div>
+    `;
+    rootId = project.document.root.key as string;
+    bodyId = project.document.getNode(rootId)!.children[1].id;
+    const bodyEl = canvas.querySelector('[data-lce-id="__body__"]') as HTMLElement;
+    bodyEl.setAttribute('data-lce-id', bodyId);
+    canvas.querySelectorAll<HTMLElement>('[data-lce-id]').forEach((el) => {
+      const top = el.getAttribute('data-lce-id') === bodyId ? 60 : 0;
+      el.getBoundingClientRect = () => ({ top, bottom: top + 60, left: 0, right: 100, width: 100, height: 60, x: 0, y: top, toJSON: () => ({}) } as DOMRect);
+    });
+    (document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint = (x: number, y: number) => {
+      const stack: Element[] = [];
+      canvas.querySelectorAll<HTMLElement>('[data-lce-id]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) stack.push(el);
+      });
+      return stack;
+    };
+  });
+
+  it('onMoveHook returning false rejects the drop (ali-faithful)', () => {
+    // The dragged node is Header. Register onMoveHook for the
+    // Header component that returns false → drop rejected.
+    const onMoveHook = (n: { componentName: string }): boolean => n.componentName !== 'Header';
+    const headerId = project.document.getNode(rootId)!.children[0].id;
+    // Re-tag the header canvas div with the real header id so
+    // the hit test resolves it.
+    const headerEl = canvas.querySelector('[data-lce-id="__header__"]') as HTMLElement;
+    headerEl.setAttribute('data-lce-id', headerId);
+    host = new BuiltinSimulatorHost(project, {
+      canvas,
+      componentMeta: { Header: { onMoveHook } },
+    });
+    // The Dragon isn't in a real drag in this test, but
+    // computeDropTarget reads `dragon.state.draggingNodeId` —
+    // which is null unless we start a drag. Start a real one
+    // so the hook is consulted.
+    project.dragon.start(headerId, 0, 0);
+    const target = host.computeDropTarget(50, 90);
+    project.dragon.cancel();
+    expect(target).toBeNull();
+  });
+
+  it('onChildMoveHook returning false on the parent rejects the drop', () => {
+    // The dragged node is Header; the hit is body. Register
+    // onChildMoveHook for Body returning false → body refuses
+    // to accept the drop.
+    const headerId = project.document.getNode(rootId)!.children[0].id;
+    const headerEl = canvas.querySelector('[data-lce-id="__header__"]') as HTMLElement;
+    headerEl.setAttribute('data-lce-id', headerId);
+    const onChildMoveHook = (): boolean => false;
+    host = new BuiltinSimulatorHost(project, {
+      canvas,
+      componentMeta: { Body: { onChildMoveHook } },
+    });
+    project.dragon.start(headerId, 0, 0);
+    const target = host.computeDropTarget(50, 90);
+    project.dragon.cancel();
+    expect(target).toBeNull();
+  });
+
+  it('hooks that return true / are absent allow the drop', () => {
+    // No componentMeta → no hooks registered → drop allowed.
+    const headerId = project.document.getNode(rootId)!.children[0].id;
+    const headerEl = canvas.querySelector('[data-lce-id="__header__"]') as HTMLElement;
+    headerEl.setAttribute('data-lce-id', headerId);
+    host = new BuiltinSimulatorHost(project, { canvas });
+    project.dragon.start(headerId, 0, 0);
+    const target = host.computeDropTarget(50, 90);
+    project.dragon.cancel();
+    expect(target).not.toBeNull();
+  });
+
+  it('hooks are bypassed when no drag is in progress (boost path / idle click)', () => {
+    // If the Dragon is idle, `state.draggingNodeId` is null →
+    // the dragged-node check is skipped. Ali does the same
+    // (the filter only runs in the move-mode `locate` path).
+    const onMoveHook = (): boolean => false;
+    host = new BuiltinSimulatorHost(project, {
+      canvas,
+      componentMeta: { Header: { onMoveHook } },
+    });
+    const target = host.computeDropTarget(50, 90);
+    expect(target).not.toBeNull();
+  });
+});
 describe('BuiltinSimulatorHost.commitDrop (boost → insert)', () => {
   let project: Project;
   let canvas: HTMLElement;
