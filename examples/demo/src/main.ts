@@ -140,6 +140,13 @@ function App({ engine }: { engine: ISapuEngine }) {
   // `Input` setter for that prop.
   const [customOn, setCustomOn] = useState(false);
 
+  // L4 left view: which built-in view the left panel is showing.
+  // The demo drives the Skeleton in CONTROLLED mode (passes
+  // `leftView` + `onLeftViewChange`) so the icon strip in the
+  // leftArea slot can flip the state. Without this, the user has
+  // no way to switch between Outline and Component palette.
+  const [leftView, setLeftView] = useState<'outline' | 'components'>('outline');
+
   // Push schema into the project AFTER render, never during it.
   useEffect(() => {
     project.load(schema);
@@ -394,12 +401,39 @@ function App({ engine }: { engine: ISapuEngine }) {
 
   // The Skeleton's `leftArea` slot — a thin icon strip to the LEFT
   // of the outline panel. Ali's `leftArea` is the icon column.
-  // For the demo we just put a couple of icon buttons; their
-  // semantics are TBD but the slot itself is the proof.
+  // The demo uses CONTROLLED mode (`leftView` + `onLeftViewChange`
+  // wired to <Skeleton>) so the user can flip between the Outline
+  // tree and the Component palette (drag-and-drop source). The
+  // ⧉ and ↻ buttons are demo-only (open second doc / reset).
   const leftArea = () =>
     React.createElement(
       'div',
       { className: 'flex flex-col items-center gap-1' },
+      React.createElement(
+        'button',
+        {
+          className:
+            'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
+            'rounded hover:bg-slate-100 text-sm ' +
+            (leftView === 'outline' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : ''),
+          onClick: () => setLeftView('outline'),
+          title: 'Outline view',
+        },
+        '🌳',
+      ),
+      React.createElement(
+        'button',
+        {
+          className:
+            'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
+            'rounded hover:bg-slate-100 text-sm ' +
+            (leftView === 'components' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : ''),
+          onClick: () => setLeftView('components'),
+          title: 'Component palette (drag to canvas)',
+        },
+        '🧩',
+      ),
+      React.createElement('div', { className: 'w-5 h-px bg-slate-200 my-0.5' }),
       React.createElement(
         'button',
         {
@@ -450,6 +484,8 @@ function App({ engine }: { engine: ISapuEngine }) {
           setterConfig,
           topArea,
           leftArea,
+          leftView,
+          onLeftViewChange: setLeftView,
         }),
       ),
     ),

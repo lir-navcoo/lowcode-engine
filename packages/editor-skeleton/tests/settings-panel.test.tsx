@@ -132,4 +132,31 @@ describe('SettingsPanel', () => {
     // → standard BaseUI input with the value 'foo' as defaultValue.
     expect(screen.getByDisplayValue('foo')).toBeInTheDocument();
   });
+
+  // BUG fix: Page (the document root) is the render entry — its
+  // componentName must not be editable from the settings panel,
+  // since renaming it would change the document's root type and
+  // leave the simulator with an unresolvable component. The Rename
+  // button is hidden and replaced with an italic "root" badge when
+  // the root is the selected node. (The DocumentModel also refuses
+  // the rename as a safety net — see document.test.ts.)
+  it('hides the Rename button when the selected node is the document root', () => {
+    const project = new Project(deepClone(SEED));
+    const pageRoot = project.document.getNode(project.document.root.key as string)!;
+    project.select(pageRoot.id);
+    render(<SettingsPanel project={project} />);
+    // No Rename button in the DOM for the root.
+    expect(screen.queryByText('Rename')).toBeNull();
+    // A 'root' hint label is shown instead.
+    expect(screen.getByText('root')).toBeInTheDocument();
+  });
+
+  it('shows the Rename button for a non-root selection', () => {
+    const project = new Project(deepClone(SEED));
+    const a = project.document.getNode(project.document.root.key as string)!.children[0];
+    project.select(a.id);
+    render(<SettingsPanel project={project} />);
+    expect(screen.getByText('Rename')).toBeInTheDocument();
+    expect(screen.queryByText('root')).toBeNull();
+  });
 });

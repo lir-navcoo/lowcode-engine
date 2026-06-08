@@ -145,15 +145,26 @@ export function SettingsPanel(props: SettingsPanelProps) {
       h()('div', { className: 'text-[11px] text-slate-500' }, 'Component'),
       h()('div', { className: 'flex items-center gap-1.5 mt-1' },
         h()('code', { className: 'text-[13px] flex-1 font-semibold' }, node.componentName),
-        h()('button', {
-          onClick: () => {
-            const newName = prompt('Rename component to:', node.componentName);
-            if (newName && newName !== node.componentName) {
-              props.project.document.rename(node, newName);
-            }
-          },
-          className: 'text-[11px] px-1.5 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-50',
-        }, 'Rename'),
+        // Rename is hidden when the selected node IS the document
+        // root. The root's `componentName` is the render entry —
+        // renaming it would orphan the simulator (it'd fall back
+        // to a placeholder once the host's registry can't resolve
+        // the new name). The root is the one node whose "type" is
+        // an editor concern, not a content concern.
+        node.parent !== null
+          ? h()('button', {
+              onClick: () => {
+                const newName = prompt('Rename component to:', node.componentName);
+                if (newName && newName !== node.componentName) {
+                  props.project.document.rename(node, newName);
+                }
+              },
+              className: 'text-[11px] px-1.5 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-50',
+            }, 'Rename')
+          : h()('span', {
+              className: 'text-[10px] italic text-slate-400',
+              title: 'The root componentName is the document\'s render entry; it can\'t be renamed from the panel.',
+            }, 'root'),
       ),
     ),
     h()('div', { className: 'text-[11px] text-slate-500 mb-1.5' },

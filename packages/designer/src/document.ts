@@ -119,6 +119,14 @@ export class DocumentModel implements IDocumentModel {
   }
 
   rename(node: Node, newName: string): void {
+    // The root componentName is the render entry (e.g. "Page" maps
+    // to the host's <Page> component). Renaming it would change
+    // the document's *root type* — the simulator would no longer
+    // have a matching component in the registry and would fall
+    // back to a placeholder. Refuse the mutation here so the
+    // safety net is in place even if a host forgets to hide the
+    // Rename UI for the root selection.
+    if (node.parent === null) return;
     const old = node.schema.componentName;
     if (old === newName) return;
     node.schema.componentName = newName;

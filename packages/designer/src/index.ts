@@ -20,10 +20,13 @@ export { Project } from './project';
 export type { ProjectEvents } from './project';
 
 export { Dragon } from './dragon';
-export type { DragonEvents, DragonState, DropTarget } from './dragon';
+export type { DragonEvents, DragonState, DropTarget, BoostMeta } from './dragon';
 
 export { Simulator } from './simulator';
 export type { SimulatorOptions } from './simulator';
+
+export { BuiltinSimulatorHost } from './simulator-host';
+export type { SimulatorHostOptions } from './simulator-host';
 
 export {
   InsertCommand,

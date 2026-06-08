@@ -73,4 +73,69 @@ describe('Dragon + DocumentModel drop', () => {
     const body = project.document.getNode(bodyId)!;
     expect(body.children[0].id).toBe(headerId);
   });
+
+  // ---- Boost (palette → canvas) ----
+  //
+  // Boost drags don't have a source node — the source is a
+  // `BoostMeta` describing the component to instantiate. The Dragon
+  // still tracks x/y/dropTarget; on `commit()` it returns a
+  // discriminated union the host can `switch` on.
+  it('boost() enters boost state and emits startBoost', () => {
+    let captured: unknown;
+    project.dragon.events.on('startBoost', (e) => { captured = e; });
+    project.dragon.boost({ componentName: 'Button' }, 10, 20);
+    expect(project.dragon.isDragging).toBe(true);
+    expect(project.dragon.isBoosting).toBe(true);
+    expect((captured as { meta: { componentName: string } }).meta.componentName).toBe('Button');
+  });
+
+  it('boost() refuses if a drag is already in progress', () => {
+    project.dragon.boost({ componentName: 'A' }, 0, 0);
+    project.dragon.boost({ componentName: 'B' }, 0, 0);
+    // Only the first boost wins; state still references 'A'.
+    expect(project.dragon.state.boost?.componentName).toBe('A');
+  });
+
+  it('commit() on a boost with a target returns the boost result', () => {
+    let captured: unknown;
+    project.dragon.events.on('dropBoost', (e) => { captured = e; });
+    project.dragon.boost({ componentName: 'Footer' }, 0, 0);
+    project.dragon.move(50, 50, { parentId: null, index: 2, placement: 'inside' });
+    const result = project.dragon.commit();
+    expect(result).not.toBeNull();
+    expect(result!.kind).toBe('boost');
+    expect((result as { meta: { componentName: string } }).meta.componentName).toBe('Footer');
+    expect((captured as { meta: { componentName: string } }).meta.componentName).toBe('Footer');
+    expect(project.dragon.isDragging).toBe(false);
+    expect(project.dragon.isBoosting).toBe(false);
+  });
+
+  it('cancel() on a boost emits cancelBoost with the meta', () => {
+    let captured: unknown;
+    project.dragon.events.on('cancelBoost', (e) => { captured = e; });
+    project.dragon.boost({ componentName: 'X' }, 0, 0);
+    project.dragon.cancel();
+    expect((captured as { meta: { componentName: string } }).meta.componentName).toBe('X');
+    expect(project.dragon.isBoosting).toBe(false);
+  });
+
+  it('end-to-end: boost → document.insert creates a new node', () => {
+    let inserted: ReturnType<DocumentModel['insert']> | undefined;
+    project.dragon.events.on('dropBoost', (e) => {
+      // Simulate the host's commit handler: create a new schema
+      // node from the boost meta at the drop target.
+      inserted = project.document.insert(
+        { componentName: e.meta.componentName },
+        e.target.parentId ? project.document.getNode(e.target.parentId) ?? null : null,
+        e.target.index,
+      );
+    });
+    project.dragon.boost({ componentName: 'Footer' }, 0, 0);
+    project.dragon.move(0, 0, { parentId: null, index: 2, placement: 'inside' });
+    project.dragon.commit();
+    expect(inserted).toBeDefined();
+    expect(inserted!.componentName).toBe('Footer');
+    expect(project.document.root.children!.length).toBe(3);
+    expect(project.document.root.children![2].componentName).toBe('Footer');
+  });
 });

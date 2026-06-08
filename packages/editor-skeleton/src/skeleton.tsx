@@ -19,10 +19,16 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { OutlinePane, OutlineView } from '@monbolc/lowcode-plugin-outline-pane';
-import { Project, Simulator } from '@monbolc/lowcode-designer';
+import { BuiltinSimulatorHost, Project, Simulator } from '@monbolc/lowcode-designer';
 
 import { SettingsPanel } from './settings-panel';
 import { Overlays } from './overlays';
+import { ComponentPalette } from './component-palette';
+
+/** Built-in left views. The host can pass a `leftView` prop to
+ *  control which one is active; the default `leftArea` icon strip
+ *  exposes a button per built-in view. */
+export type LeftView = 'outline' | 'components';
 
 const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
   adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
@@ -63,9 +69,18 @@ export interface SkeletonProps {
    * Content for the **left area** (a thin icon strip to the LEFT of
    * the existing outline panel). Mirrors ali's `leftArea` / `leftFixedArea`
    * pattern. The host renders icon buttons here (e.g. "switch to
-   * Outline" / "switch to Components"). Falsy → empty strip.
+   * Outline" / "switch to Components"). Falsy → render a default
+   * icon strip with one button per built-in `LeftView`.
    */
   leftArea?: () => React.ReactNode;
+  /**
+   * Which left view is currently active. When set, the Skeleton's
+   * default leftArea icon strip uses this as the active tab. Updates
+   * flow through `onLeftViewChange` so the host can mirror the state
+   * in its own UI (e.g. close + reopen the editor to the same view).
+   */
+  leftView?: LeftView;
+  onLeftViewChange?: (view: LeftView) => void;
 }
 
 /**
@@ -116,6 +131,33 @@ export function Skeleton(props: SkeletonProps) {
   const [pane] = useState(() => new OutlinePane());
   const [, force] = useState(0);
   const canvasHost = useRef<HTMLDivElement | null>(null);
+
+  // Which built-in view is shown in the left pane. Mirrors ali's
+  // pattern: a thin icon strip on the FAR left picks the view, the
+  // panel to the right of it renders the picked view. Local state
+  // means the icon strip can survive across re-renders; `leftView`/
+  // `onLeftViewChange` are the controlled version the host can use
+  // to mirror the choice in its own UI.
+  const [leftView, setLeftView] = useState<LeftView>(props.leftView ?? 'outline');
+  // Keep local state in sync if the host flips the prop.
+  useEffect(() => {
+    if (props.leftView && props.leftView !== leftView) setLeftView(props.leftView);
+  }, [props.leftView]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickView = (v: LeftView): void => {
+    setLeftView(v);
+    props.onLeftViewChange?.(v);
+  };
+
+  // The canvas host element is stored as BOTH a ref (for the
+  // simulator-mount effect that reads it during commit) and state
+  // (for BuiltinSimulatorHost and Overlays, which need the live
+  // element to re-attach listeners / re-measure on remount). The ref
+  // callback updates both.
+  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
+  const setCanvasRef = (el: HTMLDivElement | null): void => {
+    canvasHost.current = el;
+    setCanvasEl(el);
+  };
 
   // Notify the host once the pane is constructed. The host may want
   // to call pane-level actions (rename, expand, etc.) from outside
@@ -172,34 +214,68 @@ export function Skeleton(props: SkeletonProps) {
     };
   }, [props.project.document.root, props.components]);
 
-  // canvasHostRef points at the inner canvas div. The Overlays
-  // component needs the host element (not the React ref object)
-  // so it can read `getBoundingClientRect()` for positioning.
-  // We snapshot it into state via the ref callback so children
-  // see the current element instead of `null` on first render.
-  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
-  const setCanvasRef = (el: HTMLDivElement | null) => {
-    canvasHost.current = el;
-    setCanvasEl(el);
-  };
+  // Wire BuiltinSimulatorHost to the canvas DOM once the canvas
+  // element is mounted. The host is the bridge between pointer
+  // events and the Dragon: it computes the drop target on each
+  // pointermove and commits the move/boost on pointerup. We
+  // depend on `canvasEl` (not the ref) so the effect re-fires
+  // only when React actually attaches a fresh DOM node.
+  useEffect(() => {
+    if (!canvasEl) return;
+    const host = new BuiltinSimulatorHost(props.project, { canvas: canvasEl });
+    host.mount();
+    return () => host.unmount();
+  }, [canvasEl, props.project]);
 
   const onOutlineSelect = (id: string) => {
     props.project.select(id);
   };
+
+  // Default left-area icon strip. Two stacked buttons, one per
+  // built-in `LeftView`. The active view gets a tinted background so
+  // the user can tell at a glance which panel is showing. Hosts that
+  // want to drive the left area themselves (e.g. add extra icons)
+  // pass their own `leftArea` prop and bypass this default.
+  const renderDefaultLeftArea = (): unknown => {
+    const btn = (v: LeftView, label: string, title: string): unknown =>
+      h()('button', {
+        key: v,
+        onClick: () => pickView(v),
+        title,
+        'data-active': leftView === v ? 'true' : 'false',
+        className:
+          'w-7 h-7 flex items-center justify-center rounded text-sm ' +
+          (leftView === v
+            ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300'
+            : 'text-slate-600 hover:bg-slate-100'),
+      }, label);
+    return h()('div', { className: 'flex flex-col items-center gap-1' },
+      btn('outline', '🌳', 'Outline view'),
+      btn('components', '🧩', 'Component palette'),
+    );
+  };
+
+  // The left Panel's header label and body follow `leftView`. Header
+  // text gives the user a textual confirmation of which view is
+  // active; body swaps between the outline tree and the drag-source
+  // component palette.
+  const leftHeader = leftView === 'outline' ? 'Outline' : 'Components';
+  const leftBody =
+    leftView === 'outline'
+      ? h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) })
+      : h()(ComponentPalette, { project: props.project, components: props.components });
 
   return h()('div', { className: CN.skel },
     h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: CN.skel },
       // Left area: thin icon strip OUTSIDE the resizable panels so it
       // stays at a fixed width and never collides with the outline.
       h()('div', { key: 'la', className: CN.leftArea },
-        props.leftArea?.(),
+        props.leftArea ? props.leftArea() : renderDefaultLeftArea(),
       ),
       h()(Panel, { key: 'left', defaultSize: leftSize, minSize: 15 },
         h()('div', { className: CN.pane },
-          h()('div', { className: CN.paneHeader }, 'Outline'),
-          h()('div', { className: CN.paneBody },
-            h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) }),
-          ),
+          h()('div', { className: CN.paneHeader }, leftHeader),
+          h()('div', { className: CN.paneBody }, leftBody),
         ),
       ),
       h()(PanelResizeHandle, { key: 'rh-left', className: CN.resize }),

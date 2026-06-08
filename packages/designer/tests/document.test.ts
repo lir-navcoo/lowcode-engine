@@ -82,10 +82,27 @@ describe('DocumentModel', () => {
     const d = new DocumentModel(root);
     const fn = vi.fn();
     d.events.on('nodeRenamed', fn);
-    const page = d.getNode(d.root.key as string)!;
-    d.rename(page, 'App');
-    expect(page.componentName).toBe('App');
+    // Pick a non-root node — the root is the render entry, and
+    // the DocumentModel refuses to rename it (see the next test).
+    const body = d.getNode(d.root.key as string)!.children[1];
+    d.rename(body, 'App');
+    expect(body.componentName).toBe('App');
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('rename refuses to rename the document root (render entry guard)', () => {
+    // The root's componentName is the render entry — renaming it
+    // would change the document's root type, leaving the
+    // simulator with a name the host's component registry can't
+    // resolve. DocumentModel refuses the mutation as a safety
+    // net even if the host forgets to hide the Rename UI.
+    const d = new DocumentModel(root);
+    const fn = vi.fn();
+    d.events.on('nodeRenamed', fn);
+    const pageRoot = d.getNode(d.root.key as string)!;
+    d.rename(pageRoot, 'App');
+    expect(pageRoot.componentName).toBe('Page');
+    expect(fn).not.toHaveBeenCalled();
   });
 
   it('move moves the node and fires event', () => {
