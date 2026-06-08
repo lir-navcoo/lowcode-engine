@@ -9,6 +9,9 @@
  *   - Simulator: preview wrapper around the schema
  *   - DocumentCommands: undo/redo-ready ICommand wrappers
  *   - DOM utilities: rect math, id tagging, hit testing
+ *   - Phase B ali-mirror: misc/invariant helpers, DOM clipboard
+ *     bridge, Detecting hover tracker, OffsetObserver, clickable
+ *     walker, path utils, parse-metadata helper
  */
 
 export { DocumentModel } from './document';
@@ -57,3 +60,36 @@ export {
   getHitInfo,
 } from './dom';
 export type { Rect, HitInfo } from './dom';
+
+// ---- Phase B ali-mirror (slim pure-helper port) ----
+
+export { invariant } from './utils/invariant';
+export { isElementNode, isDOMNodeVisible, normalizeTriggers } from './utils/misc';
+export { getClosestNode, type TreeNodeLike } from './utils/tree-walk';
+
+export { Clipboard, clipboard as domClipboard } from './designer/clipboard';
+export type { DomClipboardPayload, ClipboardEvents } from './designer/clipboard';
+
+export { Detecting } from './designer/detecting';
+export type { DetectingEvents } from './designer/detecting';
+
+export { OffsetObserver, createOffsetObserver } from './designer/offset-observer';
+export type { OffsetObserverEvents, IViewportLite, NodeInstanceRef } from './designer/offset-observer';
+
+export { getClosestClickableNode } from './builtin-simulator/utils/clickable';
+export {
+  isPackagePath,
+  toTitleCase,
+  generateComponentName,
+  getNormalizedImportPath,
+  makeRelativePath,
+  resolveAbsoluatePath,
+  joinPath,
+  removeVersion,
+} from './builtin-simulator/utils/path';
+export {
+  primitiveTypes,
+  parseProps,
+  parseMetadata,
+  type PropConfig,
+} from './builtin-simulator/utils/parse-metadata';

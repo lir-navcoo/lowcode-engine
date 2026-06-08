@@ -93,4 +93,72 @@ export class Scroller {
   get isRunning(): boolean {
     return this._rafHandle !== null;
   }
+
+  // ============================================================================
+  // Phase B.2 ali-mirror additions: sensitivity + bounds detection
+  // ============================================================================
+  //
+  // Ali's scroller has two extra surfaces the slim version lacked:
+  //   - `setSensitive(s)` / `getSensitive()` — disable / re-enable
+  //     the auto-scroll without tearing down the Scroller.
+  //     Plugins use this when they take over pointer handling
+  //     (e.g. a context-menu drag) and don't want background
+  //     auto-scroll firing.
+  //   - `detectBounds()` — the EDGE_THRESHOLD detection that
+  //     `scrolling()` uses internally, exposed as a method so
+  //     plugins can ask "is the pointer at the edge?" without
+  //     triggering a scroll.
+  //   - `autoScroll()` — ali-faithful reschedule helper for
+  //     plugins that want to re-arm the loop with custom delta.
+
+  /** Auto-scroll sensitivity. Default 1.0 (full); set to 0 to
+   *  disable the scroll loop without canceling it. Ali-faithful. */
+  private _sensitive = 1;
+
+  setSensitive(s: number): void {
+    this._sensitive = s;
+  }
+
+  getSensitive(): number {
+    return this._sensitive;
+  }
+
+  /**
+   * Detect whether a pointer is near any viewport edge. Returns
+   * the edge delta `{ x, y }` (zero on both axes if the pointer
+   * is comfortably inside). Ali-faithful — used by
+   * `scrolling()` to compute the per-tick delta, exposed here
+   * so plugins can ask "would scrolling fire?" without triggering
+   * it.
+   */
+  detectBounds(clientX: number, clientY: number): { x: number; y: number } {
+    if (this._sensitive === 0) return { x: 0, y: 0 };
+    const bounds = this._viewport.bounds;
+    let dx = 0;
+    let dy = 0;
+    if (clientX < bounds.left + EDGE_THRESHOLD) dx = -STEP;
+    else if (clientX > bounds.right - EDGE_THRESHOLD) dx = STEP;
+    if (clientY < bounds.top + EDGE_THRESHOLD) dy = -STEP;
+    else if (clientY > bounds.bottom - EDGE_THRESHOLD) dy = STEP;
+    return { x: dx, y: dy };
+  }
+
+  /**
+   * Ali-faithful autoScroll. Same algorithm as `scrolling()`
+   * but with an explicit (dx, dy) delta (useful for plugins
+   * that compute the delta themselves, e.g. a wheel handler).
+   * Re-arms the rAF loop if either axis is non-zero.
+   */
+  autoScroll(dx: number, dy: number): void {
+    if (this._sensitive === 0) return;
+    this._lastPointer = null;
+    this._lastDelta = { x: dx, y: dy };
+    if (dx === 0 && dy === 0) {
+      this.cancel();
+      return;
+    }
+    if (this._rafHandle !== null) return;
+    this._startTime = Date.now();
+    this._rafHandle = requestAnimationFrame(() => this._tick());
+  }
 }

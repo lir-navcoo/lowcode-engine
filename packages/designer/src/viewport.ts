@@ -23,6 +23,7 @@ export interface ViewportOptions {
 export class Viewport {
   private readonly _canvas: HTMLElement;
   private _scrollTarget: Window | HTMLElement | null = null;
+  private _scale = 1;
 
   constructor(options: ViewportOptions) {
     this._canvas = options.canvas;
@@ -33,6 +34,32 @@ export class Viewport {
    *  the canvas can scroll, resize, or animate, so caching is wrong. */
   get bounds(): DOMRect {
     return this._canvas.getBoundingClientRect();
+  }
+
+  /**
+   * The content-area rect in canvas-local coordinates, taking
+   * the current `scale` into account. Ali-faithful — used by
+   * `isDOMNodeVisible` in `utils/misc.ts` and by the bem-tool
+   * hover ring math in Phase D. With `scale=1` (the default)
+   * this is `(0, 0, bounds.width, bounds.height)`.
+   */
+  get contentBounds(): DOMRect {
+    const b = this.bounds;
+    return new DOMRect(0, 0, b.width / this._scale, b.height / this._scale);
+  }
+
+  /**
+   * Set the canvas scale (1 = 100%, 0.5 = 50%, etc.). Used
+   * by the bem-tool zoom controls in Phase D. Ali-faithful;
+   * the scale is plain internal state, no MobX.
+   */
+  setScale(s: number): void {
+    this._scale = s;
+  }
+
+  /** Current canvas scale (default 1). */
+  get scale(): number {
+    return this._scale;
   }
 
   /** Stub: stores the scroll target for future iframe support.
