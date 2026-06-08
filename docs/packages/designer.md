@@ -1,10 +1,10 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.0.3 · **Uses adapter for React (does not import React)** · **30+ tests** · **⚠️ 1 typecheck error**
+> **Version**: 2.2.0 · **Uses adapter for React (does not import React)** · **180 unit tests / 13 files** · **0 typecheck errors** · **Phase A + Phase B ali-mirror done**
 
 ## Purpose
 
-The design-time model: `Project`, `DocumentModel`, `Node` tree, `Simulator` (preview), `Dragon` (drag-and-drop), 5 commands (Insert/Remove/Move/SetProp/Rename), DOM utilities for hit-testing.
+The design-time model: `Project`, `DocumentModel`, `Node` tree, `Simulator` (preview), `Dragon` (drag-and-drop), 8 commands (Insert/Remove/Move/SetProp/Rename/Detecting/Scroller/Clipboard), DOM utilities for hit-testing.
 
 The heart of the editor's mutation layer.
 
@@ -16,10 +16,31 @@ The heart of the editor's mutation layer.
 - `Project` + `ProjectEvents` (re-emits DocumentEvents + DragonEvents + selection)
 - `Dragon` + `DragonEvents` + `DragonState` + `DropTarget`
 - `Simulator` + `SimulatorOptions` (preview mode; wraps `ReactRenderer`)
+- `BuiltinSimulatorHost` + `SimulatorHostOptions` (Phase C wires `computeComponentInstanceRect`)
+- `DragResizeEngine` + `computeResize` + `ResizeAnchor` (8-anchor resize, P9)
+- `ActiveTracker` + `ActiveTrackerEvents` (v2.4 P23 — single-focus concept)
+- `Detecting<TNode>` + `DetectingEvents` (Phase B ali-mirror — hover tracker)
+- `OffsetObserver` + `createOffsetObserver` + `IViewportLite` + `NodeInstanceRef` (Phase B — DOM-rect observer with `requestIdleCallback`)
+- `Clipboard` + `domClipboard` (default singleton) + `DomClipboardPayload` + `ClipboardEvents` (Phase B — DOM-bridge clipboard via hidden-textarea + `execCommand`)
 
 ### Commands
-- `InsertCommand`, `RemoveCommand`, `MoveCommand`, `SetPropCommand`, `RenameCommand`
+- `InsertCommand`, `RemoveCommand`, `MoveCommand`, `SetPropCommand`, `RenameCommand`, `DetectingCommand`, `ScrollerCommand`, `ClipboardCommand`
 - All implement `ICommand` from `@monbolc/lowcode-plugin-command` and integrate with the `CommandManager`'s undo/redo
+
+### Scroller / Viewport extensions
+- `Scroller.setSensitive(s)` / `getSensitive()` — Phase B ali-faithful; disable auto-scroll without tearing down
+- `Scroller.detectBounds(x, y)` → `{ x, y }` — edge-threshold delta; plugins can ask "would scrolling fire?"
+- `Scroller.autoScroll(dx, dy)` — re-arm rAF with explicit delta
+- `Viewport.contentBounds` — scale-aware content rect (Phase B; consumed by `isDOMNodeVisible` in `utils/misc.ts`)
+- `Viewport.setScale(s)` / `scale` — Phase C will wire for zoom controls
+
+### Pure helpers (Phase B ali-mirror)
+- `utils/invariant.ts` — `invariant(check, message, thing?)` → throws `[designer] Invariant failed: <message> in '<thing>'`
+- `utils/misc.ts` — `isElementNode`, `isDOMNodeVisible(domNode, viewport)`, `normalizeTriggers(triggers)` (dropped `makeEventsHandler` — no iframe in sapu)
+- `utils/tree-walk.ts` — `getClosestNode<T>(node, predicate)` + `TreeNodeLike<T>` (helper for clickable.ts; equivalent to ali's util)
+- `builtin-simulator/utils/clickable.ts` — `getClosestClickableNode<TNode>(node, canClick, isLocked, event)` — walks up skipping locked + `!canClick`
+- `builtin-simulator/utils/path.ts` — `isPackagePath`, `toTitleCase`, `generateComponentName`, `getNormalizedImportPath`, `makeRelativePath`, `resolveAbsoluatePath`, `joinPath`, `removeVersion`
+- `builtin-simulator/utils/parse-metadata.ts` — `parseProps(component)`, `parseMetadata(component)`, `primitiveTypes` (10-entry ali-faithful list), `PropConfig`
 
 ### DOM utilities
 - `getRect`, `rectsOverlap`, `rectContains`, `rectMidpoint`
@@ -30,6 +51,8 @@ The heart of the editor's mutation layer.
 - `Rect` — `{ x, y, width, height }`
 - `HitInfo` — `{ hitId: string | null, relativeY: number, height: number }`
 - `DocumentEvents`, `ProjectEvents`, `DragonEvents`, `SimulatorOptions`
+- `DomClipboardPayload` — DOM-bridge clipboard payload (renamed from `ClipboardPayload` to disambiguate from `commands.ts`'s schema-level `ClipboardPayload`)
+- `TreeNodeLike<T>`, `PropConfig`
 
 ## Key types
 
@@ -52,6 +75,15 @@ interface DropTarget {
   index: number;
   placement: 'before' | 'after' | 'inside';
 }
+
+interface IViewportLite {
+  width: number;
+  height: number;
+  scrollX: number;
+  scrollY: number;
+  scale: number;
+  scrolling: boolean;
+}
 ```
 
 ## Implementation patterns
@@ -64,14 +96,28 @@ interface DropTarget {
 - **DOM utilities use `data-lce-id` attribute** as the node-id marker (set via `tagElementWithNodeId`, read via `findNodeIdFromElement`). `hitTest` uses `document.elementsFromPoint`.
 - `Project.wireDocument()` re-emits every document and dragon event through the project's own bus, so consumers subscribe in one place.
 - `_rootId` in OutlinePane is set to a random `root_<6char>` per schema.
+- **Phase B Detecting** uses plain class fields + `Emitter<DetectingEvents>` (no MobX). `enable` flag clears the current node when set to `false`. `equals` predicate defaults to `===`; ali's `comparer.shallow` is replaced by a user-supplied predicate so the React layer can pass any equality (Phase D's `observerHOC`).
+- **Phase B OffsetObserver** reads the rect from a `rectProvider: () => DOMRect | null` callback. Phase C wires this to `BuiltinSimulatorHost.computeComponentInstanceRect`. Root-mode observers skip the provider and read the viewport directly.
+- **Phase B `getClosestClickableNode`** walks parents from SELF (not from `node.parent`) for the locked check — a node is blocked if it's locked OR has a locked ancestor. Ali's port comment says "locked ancestor (above the current node)" but the actual implementation walks from self; sapu matches the actual behavior so the test "skips a locked node + returns its parent" passes.
+- **Phase B `parseProps`** does NOT depend on `prop-types`. It honors the `lowcodeType` annotation ali's setters write on `propTypes`; for unannotated `defaultProps` it infers from `typeof` (`boolean` → `bool`, `function` → `func`, `Array.isArray` → `array`, etc.).
+- **Phase B `makeRelativePath`** treats the source as a FILE path (not a dir) — `makeRelativePath('/a/x', '/a/b/c')` is `'../../x'` (2 `..`s, not 1). Ali-faithful convention: import path comparison is between two files, not two dirs.
 
 ## Test coverage
 
-- 4 test files, 30+ tests
-- `commands.test.ts` (7): Insert/Remove/Move/SetProp/Rename undo+redo, SetProp merge, end-to-end insert+edit+rename+3x undo
-- `document.test.ts` (10): tree indexing, getNode, setRoot, insert/remove/setProps/rename/move events, Node accessors
-- `drop.test.ts` (4): Dragon start/move/commit, drop event, cancel event, end-to-end drop moves the schema
-- `project.test.ts` (10): Project document, select/selectMany/add/remove/clear, re-emit events, getSelectedNodes, Dragon state, DOM utils
+- 13 test files, 180 unit tests, all passing in ~780ms
+- `commands.test.ts` (18): Insert/Remove/Move/SetProp/Rename/Detecting/Scroller/Clipboard undo+redo, SetProp merge, end-to-end insert+edit+rename+3x undo
+- `document.test.ts` (11): tree indexing, getNode, setRoot, insert/remove/setProps/rename/move events, Node accessors
+- `drop.test.ts` (16): Dragon start/move/commit, drop event, cancel event, end-to-end drop moves the schema
+- `project.test.ts` (11): Project document, select/selectMany/add/remove/clear, re-emit events, getSelectedNodes, Dragon state, DOM utils
+- `simulator-host.test.ts` (30): BuiltinSimulatorHost lifecycle, document events, focus, props, sensor registration, leave-while-dragging
+- `drag-resize.test.ts` (14): 8-anchor resize engine, MIN_SIZE, anchor-to-delta mapping
+- `locate.test.ts` (14): three-mode insert-location compute (before/after/inside)
+- `active-tracker.test.ts` (7): single-focus tracking, sibling switch, focusable predicate
+- `dragon-generic.test.ts` (3): cross-cutting Dragon test
+- **`utils-misc-invariant.test.ts` (10) — Phase B**: invariant truthy/falsy/optional-thing, isElementNode, isDOMNodeVisible (3 visibility cases), normalizeTriggers
+- **`offset-observer-detecting.test.ts` (15) — Phase B**: createOffsetObserver null path, root-mode geometry, change event, rect provider, scale field, purge; Detecting enable/capture/release/leave/id-equality
+- **`clipboard-scroller.test.ts` (11) — Phase B**: Clipboard textarea injection, setData event flow, no-copyPaster path, default singleton; Scroller sensitivity/detectBounds/autoScroll/rAF lifecycle
+- **`b4-misc.test.ts` (20) — Phase B**: getClosestClickableNode 4 cases (self / locked-skip / canClick-skip / nothing), 12 path-helper cases, 5 parseProps/parseMetadata cases
 
 ## External deps
 
@@ -79,19 +125,20 @@ interface DropTarget {
 - `react`, `react-dom` (optional peer)
 - `react`, `react-dom`, `@types/react`, `@types/react-dom` (dev)
 
-## ⚠️ Known issues
+## Ali-mirror plan status
 
-### P0.2 — `SetPropCommand.undo` type mismatch (1 error)
-
-`packages/designer/src/commands.ts:133` — `Property 'undo' in type 'SetPropCommand' is not assignable to the same property in base type 'ICommand<{ nodeId, key, value: JSONValue }, JSONValue | undefined>'`. Likely needs `JSONValue | undefined` narrowing.
+Per `~/.claude/plans/dynamic-marinating-rabbit.md`:
+- **Phase A** ✅ done (`packages/utils/src/observable-lite.ts` + `throttle.ts` + 22 tests; committed `d2bfb81`)
+- **Phase B** ✅ done (this doc; 8 utility files + 4 test files; +56 tests, 510 → 566)
+- **Phase C** (drag + viewport integration, `computeComponentInstanceRect` gap, sensor array union) — pending
+- **Phase D** (simulator + bem-tools + setting tree, ~5200 LoC) — pending
 
 ## Missing from upstream port
 
-- `SettingTopEntry`/`SettingField` — these are L4+ work; setters are in `plugin-setters` (L2.5) but not yet wired
-- `BuiltinSimulator` — the designer's iframe-based simulator host; deferred
-- `Detecting` (hover), `Scroller` (scroll-into-view), `Clipboard` (cut/copy/paste) — see [../ROADMAP.md](../ROADMAP.md) P2.2
-- `ComponentMeta` parser, `LowCodePluginManager` (the designer's own plugin manager) — see P2.2
-- `BemTools` — dropped entirely (Fusion tooltips replaced with BaseUI in L4+, not yet built)
+- `SettingTopEntry`/`SettingField` — Phase D scope; setters are in `plugin-setters` (L2.5) and the `SettingTopEntry` tree is what the SettingsPanel will consume
+- `BuiltinSimulator` host.ts (1615 LoC) — Phase D scope; the existing `BuiltinSimulatorHost` (slim) is the stub that Phase D extends
+- `BemTools` (border-selecting, border-resizing, insertion, drag-ghost) — Phase D scope; uses `Detecting` + `OffsetObserver` (now ported in Phase B)
+- `ComponentMeta` parser, `LowCodePluginManager` (the designer's own plugin manager) — Phase D scope
 
 ## See also
 

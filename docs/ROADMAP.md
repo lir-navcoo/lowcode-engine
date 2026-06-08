@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 481 unit + 11 e2e tests passing
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 566 unit + 11 e2e tests passing, ali-mirror Phase A + B done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 481 unit tests + 1 skip / 45 files, all passing in ~2.7s.
+`yarn test` ✅ 566 unit tests + 1 skip / 54 files, all passing in ~3.2s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -170,6 +170,27 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
 
 - **Current state**: 5 commands ported (Insert, Remove, Move, SetProp, Rename)
 - **Missing**: `Detecting` (hover), `Scroller` (scroll-into-view), `Clipboard` (cut/copy/paste), `ComponentMeta` parser, `BuiltinSimulatorHost`, `LowCodePluginManager` (the designer's own plugin manager, distinct from editor-core's)
+
+### P2.2b — Ali-mirror Phase B pure-helper port — **DONE 2026-06-09 (8 utils + 4 tests, +56 unit)**
+
+- **Where**: `packages/designer/src/{utils,designer,builtin-simulator/utils}/` + 4 new test files + `index.ts` barrel + `scroller.ts`/`viewport.ts` extensions
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase A done `d2bfb81`; Phase B this entry; Phase C+D pending)
+- **Resolution**:
+  - **`utils/invariant.ts`** — 5-LoC `invariant(check, message, thing?)` → throws `[designer] Invariant failed: <message> in '<thing>'`
+  - **`utils/misc.ts`** — `isElementNode`, `isDOMNodeVisible(domNode, viewport)` (consumes `Viewport.contentBounds`), `normalizeTriggers(triggers)`. Ali's `makeEventsHandler` (cross-iframe) DROPPED — sapu has no iframe simulator.
+  - **`utils/tree-walk.ts`** — `getClosestNode<T>(node, predicate)` + `TreeNodeLike<T>`; minimal helper `clickable.ts` imports instead of `@alilc/lowcode-utils`'s `getClosestNode`.
+  - **`designer/clipboard.ts`** — DOM-bridge `Clipboard` class with hidden-textarea + `execCommand('copy')` + paste event. Ali-faithful; `execCommand` is deprecated but the only cross-browser way without Permissions-Policy. **Renamed `ClipboardPayload` → `DomClipboardPayload`** to disambiguate from `commands.ts`'s schema-level `ClipboardPayload`. Default singleton `domClipboard` exported.
+  - **`designer/detecting.ts`** — `Detecting<TNode>` plain class + `Emitter<DetectingEvents>`. `enable` toggle, `current` getter, `capture/release/leave` methods, `onDetectingChange(fn)` subscription. `equals` predicate (default `===`) replaces ali's `comparer.shallow` so the React layer (Phase D's `observerHOC`) can pass its own.
+  - **`designer/offset-observer.ts`** — `OffsetObserver` + `createOffsetObserver` + `IViewportLite` + `NodeInstanceRef`. Reads rect from a `rectProvider: () => DOMRect | null` callback. Phase C wires this to `BuiltinSimulatorHost.computeComponentInstanceRect`. Root-mode observers read viewport directly. Uses `requestIdleCallback` via `ric-shim`-compatible shim; `purge()` cancels pending idle.
+  - **`builtin-simulator/utils/clickable.ts`** — `getClosestClickableNode<TNode>(node, canClick, isLocked, event)`. Walks up skipping nodes where `!canClick` OR (node self + any ancestor) is locked.
+  - **`builtin-simulator/utils/path.ts`** — 8 string/path helpers: `isPackagePath`, `toTitleCase`, `generateComponentName`, `getNormalizedImportPath`, `makeRelativePath` (treats source as FILE → 2 `..`s for `('/a/x', '/a/b/c')`), `resolveAbsoluatePath` (treats base as FILE when path starts with `..`, as DIR otherwise), `joinPath`, `removeVersion` (strips `@<digit>...` segments).
+  - **`builtin-simulator/utils/parse-metadata.ts`** — `parseProps(component)` + `parseMetadata(component)` + 10-entry `primitiveTypes` list. Drops ali's `prop-types` dep; uses duck-typed `$$typeof` / `nodeType` element detection. Honors the `lowcodeType` annotation ali's setters write on `propTypes`.
+  - **`scroller.ts` extensions** — `setSensitive(s)` / `getSensitive()` (disable without tear-down), `detectBounds(x,y)` (edge-threshold delta), `autoScroll(dx,dy)` (re-arm rAF with explicit delta).
+  - **`viewport.ts` extensions** — `contentBounds` (scale-aware), `setScale(s)` / `scale` getter (Phase C will wire for zoom controls).
+  - **`index.ts` barrel** — exports all 8 new files + `DomClipboardPayload` / `ClipboardEvents` / `DetectingEvents` / `OffsetObserverEvents` / `IViewportLite` / `NodeInstanceRef` / `TreeNodeLike` / `PropConfig`.
+- **Tests (+56; 510 → 566)**: `utils-misc-invariant.test.ts` (10), `offset-observer-detecting.test.ts` (15), `clipboard-scroller.test.ts` (11), `b4-misc.test.ts` (20).
+- **Bug fixes during verify** (documented in commit `427351d`): clickable lock-walk starts at self; `makeRelativePath` `numGoUp` formula; `resolveAbsoluatePath` going-up heuristic; `normalize` dropping `./` prefix; `removeVersion` simpler regex; test fix for `generateComponentName('a/b/index.ts')` → 'B' (was 'A'; the leaf-dir convention is correct).
+- **Why P2.2b closed**: Phase B is the foundation Phase C (drag+viewport integration) and Phase D (simulator + bem-tools) depend on. Without these helpers, the bem-tool files in Phase D would have to invent their own `getClosestNode`, DOM clipboard, hover tracker, and rect observer. Shipping Phase B first lets Phase D focus on React + BaseUI translation.
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
