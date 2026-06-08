@@ -13,6 +13,7 @@
 
 import type { Project } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
+import type { ICommandManager } from '@monbolc/lowcode-plugin-command';
 
 import type { EngineEventBus } from './events';
 import type { ShellI18n } from './i18n';
@@ -38,6 +39,8 @@ export interface IPluginContext {
   events: EngineEventBus;
   /** The engine's i18n instance (the same `engine.i18n` reference). */
   i18n: ShellI18n;
+  /** The L2 command manager — same reference as `engine.commands`. */
+  commands: ICommandManager;
   /** Register another plugin from inside this one. */
   registerPlugin(plugin: IPlugin): void;
   /** Unregister a previously-registered plugin by name. */

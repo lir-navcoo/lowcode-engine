@@ -27,6 +27,7 @@
   "dependencies": {
     "@monbolc/lowcode-designer": "^2.2.0",
     "@monbolc/lowcode-editor-skeleton": "^2.2.0",
+    "@monbolc/lowcode-plugin-command": "^2.2.0",
     "@monbolc/lowcode-plugin-setters": "^2.2.0",
     "@monbolc/lowcode-types": "^2.2.0",
     "@monbolc/lowcode-utils": "^2.2.0",

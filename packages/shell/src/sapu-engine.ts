@@ -23,6 +23,7 @@
 import { Project } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
+import { CommandManager, type ICommandManager } from '@monbolc/lowcode-plugin-command';
 
 import { EngineEventBus } from './events';
 import type { IPlugin, IPluginContext } from './plugin';
@@ -42,6 +43,13 @@ export interface ISapuEngine {
   readonly events: EngineEventBus;
   readonly i18n: ShellI18n;
   readonly plugins: ReadonlyArray<IPlugin>;
+  /**
+   * The L2 command manager — host code can `await engine.commands.execute(name, ...args)`
+   * and `engine.commands.undo()` / `redo()`. Plugins get the same
+   * instance via `IPluginContext.commands`. Empty by default; plugins
+   * register their own commands.
+   */
+  readonly commands: ICommandManager;
   getProject(): Project;
   mount(options: MountOptions): Project;
   destroy(): void;
@@ -54,6 +62,7 @@ export interface ISapuEngine {
 export class SapuEngine implements ISapuEngine {
   readonly events = new EngineEventBus();
   readonly i18n = new ShellI18n();
+  readonly commands: ICommandManager = new CommandManager();
 
   private readonly _plugins = new Map<string, IPlugin>();
   private _project: Project | null = null;
@@ -172,6 +181,7 @@ export class SapuEngine implements ISapuEngine {
       project: this.getProject(),
       events: this.events,
       i18n: this.i18n,
+      commands: this.commands,
       registerPlugin: (p) => this.registerPlugin(p),
       unregisterPlugin: (name) => { this.unregisterPlugin(name); },
       t: (key, vars) => this.i18n.t(key, vars),
