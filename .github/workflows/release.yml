@@ -25,9 +25,11 @@
 # (some packages at 2.1.5, others still at 2.1.4) is worse than a
 # slow one. Releases must run to completion.
 #
-# The dry_run input on workflow_dispatch runs `lerna publish
-# from-package --yes --dry-run` — useful to verify tag → publish
-# mapping before actually pushing to npm.
+# The dry_run input on workflow_dispatch runs a verification step
+# (npm whoami, lerna list, local vs remote version diff) but does NOT
+# invoke `lerna publish`. lerna 8 has no `--dry-run` CLI flag for
+# publish, so we run a manual sanity check instead — same auth, same
+# registry, no side effects.
 name: Release
 
 on:
@@ -37,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (lerna --dry-run, does not actually publish)'
+        description: 'Dry run (verify auth, diff local vs npm versions; does NOT publish)'
         required: false
         default: 'false'
 
@@ -86,8 +88,41 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            echo "DRY RUN — lerna will not publish"
-            npx lerna publish from-package --yes --dry-run
+            echo "===== DRY RUN — lerna publish NOT invoked ====="
+            echo ""
+            echo "--- npm auth ---"
+            npm whoami
+            echo ""
+            echo "--- local lerna packages ---"
+            npx lerna list --json --no-private
+            echo ""
+            echo "--- local vs remote versions ---"
+            npx lerna list --json --no-private | node -e '
+              let chunks = [];
+              process.stdin.on("data", c => chunks.push(c));
+              process.stdin.on("end", async () => {
+                const pkgs = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+                const { execSync } = require("child_process");
+                for (const p of pkgs) {
+                  const local = p.version;
+                  let remote = "(not published)";
+                  try {
+                    remote = execSync(`npm view ${p.name} version`, { encoding: "utf8" }).trim();
+                  } catch (e) {
+                    remote = "(query failed: " + e.message.split("\n")[0] + ")";
+                  }
+                  const marker = local === remote ? "  same " : (local > remote ? "  NEW  " : "  ???  ");
+                  console.log(`${marker}  ${p.name.padEnd(36)}  local=${local}  npm=${remote}`);
+                }
+              });
+            '
+            echo ""
+            echo "--- build artifacts (lib/) ---"
+            for p in packages/*/lib/index.js; do
+              [ -f "$p" ] && echo "  ✓ $p" || echo "  ✗ $p MISSING"
+            done
+            echo ""
+            echo "===== DRY RUN COMPLETE — no publish ====="
           else
             npx lerna publish from-package --yes
           fi
