@@ -26,7 +26,7 @@
 # slow one. Releases must run to completion.
 #
 # The dry_run input on workflow_dispatch runs `lerna publish
-# from-package --yes --no-publish` — useful to verify tag → publish
+# from-package --yes --dry-run` — useful to verify tag → publish
 # mapping before actually pushing to npm.
 name: Release
 
@@ -37,7 +37,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (lerna --no-publish, does not actually publish)'
+        description: 'Dry run (lerna --dry-run, does not actually publish)'
         required: false
         default: 'false'
 
@@ -87,7 +87,7 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             echo "DRY RUN — lerna will not publish"
-            npx lerna publish from-package --yes --no-publish
+            npx lerna publish from-package --yes --dry-run
           else
             npx lerna publish from-package --yes
           fi
