@@ -1,15 +1,16 @@
 # SapuLowcodeEngine 交接文档
 
-> 截至 2026-06-08 的状态快照。接手人请先读这个文件 + [[ROADMAP.md]] 的 P0–P2 段，再看具体任务的 docs/packages/ 包级文档。
+> 截至 2026-06-09 的状态快照。接手人请先读这个文件 + [[ROADMAP.md]] 的 P0–P2 段 + `memory/sapu-lowcode-engine-status.md` 的最新 batch 历史，再看具体任务的 docs/packages/ 包级文档。
 
 ## TL;DR
 
 - **仓库**: https://github.com/lir-navcoo/lowcode-engine
-- **当前分支**: `main` @ `1f6972b` (干净，已推 origin)
+- **当前分支**: `main` @ `e825824` (干净，已推 origin)
 - **下次发布**: **2.2.0**，代码 + 测试 + 构建全部就绪，**但 npm publish 阻塞**（见下）
-- **测试**: 400 passed + 1 skipped (vitest 2.1, happy-dom)
+- **测试**: 481 unit passed + 1 skipped (vitest 2.1, happy-dom) + 11 e2e (Playwright 1.60)
 - **类型检查**: 0 errors (14 包 + demo)
 - **包版本**: 14 个 `@monbolc/*` 包全部 `2.2.0`，workspace 依赖 `^2.2.0`
+- **Post-v2.4 features** (代码已就绪, 都在 main 上): Dragon P1–P10 重构(ali-faithful) + P11 outline delete + P12 engine.commands + P14 键盘快捷键 + P15 plugin-authoring docs。详情见 `memory/sapu-lowcode-engine-status.md` 的 "Dragon refactor + P11–P18 follow-ups" 段。
 
 ## 仓库结构
 
@@ -144,8 +145,9 @@ yarn install
 # 构建 (14 个包)
 yarn build
 
-# 测试 (vitest, 400+ passed)
+# 测试 (vitest, 481+ unit; playwright, 11 e2e)
 yarn test
+yarn test:e2e
 
 # 类型检查 (0 errors)
 yarn typecheck
