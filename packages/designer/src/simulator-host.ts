@@ -45,6 +45,15 @@ export interface SimulatorHostOptions {
   noOpOnSameSpot?: boolean;
 }
 
+/**
+ * Pointer-move distance (in CSS px) above which a canvas
+ * `pointerdown` is treated as the start of a drag (move mode) rather
+ * than a click that selects the node. 4px matches the browser's
+ * default click-vs-drag heuristic closely enough; anything smaller
+ * trips on natural hand jitter.
+ */
+const DRAG_START_THRESHOLD = 4;
+
 export class BuiltinSimulatorHost {
   private readonly canvas: HTMLElement;
   private readonly project: Project;
@@ -54,6 +63,13 @@ export class BuiltinSimulatorHost {
   private readonly onMove = (e: PointerEvent) => this.handleMove(e);
   private readonly onUp = (e: PointerEvent) => this.handleUp(e);
   private readonly onCancel = () => this.handleCancel();
+  // Click-vs-drag tracking for the pointerdown that initiated the
+  // last interaction. We capture (id, x, y) at pointerdown; if the
+  // pointer hasn't moved past the threshold by pointerup we treat
+  // it as a click (selection only). If it has, we promote to a
+  // `dragon.start(...)` so the move path picks it up.
+  private pendingClick: { id: string; x: number; y: number } | null = null;
+  private readonly onDown = (e: PointerEvent) => this.handleDown(e);
 
   constructor(project: Project, options: SimulatorHostOptions) {
     this.project = project;
@@ -66,6 +82,7 @@ export class BuiltinSimulatorHost {
   mount(): void {
     if (this.bound) return;
     this.bound = true;
+    this.canvas.addEventListener('pointerdown', this.onDown);
     this.canvas.addEventListener('pointermove', this.onMove);
     // Use window-level pointerup so a drop outside the canvas still
     // commits (the ghost might have drifted out).
@@ -80,8 +97,10 @@ export class BuiltinSimulatorHost {
   unmount(): void {
     if (!this.bound) return;
     this.bound = false;
+    this.canvas.removeEventListener('pointerdown', this.onDown);
     this.canvas.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
+    this.pendingClick = null;
   }
 
   /**
@@ -142,13 +161,62 @@ export class BuiltinSimulatorHost {
     return { parentId: hit.hitId, index: (hitNode.schema.children ?? []).length, placement: 'inside' };
   }
 
+  private handleDown(e: PointerEvent): void {
+    // If a drag (boost or move) is already in progress, don't
+    // interfere. The existing drag owns the pointer until pointerup.
+    if (this.project.dragon.isDragging) return;
+    // Only respond to primary button. Right-click / middle-click /
+    // pen barrel button all fall through.
+    if (e.button !== 0) return;
+    const hit = getHitInfo(this.canvas, e.clientX, e.clientY);
+    if (!hit.hitId) {
+      // Empty canvas — leave selection alone. The user might be
+      // clicking on the page chrome (the simulator's outer div) and
+      // not on a rendered node; selecting nothing on empty-click is
+      // the most predictable behaviour.
+      this.pendingClick = null;
+      return;
+    }
+    // Selection always updates on pointerdown — even if the user
+    // turns out to be starting a drag. The drag will move the node,
+    // and the moved node remains selected afterwards (matching
+    // every design tool I've used).
+    this.project.select(hit.hitId);
+    // Stash the click for click-vs-drag promotion.
+    this.pendingClick = { id: hit.hitId, x: e.clientX, y: e.clientY };
+  }
+
   private handleMove(e: PointerEvent): void {
-    if (!this.project.dragon.isDragging) return;
-    const target = this.computeDropTarget(e.clientX, e.clientY);
-    this.project.dragon.move(e.clientX, e.clientY, target);
+    if (this.project.dragon.isDragging) {
+      const target = this.computeDropTarget(e.clientX, e.clientY);
+      this.project.dragon.move(e.clientX, e.clientY, target);
+      return;
+    }
+    // No active drag yet — see if a pending click has crossed the
+    // drag threshold. If so, promote it to a `dragon.start(...)`
+    // and let the next pointermove drive the move path.
+    const pending = this.pendingClick;
+    if (!pending) return;
+    const dx = e.clientX - pending.x;
+    const dy = e.clientY - pending.y;
+    if (dx * dx + dy * dy < DRAG_START_THRESHOLD * DRAG_START_THRESHOLD) {
+      return;
+    }
+    this.pendingClick = null;
+    this.project.dragon.start(pending.id, pending.x, pending.y);
+    // Compute the initial drop target so the dragon's first move
+    // event carries it (the Overlays layer can render an
+    // insertion indicator without a one-tick lag).
+    const target = this.computeDropTarget(pending.x, pending.y);
+    this.project.dragon.move(pending.x, pending.y, target);
   }
 
   private handleUp(_e: PointerEvent): void {
+    // Always clear the click-vs-drag tracker — a successful click
+    // has fired the select() in handleDown; a successful drag has
+    // either been committed (below) or will be cancelled by the
+    // dragon.cancel() in handleCancel.
+    this.pendingClick = null;
     if (!this.project.dragon.isDragging) return;
     const result = this.project.dragon.commit();
     if (!result) return;
@@ -187,10 +255,17 @@ export class BuiltinSimulatorHost {
       return;
     }
     // boost: create a new schema node.
+    // The schema ALWAYS gets a `props: {}` (even if `initialProps`
+    // is undefined) so the L4 settings panel has a stable target to
+    // write into via `setProp`. Without this, dragging a vanilla
+    // `Button` from the palette would land a node with no `props`
+    // field at all — `inferSetterName` would skip it, the user
+    // couldn't add a `className`, and the schema would diverge
+    // from the convention every other node follows.
     const initialProps = result.meta.initialProps as Record<string, JSONValue> | undefined;
     const schema: IPublicTypeNodeSchema = {
       componentName: result.meta.componentName,
-      ...(initialProps ? { props: initialProps } : {}),
+      props: { ...(initialProps ?? {}) },
     };
     const parent = result.target.parentId
       ? this.project.document.getNode(result.target.parentId) ?? null

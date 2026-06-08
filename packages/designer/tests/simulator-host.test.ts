@@ -8,12 +8,14 @@
  *     third of an element → 'before' / 'inside' / 'after'
  *   - `computeDropTarget` for a hit on a root child (parent=null)
  *     uses the schema's `key` to look up the index
- *
- * DOM-level interactions (pointerdown, pointermove, pointerup) are
- * not exercised here — they'd require happy-dom to actually compute
- * layout, which it doesn't. The pointer handlers are thin wrappers
- * around the same `computeDropTarget` / `dragon.commit` calls
- * already covered.
+ *   - `commitDrop` for a boost (palette → canvas) ALWAYS produces
+ *     a schema node with a `props: {}` field, even if no
+ *     `initialProps` were supplied — so the settings panel has
+ *     a stable target to write into.
+ *   - DOM-level interactions: `pointerdown` on a tagged element
+ *     fires `project.select(...)`; a `pointermove` past the drag
+ *     threshold promotes the pending click to a `dragon.start(...)`
+ *     so the existing move-path code can take over.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Project } from '../src/project';
@@ -142,5 +144,169 @@ describe('BuiltinSimulatorHost.computeDropTarget', () => {
     // returns undefined → the host returns null. This is the
     // "no valid drop target" signal the caller should respect.
     expect(t).toBeNull();
+  });
+});
+
+/**
+ * Commit-drop tests for the boost path. We reach into the host's
+ * private `commitDrop` indirectly by going through the public
+ * boost → commit → drop flow:
+ *   1. `dragon.boost(meta, x, y)` starts a boost drag.
+ *   2. `dragon.move(x, y, target)` carries the drop target.
+ *   3. `host.handleUp(...)` calls `commitDrop(result)`.
+ *
+ * We expose `handleUp` for the test by casting the host to `any`
+ * (it's intentionally private — production code goes through
+ * pointer events; tests just want the deterministic API).
+ */
+describe('BuiltinSimulatorHost.commitDrop (boost → insert)', () => {
+  let project: Project;
+  let canvas: HTMLElement;
+  let host: BuiltinSimulatorHost;
+  beforeEach(() => {
+    const root = deepClone(SEED);
+    project = new Project(root);
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    host = new BuiltinSimulatorHost(project, { canvas });
+  });
+
+  it('inserted node has props: {} even when initialProps is undefined', () => {
+    project.dragon.boost({ componentName: 'Footer' }, 50, 50);
+    // Drop at the end of root.children (index 2).
+    project.dragon.move(50, 50, { parentId: null, index: 2, placement: 'inside' });
+    (host as unknown as { handleUp: (e: PointerEvent) => void }).handleUp(new PointerEvent('pointerup'));
+    const rootChildren = project.document.root.children ?? [];
+    const inserted = rootChildren[2];
+    expect(inserted.componentName).toBe('Footer');
+    // The whole point of this test: the schema MUST have a `props`
+    // field (even if empty) so the settings panel / inferSetterName
+    // can later write into it. Without this, dragging a vanilla
+    // "Button" from the palette gives the user a node they cannot
+    // configure.
+    expect(inserted.props).toBeDefined();
+    expect(inserted.props).toEqual({});
+  });
+
+  it('inserted node merges initialProps into props', () => {
+    project.dragon.boost({ componentName: 'Sidebar', initialProps: { bg: '0xfff3c7' } }, 50, 50);
+    project.dragon.move(50, 50, { parentId: null, index: 2, placement: 'inside' });
+    (host as unknown as { handleUp: (e: PointerEvent) => void }).handleUp(new PointerEvent('pointerup'));
+    const rootChildren = project.document.root.children ?? [];
+    expect(rootChildren[2].props).toEqual({ bg: '0xfff3c7' });
+  });
+
+  it('freshly inserted node is selected (so the settings panel shows its props)', () => {
+    project.dragon.boost({ componentName: 'Footer' }, 50, 50);
+    project.dragon.move(50, 50, { parentId: null, index: 2, placement: 'inside' });
+    (host as unknown as { handleUp: (e: PointerEvent) => void }).handleUp(new PointerEvent('pointerup'));
+    // The selection should now contain the freshly inserted node's id.
+    const rootChildren = project.document.root.children ?? [];
+    const insertedId = (rootChildren[2] as { key: string }).key;
+    expect(project.selectedIds).toEqual([insertedId]);
+  });
+});
+
+/**
+ * Pointer-level interaction tests. happy-dom doesn't lay elements
+ * out, so we install a `getBoundingClientRect` mock per fixture
+ * element AND an `elementsFromPoint` shim that walks the canvas
+ * children. Same scaffold as the `computeDropTarget` tests, just
+ * exercised through `pointerdown` / `pointermove` / `pointerup`.
+ */
+describe('BuiltinSimulatorHost pointer interactions', () => {
+  let project: Project;
+  let canvas: HTMLElement;
+  let host: BuiltinSimulatorHost;
+  let rootId: string;
+  let bodyId: string;
+  let origElementsFromPoint: typeof document.elementsFromPoint | undefined;
+  // Stub the `getBoundingClientRect` on the two tagged elements
+  // so `getHitInfo` and `elementsFromPoint` agree on the layout.
+  const tagElementAt = (el: HTMLElement, top: number): void => {
+    el.getBoundingClientRect = () => ({ top, bottom: top + 60, left: 0, right: 100, width: 100, height: 60, x: 0, y: top, toJSON: () => ({}) } as DOMRect);
+  };
+  beforeEach(() => {
+    const root = deepClone(SEED);
+    project = new Project(root);
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    canvas.innerHTML = `
+      <div data-lce-id="__header__" style="position:absolute; top:0; height:60px"></div>
+      <div data-lce-id="__body__"   style="position:absolute; top:60px; height:60px"></div>
+    `;
+    const headerEl = canvas.querySelector('[data-lce-id="__header__"]') as HTMLElement;
+    const bodyEl = canvas.querySelector('[data-lce-id="__body__"]') as HTMLElement;
+    tagElementAt(headerEl, 0);
+    tagElementAt(bodyEl, 60);
+    rootId = project.document.root.key as string;
+    bodyId = project.document.getNode(rootId)!.children[1].id;
+    tagElementWithNodeId(bodyEl, bodyId);
+    origElementsFromPoint = document.elementsFromPoint;
+    (document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint = (x: number, y: number) => {
+      const stack: Element[] = [];
+      canvas.querySelectorAll<HTMLElement>('[data-lce-id]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+          stack.push(el);
+        }
+      });
+      return stack;
+    };
+    host = new BuiltinSimulatorHost(project, { canvas });
+  });
+  afterEach(() => {
+    if (origElementsFromPoint) {
+      (document as unknown as { elementsFromPoint: typeof document.elementsFromPoint }).elementsFromPoint = origElementsFromPoint;
+    }
+  });
+
+  it('pointerdown on a tagged node selects it', () => {
+    // y=90 → inside body's rect.
+    (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    expect(project.selectedIds).toEqual([bodyId]);
+  });
+
+  it('pointerdown on an empty canvas does not change selection', () => {
+    // First, select something so we can detect the no-op.
+    project.select(rootId);
+    canvas.innerHTML = '';
+    (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    expect(project.selectedIds).toEqual([rootId]);
+  });
+
+  it('pointermove past the drag threshold promotes the click to dragon.start()', () => {
+    // pointerdown on body.
+    (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    // Tiny move (1px) — still considered a click, dragon not started.
+    (host as unknown as { handleMove: (e: PointerEvent) => void }).handleMove(new PointerEvent('pointermove', { clientX: 51, clientY: 90 }));
+    expect(project.dragon.isDragging).toBe(false);
+    // Big move (20px) — promotes to a move drag.
+    (host as unknown as { handleMove: (e: PointerEvent) => void }).handleMove(new PointerEvent('pointermove', { clientX: 70, clientY: 90 }));
+    expect(project.dragon.isDragging).toBe(true);
+    // The dragon's state should now point at body's id (not a boost).
+    expect(project.dragon.state.draggingNodeId).toBe(bodyId);
+  });
+
+  it('pointerup without movement keeps selection and does not mutate the document', () => {
+    (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    (host as unknown as { handleUp: (e: PointerEvent) => void }).handleUp(new PointerEvent('pointerup'));
+    // Selection still set to body (set by pointerdown).
+    expect(project.selectedIds).toEqual([bodyId]);
+    // Document unchanged.
+    const rootChildren = project.document.root.children ?? [];
+    expect(rootChildren.length).toBe(2);
+  });
+
+  it('pointerdown during an in-progress drag is ignored (existing drag owns the pointer)', () => {
+    // Start a boost drag from the palette (synthetic — we just call
+    // dragon.boost directly; in production ComponentPalette fires
+    // this on its own pointerdown).
+    project.dragon.boost({ componentName: 'Footer' }, 0, 0);
+    // Now pointerdown on body. The host should NOT change selection
+    // (the boost drag owns the pointer) and NOT call dragon.start.
+    (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    expect(project.dragon.isBoosting).toBe(true);
+    expect(project.dragon.state.draggingNodeId).toBeNull();
   });
 });
