@@ -53,3 +53,17 @@ export {
   isActionContent,
   isDataSource,
 } from './guards';
+
+// --- Phase A ali-mirror: Observable-lite ---
+// Replaces ali's MobX `@obx` / `@computed` / `@autorun` /
+// `reaction` decorators without pulling in MobX. Ali-faithful
+// surface; the React HOC `observerHOC` lives in the designer
+// package (Phase D) and subscribes to these primitives.
+export { Observable, autorun, computed, reaction } from './observable-lite';
+export type { ObservableEvents } from './observable-lite';
+
+// --- Phase A ali-mirror: throttle ---
+// Port of ali's `designer/src/builtin-simulator/utils/throttle.ts`.
+// Ali-faithful algorithm (leading + trailing, RAF-aware); sapu
+// adds a `.dispose()` method for clean teardown.
+export { throttle } from './throttle';
