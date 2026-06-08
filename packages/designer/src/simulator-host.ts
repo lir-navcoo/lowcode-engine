@@ -91,6 +91,10 @@ export class BuiltinSimulatorHost {
   // Viewport + scroller (new in v2.3)
   readonly viewport: Viewport;
   private readonly scroller: Scroller;
+  // Bound no-select listeners (v2.3.2: prevent text-selection on drag)
+  private _boundAddNoSelect: (() => void) | null = null;
+  private _boundRemoveNoSelect: (() => void) | null = null;
+  private _noSelectCount = 0;
 
   constructor(project: Project, options: SimulatorHostOptions) {
     this.project = project;
@@ -111,6 +115,23 @@ export class BuiltinSimulatorHost {
     // Use window-level pointerup so a drop outside the canvas still
     // commits (the ghost might have drifted out).
     window.addEventListener('pointerup', this.onUp);
+    // v2.3.2: prevent text-selection-on-drag. While the Dragon
+    // is dragging, set `user-select: none` on `documentElement`
+    // so the browser doesn't accidentally select text in the
+    // canvas / palette / outline as the user drags across them.
+    // We listen to BOTH event sets (ali + v2.2-legacy) and use
+    // a refcount to handle nested / overlapping events safely.
+    const dEvents = this.project.dragon.events;
+    this._boundAddNoSelect = () => this._addNoSelect();
+    this._boundRemoveNoSelect = () => this._removeNoSelect();
+    dEvents.on('dragstart', this._boundAddNoSelect);
+    dEvents.on('start', this._boundAddNoSelect);
+    dEvents.on('startBoost', this._boundAddNoSelect);
+    dEvents.on('dragend', this._boundRemoveNoSelect);
+    dEvents.on('drop', this._boundRemoveNoSelect);
+    dEvents.on('cancel', this._boundRemoveNoSelect);
+    dEvents.on('dropBoost', this._boundRemoveNoSelect);
+    dEvents.on('cancelBoost', this._boundRemoveNoSelect);
   }
 
   /** Detach DOM listeners. Call on editor unmount. */
@@ -122,6 +143,23 @@ export class BuiltinSimulatorHost {
     window.removeEventListener('pointerup', this.onUp);
     this.pendingClick = null;
     this.scroller.cancel();
+    const dEvents = this.project.dragon.events;
+    if (this._boundAddNoSelect) {
+      dEvents.off('dragstart', this._boundAddNoSelect);
+      dEvents.off('start', this._boundAddNoSelect);
+      dEvents.off('startBoost', this._boundAddNoSelect);
+    }
+    if (this._boundRemoveNoSelect) {
+      dEvents.off('dragend', this._boundRemoveNoSelect);
+      dEvents.off('drop', this._boundRemoveNoSelect);
+      dEvents.off('cancel', this._boundRemoveNoSelect);
+      dEvents.off('dropBoost', this._boundRemoveNoSelect);
+      dEvents.off('cancelBoost', this._boundRemoveNoSelect);
+    }
+    this._boundAddNoSelect = null;
+    this._boundRemoveNoSelect = null;
+    this._noSelectCount = 0;
+    document.documentElement.style.userSelect = '';
   }
 
   // ==========================================================================
@@ -440,6 +478,31 @@ export class BuiltinSimulatorHost {
       }
     }
     return false;
+  }
+
+  /**
+   * v2.3.2: add `user-select: none` to `documentElement` while a
+   * drag is in progress. Refcounted so overlapping events (the
+   * `start` + `dragstart` pair in ali-mode, or nested boosts)
+   * don't accidentally leave the no-select stuck on.
+   */
+  private _addNoSelect(): void {
+    this._noSelectCount += 1;
+    if (this._noSelectCount === 1) {
+      // Set the inline style; cascaded `user-select: none` blocks
+      // the browser's default drag-select on text. The setter /
+      // `<input>` elements still allow text selection (they
+      // don't inherit the user-select from their ancestors in
+      // modern browsers when the input is focused).
+      document.documentElement.style.userSelect = 'none';
+    }
+  }
+
+  private _removeNoSelect(): void {
+    this._noSelectCount = Math.max(0, this._noSelectCount - 1);
+    if (this._noSelectCount === 0) {
+      document.documentElement.style.userSelect = '';
+    }
   }
 
   private commitDrop(

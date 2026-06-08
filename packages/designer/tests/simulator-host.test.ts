@@ -342,3 +342,84 @@ describe('BuiltinSimulatorHost pointer interactions', () => {
     expect(project.dragon.state.draggingNodeId).toBeNull();
   });
 });
+
+/**
+ * v2.3.2: while a drag is in progress, the host sets
+ * `user-select: none` on `documentElement` so the browser doesn't
+ * accidentally select text in the canvas / palette / outline as
+ * the user drags across them. The setting is refcounted (the
+ * host listens to BOTH the ali `dragstart` AND the v2.2-legacy
+ * `start` / `startBoost` events), so overlapping / nested
+ * drags don't accidentally leave the no-select stuck on.
+ */
+describe('BuiltinSimulatorHost no-select-during-drag (v2.3.2)', () => {
+  let project: Project;
+  let canvas: HTMLElement;
+  let host: BuiltinSimulatorHost;
+  beforeEach(() => {
+    project = new Project({ componentName: 'Page', children: [] });
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    host = new BuiltinSimulatorHost(project, { canvas });
+    host.mount();
+    // Make sure no previous test left the style stuck on.
+    document.documentElement.style.userSelect = '';
+  });
+  afterEach(() => {
+    host.unmount();
+    document.documentElement.style.userSelect = '';
+  });
+
+  it('start → drop sets and clears user-select on documentElement', () => {
+    expect(document.documentElement.style.userSelect).toBe('');
+    // Fire the v2.2-legacy `start` event (manual move-mode).
+    project.dragon.events.emit('start', { nodeId: 'x', x: 0, y: 0 });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    project.dragon.events.emit('drop', { nodeId: 'x', target: { parentId: null, index: 0, placement: 'inside' } });
+    expect(document.documentElement.style.userSelect).toBe('');
+  });
+
+  it('startBoost → dropBoost sets and clears user-select', () => {
+    project.dragon.events.emit('startBoost', { meta: { componentName: 'Footer' } });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    project.dragon.events.emit('dropBoost', { meta: { componentName: 'Footer' }, target: { parentId: null, index: 0, placement: 'inside' } });
+    expect(document.documentElement.style.userSelect).toBe('');
+  });
+
+  it('dragstart → dragend (ali-style) sets and clears user-select', () => {
+    project.dragon.events.emit('dragstart', { dragObject: { type: 'Any', extra: null }, copy: false });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    project.dragon.events.emit('dragend', { dragObject: { type: 'Any', extra: null }, copy: false, cancelled: false });
+    expect(document.documentElement.style.userSelect).toBe('');
+  });
+
+  it('cancel / cancelBoost also clear user-select', () => {
+    project.dragon.events.emit('start', { nodeId: 'x', x: 0, y: 0 });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    project.dragon.events.emit('cancel', { nodeId: 'x' });
+    expect(document.documentElement.style.userSelect).toBe('');
+
+    project.dragon.events.emit('startBoost', { meta: { componentName: 'F' } });
+    project.dragon.events.emit('cancelBoost', { meta: { componentName: 'F' } });
+    expect(document.documentElement.style.userSelect).toBe('');
+  });
+
+  it('refcount: overlapping add signals do not leave user-select stuck', () => {
+    // Two `start` events (e.g. nested boosts) followed by one
+    // `drop` should keep the no-select active.
+    project.dragon.events.emit('start', { nodeId: 'a', x: 0, y: 0 });
+    project.dragon.events.emit('start', { nodeId: 'b', x: 0, y: 0 });
+    project.dragon.events.emit('drop', { nodeId: 'a', target: { parentId: null, index: 0, placement: 'inside' } });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    project.dragon.events.emit('drop', { nodeId: 'b', target: { parentId: null, index: 0, placement: 'inside' } });
+    expect(document.documentElement.style.userSelect).toBe('');
+  });
+
+  it('unmount clears the no-select even if a drag is in progress', () => {
+    project.dragon.events.emit('startBoost', { meta: { componentName: 'F' } });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    host.unmount();
+    // unmount must release the refcount + clear the style.
+    expect(document.documentElement.style.userSelect).toBe('');
+  });
+});
