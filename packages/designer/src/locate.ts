@@ -209,3 +209,123 @@ function isNearAfter(
   const midX = rect.x + rect.width / 2;
   return pointer.x > midX ? 'after' : 'before';
 }
+
+// ---------------------------------------------------------------------------
+// Phase C.Z ali-mirror: DOM-axis detection helpers
+// ---------------------------------------------------------------------------
+//
+// Ali-faithful port of
+// `alibaba/lowcode-engine/packages/designer/src/designer/location.ts:40-99`.
+// These pure helpers decide whether a drop should land "above"
+// (V axis) or "to the left of" (H axis) the children, based on
+// the live `getComputedStyle` of the container / child.
+//
+// Why this matters: a `flex-direction: row` container lays its
+// children out horizontally — dropping between items should land
+// "to the left of" item N (V axis would put the new item
+// visually "above" the row). Without these helpers, the insert
+// algorithm defaults to V axis and the visual UX is wrong on
+// flex / grid layouts.
+//
+// Pure: no state, no DOM writes, no React. Just reads
+// `getComputedStyle` + a couple of node-type checks. Ali's
+// version takes a `win?` for cross-frame simulators; sapu has
+// no iframe so the parameter is optional (defaults to
+// `el.ownerDocument.defaultView`).
+//
+// Tests live in `tests/locate-axis-helpers.test.ts`. The
+// helpers are ali-faithful; happy-dom supports `getComputedStyle`
+// (returns '' for unset properties, which is fine for the
+// regex tests below).
+
+/** Type-guard: is the node a `Text` node? Ali-faithful. */
+function isText(elem: Element | Text): elem is Text {
+  return (elem as Node).nodeType === Node.TEXT_NODE;
+}
+
+/** Type-guard: is the node a `Document`? */
+function isDocument(elem: Element | Document): elem is Document {
+  return (elem as Node).nodeType === Node.DOCUMENT_NODE;
+}
+
+/** Resolve the `Window` for an element. Ali-faithful. */
+function getWindow(elem: Element | Document): Window {
+  if (isDocument(elem)) return (elem as unknown as Document).defaultView ?? window;
+  const ownerDoc = (elem as Element).ownerDocument;
+  return (ownerDoc?.defaultView ?? window) as Window;
+}
+
+/**
+ * Ali-faithful: returns `true` if the element lays its children
+ * out in a row (horizontal flex / grid), `false` for column or
+ * block layouts. Used by the drop-target algorithm to decide
+ * "above" vs "to the left of".
+ */
+export function isRowContainer(container: Element | Text, win?: Window): boolean {
+  if (isText(container)) return true;
+  const style = (win ?? getWindow(container)).getComputedStyle(container);
+  const display = style.getPropertyValue('display');
+  if (/flex$/.test(display)) {
+    const direction = style.getPropertyValue('flex-direction') || 'row';
+    if (direction === 'row' || direction === 'row-reverse') return true;
+  }
+  if (/grid$/.test(display)) return true;
+  return false;
+}
+
+/**
+ * Ali-faithful: returns `true` if the child renders inline (so
+ * the insert axis is the flow's row axis), `false` for block
+ * children. `float: left|right` is treated as inline (it's
+ * removed from the normal flow).
+ */
+export function isChildInline(child: Element | Text, win?: Window): boolean {
+  if (isText(child)) return true;
+  const style = (win ?? getWindow(child)).getComputedStyle(child);
+  return /^inline/.test(style.getPropertyValue('display')) ||
+    /^(left|right)$/.test(style.getPropertyValue('float'));
+}
+
+/**
+ * Unwrap a `IPublicTypeRect` (Phase C.X shape) to its first
+ * backing element. Returns `null` when the rect is empty (no
+ * `elements`) or `computed: true` (the rect is a union — no
+ * single element to test axis on).
+ */
+function getRectTarget(rect: IPublicTypeRect | null): Element | Text | null {
+  if (!rect || rect.computed) return null;
+  const els = rect.elements;
+  return els && els.length > 0 ? els[0]! : null;
+}
+
+/**
+ * Ali-faithful: is the rect's first element a *row* container?
+ * If true, dropping inside the rect is a V-axis insert (the new
+ * child stacks vertically).
+ */
+export function isVerticalContainer(rect: IPublicTypeRect | null): boolean {
+  const el = getRectTarget(rect);
+  if (!el) return false;
+  return isRowContainer(el);
+}
+
+/**
+ * Ali-faithful: is the rect's first element itself inline OR
+ * is its parent a row container? If true, the insert axis is H
+ * (drop lands left/right); if false, the insert axis is V
+ * (drop lands above/below).
+ */
+export function isVertical(rect: IPublicTypeRect | null): boolean {
+  const el = getRectTarget(rect);
+  if (!el) return false;
+  if (isChildInline(el)) return true;
+  if (isText(el)) return true;
+  const parent = (el as Element).parentElement;
+  return parent ? isRowContainer(parent) : false;
+}
+
+// `IPublicTypeRect` is a Phase C.X type — imported here to
+// avoid duplicating the shape. Keep the import at the bottom
+// of the file (after the helpers that use it) to keep the
+// import order intuitive.
+import type { IPublicTypeRect } from './simulator-host';

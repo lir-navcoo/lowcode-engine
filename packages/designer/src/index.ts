@@ -68,6 +68,9 @@ export {
 } from './dom';
 export type { Rect, HitInfo, InstanceLike } from './dom';
 
+// ---- locate.ts axis helpers (Phase C.Z) ----
+export { isRowContainer, isChildInline, isVerticalContainer, isVertical } from './locate';
+
 // ---- Phase B ali-mirror (slim pure-helper port) ----
 
 export { invariant } from './utils/invariant';
