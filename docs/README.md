@@ -6,6 +6,7 @@
 
 | Doc | Purpose |
 |---|---|
+| [HANDOVER.md](HANDOVER.md) | **接手人入口** — 当前状态快照、2.2.0 发布步骤、关键命令、约定 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | L0–L7 layering, dependency graph, design principles, the React injection boundary |
 | [COMPARISON-WITH-ALI.md](COMPARISON-WITH-ALI.md) | sapu package ↔ `alibaba/lowcode-engine` package mapping, API differences, scope slimming |
 | [ROADMAP.md](ROADMAP.md) | Current state (L0–L7 done), per-layer status, deferred work |
