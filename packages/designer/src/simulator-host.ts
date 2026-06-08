@@ -158,8 +158,18 @@ export class BuiltinSimulatorHost {
     }
     this._boundAddNoSelect = null;
     this._boundRemoveNoSelect = null;
+    // Force-release the no-select: clear the inline styles,
+    // remove the selectstart preventer, reset the refcount.
+    const de = document.documentElement;
+    const body = document.body;
+    de.style.userSelect = '';
+    (de.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = '';
+    if (body) {
+      body.style.userSelect = '';
+      (body.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = '';
+    }
+    document.removeEventListener('selectstart', this._onSelectStart, { capture: true });
     this._noSelectCount = 0;
-    document.documentElement.style.userSelect = '';
   }
 
   // ==========================================================================
@@ -418,6 +428,13 @@ export class BuiltinSimulatorHost {
     // = the freshly-inserted node). `handleUp` flushes the
     // pendingClick when no drag started.
     this.pendingClick = { id: hit.hitId, x: e.clientX, y: e.clientY };
+    // v2.3.2: arm the no-select IMMEDIATELY on pointerdown so the
+    // first 4px of movement (the dragon's shake gate) doesn't let
+    // the browser start a text selection. The Dragon's `start`
+    // event fires later (in `handleMove` past the threshold) and
+    // re-arms the no-select — the refcount stays balanced because
+    // `handleUp` removes once and the Dragon's `drop` removes once.
+    this._addNoSelect();
   }
 
   private handleMove(e: PointerEvent): void {
@@ -444,6 +461,12 @@ export class BuiltinSimulatorHost {
 
   private handleUp(_e: PointerEvent): void {
     this.scroller.cancel();
+    // v2.3.2: clear the no-select on pointerup. If a drag
+    // started, the Dragon's `drop` (or `cancel`) event will
+    // also clear it — the refcount stays balanced (one add
+    // from `handleDown`, one remove from `handleUp`, plus the
+    // add/remove pair from the Dragon's start/drop events).
+    this._removeNoSelect();
     if (!this.project.dragon.isDragging) {
       // No drag started — this was a plain click on a canvas
       // node. Commit the deferred selection from `handleDown`.
@@ -481,29 +504,57 @@ export class BuiltinSimulatorHost {
   }
 
   /**
-   * v2.3.2: add `user-select: none` to `documentElement` while a
-   * drag is in progress. Refcounted so overlapping events (the
-   * `start` + `dragstart` pair in ali-mode, or nested boosts)
-   * don't accidentally leave the no-select stuck on.
+   * v2.3.2: add `user-select: none` (with `-webkit-` prefix for
+   * older WebKit) to BOTH `documentElement` and `document.body`
+   * while a drag is in progress. Some browsers honor the rule on
+   * the root only, others on body only — setting both is the
+   * cheapest cross-browser guarantee. Refcounted so overlapping
+   * events (the `start` + `dragstart` pair in ali-mode, or
+   * nested boosts) don't accidentally leave the no-select stuck.
+   *
+   * Belt-and-suspenders: also `preventDefault()` on `selectstart`
+   * while the no-select is active. The CSS `user-select: none`
+   * stops text-selection-from-pointer in most cases, but a
+   * `selectstart` event can still fire in some browsers and lead
+   * to a tiny selection range on a single line. preventDefault
+   * is the only fully-reliable way to block it.
    */
   private _addNoSelect(): void {
     this._noSelectCount += 1;
     if (this._noSelectCount === 1) {
-      // Set the inline style; cascaded `user-select: none` blocks
-      // the browser's default drag-select on text. The setter /
-      // `<input>` elements still allow text selection (they
-      // don't inherit the user-select from their ancestors in
-      // modern browsers when the input is focused).
-      document.documentElement.style.userSelect = 'none';
+      const de = document.documentElement;
+      const body = document.body;
+      de.style.userSelect = 'none';
+      (de.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = 'none';
+      if (body) {
+        body.style.userSelect = 'none';
+        (body.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = 'none';
+      }
+      document.addEventListener('selectstart', this._onSelectStart, { capture: true });
     }
   }
 
   private _removeNoSelect(): void {
     this._noSelectCount = Math.max(0, this._noSelectCount - 1);
     if (this._noSelectCount === 0) {
-      document.documentElement.style.userSelect = '';
+      const de = document.documentElement;
+      const body = document.body;
+      de.style.userSelect = '';
+      (de.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = '';
+      if (body) {
+        body.style.userSelect = '';
+        (body.style as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect = '';
+      }
+      document.removeEventListener('selectstart', this._onSelectStart, { capture: true });
     }
   }
+
+  /** Bound `selectstart` preventer. Lives on `document` with
+   *  `capture: true` so it fires BEFORE any element's own
+   *  `selectstart` listener can react. */
+  private readonly _onSelectStart = (e: Event): void => {
+    e.preventDefault();
+  };
 
   private commitDrop(
     result:

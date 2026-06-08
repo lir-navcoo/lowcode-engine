@@ -422,4 +422,37 @@ describe('BuiltinSimulatorHost no-select-during-drag (v2.3.2)', () => {
     // unmount must release the refcount + clear the style.
     expect(document.documentElement.style.userSelect).toBe('');
   });
+
+  it('selectstart is preventDefault-ed while a drag is in progress', () => {
+    // Belt-and-suspenders: in addition to the CSS user-select,
+    // the host installs a `selectstart` preventer at the
+    // document level with capture=true. Without this, some
+    // browsers still start a small text selection range on
+    // the first mousedown→mousemove even with `user-select: none`.
+    project.dragon.events.emit('startBoost', { meta: { componentName: 'F' } });
+    const evt = new Event('selectstart', { bubbles: true, cancelable: true });
+    document.dispatchEvent(evt);
+    expect(evt.defaultPrevented).toBe(true);
+  });
+
+  it('sets user-select on BOTH documentElement and document.body', () => {
+    project.dragon.events.emit('startBoost', { meta: { componentName: 'F' } });
+    // Some browsers honor the rule on root only, others on body
+    // only — set both for the cheapest cross-browser guarantee.
+    expect(document.documentElement.style.userSelect).toBe('none');
+    expect(document.body.style.userSelect).toBe('none');
+  });
+
+  it('startBoost → dropBoost clears the selectstart preventer (refcount returns to 0)', () => {
+    // The observable side-effect of the refcount returning to 0:
+    // both the inline style AND the selectstart listener are
+    // removed. We assert the style here (happy-dom honors it
+    // cleanly); the preventer wiring is covered by the test
+    // above.
+    project.dragon.events.emit('startBoost', { meta: { componentName: 'F' } });
+    expect(document.documentElement.style.userSelect).toBe('none');
+    project.dragon.events.emit('dropBoost', { meta: { componentName: 'F' }, target: { parentId: null, index: 0, placement: 'inside' } });
+    expect(document.documentElement.style.userSelect).toBe('');
+    expect(document.body.style.userSelect).toBe('');
+  });
 });
