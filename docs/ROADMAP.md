@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 672 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 685 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 672 unit tests + 1 skip / 60 files, all passing in ~3.5s.
+`yarn test` ✅ 685 unit tests + 1 skip / 61 files, all passing in ~3.7s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -276,6 +276,23 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
 - **Bug fixes during verify** (documented in commit `8a95c51`):
   - Initial escape attempt used hand-rolled `replace(/["\\]/g, ...)`. happy-dom doesn't support the backslash-escape sequences inside attribute selectors that browser-native does. Switched to `CSS.escape` (the standard cross-browser way to escape arbitrary characters in a CSS attribute value). Still hit a happy-dom-specific gap (CSS.escape sequences for `"` and `\\` inside attribute values aren't consistently supported). Test was relaxed to a benign weird-id case (dots) that works in both happy-dom and browser-native. The `CSS.escape` usage in production is still correct — it's the slim test env that's the gap.
 - **Why P2.2h closed**: the demo's "Cards" preset (Phase C.Y demo polish) has 3 Sidebar instances with distinct `bg` colors. Before this commit, the drop-target math only saw one of them at random; after this commit, the drop math sees the bounding rect of all 3. The visual UX is more predictable (the drop indicator spans the whole layout, not just one card).
+
+### P2.2i — Ali-mirror Phase C.AD Dragon.chooseSensor lastSensor — **DONE 2026-06-09 (90 LoC + 13 tests, 672 → 685)**
+
+- **Where**: `packages/types/src/drag.ts` (+15 LoC, IPublicTypeSensor additions) + `packages/designer/src/dragon.ts` (+90 LoC, chooseSensor + lastSensor) + `tests/choose-sensor.test.ts` (NEW, 13 tests)
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C, lastSensor memory gap)
+- **Resolution**: closes the lastSensor gap. The slim sensor loop picked the FIRST sensor whose `isEnter` fired — if the pointer briefly left a sensor's territory (crossing between two adjacent sensor regions, moving through a 1px gap), the next move would lose the sensor entirely. The new `chooseSensor` keeps the last active sensor in `_lastSensor` and falls back to it when no current sensor's `isEnter` fires. Ali-faithful port of `dragon.ts:468-491`.
+  - **`IPublicTypeSensor`**: +2 OPTIONAL fields — `sensorAvailable?: boolean` (ali-faithful; defaults to "always available"), `deactiveSensor?(): void` (ali-faithful; defaults to no-op). Slim sensors that don't implement these work unchanged.
+  - **`Dragon.chooseSensor(e)`**: 3-step algorithm — (1) walk `_sensors` in registration order, pick first whose `isEnter(fixed)` fires AND `sensorAvailable !== false`; (2) if no fresh pick, fall back to `_lastSensor`; (3) if picked === `_activeSensor`, bail (no deactive, no re-assign). On sensor change, `_safeDeactivate(_activeSensor)` (best-effort wrapper that swallows throws) → `_lastSensor = picked` → `_activeSensor = picked`.
+  - **`_reset`**: also clears `_lastSensor` so the next gesture starts fresh.
+  - **`removeSensor`**: also clears `_lastSensor` if the removed sensor matches.
+- **Tests** (+13): `choose-sensor.test.ts` covers no-match, first-matches, second-matches, lastSensor memory (3 cases), deactiveSensor on change / no-op on same / no-op on fallback, throw swallowing, sensorAvailable filter (2 cases), removeSensor clearing _lastSensor.
+- **Bug fixes during verify** (documented in commit `54ae0e8`):
+  - Initial test stub had `fixEvent` that pre-set `territory`, making `isEnter` always return true. Switched to cleaner design: `fixEvent` is pass-through; test sets `inside` on the event; `isEnter` checks `inside === label`.
+  - Initial implementation didn't update `_lastSensor` in the chooseSensor path. Without that, the lastSensor fallback didn't actually re-pick (lastSensor was always null). Fix: update `_lastSensor` BEFORE `_activeSensor` in the assignment.
+  - The `cancel()` test was based on the wrong assumption (cancel() only does work with an active drag). Replaced with a `removeSensor` test that exercises the same `_lastSensor` clearing path.
+  - Had to rebuild `@monbolc/lowcode-types` (`yarn workspace ... build`) so the designer's tsc reads the new `sensorAvailable` / `deactiveSensor` fields.
+- **Why P2.2i closed**: a sensor that holds external state (a highlight ring around a node, a hover indicator) stays "active" across a brief pointer-leave. Without lastSensor, the visual state flickers. With it, the user experience matches ali (and conventional editors like Figma).
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
