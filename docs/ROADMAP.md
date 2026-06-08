@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 652 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 664 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 652 unit tests + 1 skip / 58 files, all passing in ~3.5s.
+`yarn test` ✅ 664 unit tests + 1 skip / 59 files, all passing in ~3.5s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -250,6 +250,20 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
   - The subscription handler initially called `_compute()` then `events.emit('change', ...)`. For root mode, `_compute()` ALSO emits (because the defaultRect provider returns non-zero values on the first call → the rect-change gate fires). Root mode thus double-emitted on each viewport change. Fix: root mode emits directly without `_compute` (root geometry is viewport-derived; the rect path is irrelevant).
   - Tests initially tried to attach the listener BEFORE the constructor ran, but the OffsetObserver emits synchronously during construction. Restructured the test helper to attach the listener after construction and assert on the DELTA (re-fires from the subscription path) rather than the absolute event count.
 - **Why P2.2f closed**: the Phase D bem-tool files (border-selecting, border-detecting, border-resizing) all need to react to viewport scroll / scale changes to re-position their overlays. With auto-subscribe, the bem-tool files just create OffsetObservers and the re-positioning happens automatically. Without it, each bem-tool file would have to wire its own `autorun(() => viewport.scaleObs.on('change', recompute))` boilerplate.
+
+### P2.2g — Ali-mirror Phase C.AB autorun / reaction shims — **DONE 2026-06-09 (85 LoC + 12 tests, 652 → 664)**
+
+- **Where**: `packages/designer/src/project.ts` (+50 LoC) + `document.ts` (+35 LoC) + `index.ts` (+1 LoC barrel) + `tests/project-autorun-reaction.test.ts` (NEW, 12 tests)
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C, last "API parity with ali" gap)
+- **Resolution**: closes the last API-parity gap. Ali's `IDesigner` exposes `autorun(fn)` + `reaction(track, effect)` so plugins can react to MULTIPLE observables in one go (re-run on ANY tracked change). Sapu had no such surface — plugins had to wire discrete `events.on('xxx', ...)` handlers per observable.
+  - **`Project.autorun(effect)` + `Project.reaction(track, effect)`** — delegate to Phase A's `Observable-lite` helpers. JSDoc explains MobX-aligned semantics (first run of reaction does NOT fire effect; only transitions do).
+  - **`DocumentModel.autorun` + `DocumentModel.reaction`** — same shims, scoped to document consumers. JSDoc notes that document's own getters (`nodes.size`, `root`, etc.) are plain JS, so the shim is for symmetry with ali's `IDocumentModel` and for the future case where document properties become observable.
+  - **`index.ts`**: +1 barrel export for `IDocumentModelHost` type (was already exported but missing from the type re-exports).
+- **Tests** (+12): `project-autorun-reaction.test.ts` covers Project.autorun (4: initial run, Observable change re-runs, multi-observable tracking, disposer), Project.reaction (4: no fire on initial, [next,prev] on change, multi-value tracking, disposer), DocumentModel.autorun (2: initial, Observable re-run), DocumentModel.reaction (1: fires on change), DocumentModel.autorun disposer (1).
+- **Bug fixes during verify** (documented in commit `3868069`):
+  - Initial tests asserted `document.nodes.size === 0` but it's actually 1 (the root node is indexed by the DocumentModel constructor). Fixed the expected value.
+  - Tests initially tried to test `document.autorun` re-runs when `document.nodes.size` changes, but document's own getters are plain JS (not Observable). Fixed by switching to: re-runs when an Observable READ inside the effect changes (which is what the shim actually does).
+- **Why P2.2g closed**: a plugin written for ali (e.g. one that auto-saves the document on any observable change) can now call `project.autorun(fn)` / `project.reaction(track, effect)` in sapu with zero changes. The shim surface is ali-faithful, so any plugin migration is mechanical `@monbolc` find-replace + no functional rewrite.
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
