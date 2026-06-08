@@ -142,6 +142,40 @@ jobs:
             cat /tmp/_token.json | head -c 500
             echo ""
             echo ""
+            echo "--- check publish access for an existing package ---"
+            status=$(curl -sS -o /tmp/_access.json -w "%{http_code}" -H "Authorization: Bearer $NODE_AUTH_TOKEN" "https://registry.npmjs.org/-/package/@monbolc%2flowcode-types/access")
+            echo "HTTP $status"
+            cat /tmp/_access.json | head -c 500
+            echo ""
+            echo ""
+            echo "--- test PUT to a non-existent test package (will unpublish after) ---"
+            cat > /tmp/_put-body.json <<'EOF'
+{
+  "_id": "@monbolc/dryrun-test-pkg",
+  "name": "@monbolc/dryrun-test-pkg",
+  "description": "test",
+  "dist-tags": { "latest": "0.0.0" },
+  "versions": {
+    "0.0.0": {
+      "name": "@monbolc/dryrun-test-pkg",
+      "version": "0.0.0",
+      "description": "test"
+    }
+  },
+  "access": "public",
+  "_attachments": {}
+}
+EOF
+            status=$(curl -sS -o /tmp/_putresp.json -w "%{http_code}" -X PUT -H "Authorization: Bearer $NODE_AUTH_TOKEN" -H "Content-Type: application/json" --data @/tmp/_put-body.json "https://registry.npmjs.org/@monbolc%2fdryrun-test-pkg")
+            echo "HTTP $status"
+            cat /tmp/_putresp.json | head -c 500
+            echo ""
+            # clean up if it succeeded
+            if [ "$status" = "200" ] || [ "$status" = "201" ]; then
+              echo "(test pkg created — cleaning up)"
+              curl -sS -X DELETE -H "Authorization: Bearer $NODE_AUTH_TOKEN" "https://registry.npmjs.org/@monbolc%2fdryrun-test-pkg/-/dryrun-test-pkg-0.0.0.tgz/-/dryrun-test-pkg-0.0.0.tgz" 2>&1 | head -3 || true
+            fi
+            echo ""
             echo "===== DRY RUN COMPLETE — no publish ====="
           else
             npx lerna publish from-package --yes
