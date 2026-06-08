@@ -159,6 +159,73 @@ describe('BuiltinSimulatorHost.computeDropTarget', () => {
  * (it's intentionally private — production code goes through
  * pointer events; tests just want the deterministic API).
  */
+
+// ===== P8.3 — lock-ancestor guard =====
+describe('BuiltinSimulatorHost.computeDropTarget — locked ancestor (v2.3.5)', () => {
+  let project: Project;
+  let canvas: HTMLElement;
+  let host: BuiltinSimulatorHost;
+  let rootId: string;
+  let bodyId: string;
+  beforeEach(() => {
+    project = new Project(deepClone(SEED));
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    canvas.innerHTML = `
+      <div data-lce-id="__header__" style="position:absolute; top:0; height:60px"></div>
+      <div data-lce-id="__body__"   style="position:absolute; top:60px; height:60px"></div>
+    `;
+    rootId = project.document.root.key as string;
+    bodyId = project.document.getNode(rootId)!.children[1].id;
+    // Re-tag the body canvas div with the real node id so the
+    // host's hit-test can resolve it via document.getNode.
+    const bodyEl = canvas.querySelector('[data-lce-id="__body__"]') as HTMLElement;
+    bodyEl.setAttribute('data-lce-id', bodyId);
+    canvas.querySelectorAll<HTMLElement>('[data-lce-id]').forEach((el) => {
+      const top = el.getAttribute('data-lce-id') === bodyId ? 60 : 0;
+      el.getBoundingClientRect = () => ({ top, bottom: top + 60, left: 0, right: 100, width: 100, height: 60, x: 0, y: top, toJSON: () => ({}) } as DOMRect);
+    });
+    (document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint = (x: number, y: number) => {
+      const stack: Element[] = [];
+      canvas.querySelectorAll<HTMLElement>('[data-lce-id]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) stack.push(el);
+      });
+      return stack;
+    };
+    host = new BuiltinSimulatorHost(project, { canvas });
+  });
+
+  it('rejects the drop (returns null) when the hit node is itself locked', () => {
+    const bodyNode = project.document.getNode(bodyId)!;
+    // Ali-faithful: lock is a `props.isLocked` boolean on the node.
+    project.document.setProps(bodyNode, { isLocked: true });
+    // Pointer inside the body rect → would normally resolve to
+    // body (or one of its children). With lock, the host returns
+    // null → Dragon emits `cancel` instead of `drop`.
+    const target = host.computeDropTarget(50, 90);
+    expect(target).toBeNull();
+  });
+
+  it('rejects the drop when an ancestor of the hit is locked', () => {
+    // Lock the root (which is an ancestor of every node). The
+    // hit resolves to body; body → root is locked → drop rejected.
+    const root = project.document.getNode(rootId)!;
+    project.document.setProps(root, { isLocked: true });
+    const target = host.computeDropTarget(50, 90);
+    expect(target).toBeNull();
+  });
+
+  it('accepts the drop when isLocked is false or absent', () => {
+    // Default SEED: no isLocked anywhere. The host returns a
+    // non-null DropTarget. (We don't assert the exact target
+    // shape here — that's the existing computeDropTarget suite's
+    // job; this test only asserts "lock does not break unlocked
+    // drops".)
+    const target = host.computeDropTarget(50, 90);
+    expect(target).not.toBeNull();
+  });
+});
 describe('BuiltinSimulatorHost.commitDrop (boost → insert)', () => {
   let project: Project;
   let canvas: HTMLElement;

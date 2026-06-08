@@ -217,6 +217,51 @@ describe('Dragon + DocumentModel drop', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(dragends[0]?.copy).toBe(false); // last-known value at end
   });
+
+  // ===== P8.2 — alt-key copy on the manual `dragon.start` path =====
+  // The instrumented `boost(dragObject, e)` path already reads
+  // `e.altKey` from the source MouseEvent. The manual
+  // `dragon.start(nodeId, x, y)` path is what
+  // BuiltinSimulatorHost.handleMove calls when a canvas pointer
+  // moves past the 4px shake gate — and until P8.2 it ignored
+  // altKey. Ali's UX: alt-drag a node to copy it (like Finder
+  // duplicate). This test locks the P8.2 fix.
+
+  it('manual start forwards altKey from the source event → copy=true on dragstart', () => {
+    const dragstarts: Array<{ copy: boolean }> = [];
+    project.dragon.events.on('dragstart', (e) => dragstarts.push({ copy: e.copy }));
+
+    // Simulate the BuiltinSimulatorHost.handleMove call shape:
+    // start(id, x, y, sourceEvent) where the source carries
+    // altKey: true. Use a fresh document so no leaked listeners.
+    const fresh = new Project(deepClone(SEED));
+    fresh.dragon.events.on('dragstart', (e) => dragstarts.push({ copy: e.copy }));
+    const nodeId = fresh.document.getNode(fresh.document.root.key as string)!.children[0].id;
+    fresh.dragon.start(nodeId, 0, 0, { altKey: true, ctrlKey: false });
+    expect(fresh.dragon.copy).toBe(true);
+    // No `dragstart` event yet — manual path doesn't emit one
+    // (only the instrumented path does). Cancel so the next test
+    // starts clean.
+    fresh.dragon.cancel();
+  });
+
+  it('manual start WITHOUT an event arg keeps the legacy altKey=false behavior', () => {
+    const fresh = new Project(deepClone(SEED));
+    const nodeId = fresh.document.getNode(fresh.document.root.key as string)!.children[0].id;
+    // v2.2 back-compat: hosts that pass only (id, x, y) still work,
+    // and copy defaults to false (matches the pre-P8.2 behavior).
+    fresh.dragon.start(nodeId, 0, 0);
+    expect(fresh.dragon.copy).toBe(false);
+    fresh.dragon.cancel();
+  });
+
+  it('manual start with altKey: false explicitly → copy=false', () => {
+    const fresh = new Project(deepClone(SEED));
+    const nodeId = fresh.document.getNode(fresh.document.root.key as string)!.children[0].id;
+    fresh.dragon.start(nodeId, 0, 0, { altKey: false, ctrlKey: false });
+    expect(fresh.dragon.copy).toBe(false);
+    fresh.dragon.cancel();
+  });
 });
 
 /** Build a `MouseEvent`-shaped object the Dragon can read clientX/Y

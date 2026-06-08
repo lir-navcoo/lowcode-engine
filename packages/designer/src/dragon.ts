@@ -296,15 +296,30 @@ export class Dragon<
 
   // ---------- Legacy manual API (v2.2) ----------
 
-  /** Start a move-mode drag. The host wires pointer events itself. */
-  start(nodeId: string, x: number, y: number): void {
+  /** Start a move-mode drag. The host wires pointer events itself.
+   *
+   * Optional 4th arg `e` is the source PointerEvent — the host
+   * passes it through so alt/ctrl-key state propagates and the
+   * resulting `copy: boolean` on the `dragstart` payload matches
+   * what the user actually pressed. Ali-faithful (ali's dragon
+   * also reads `e.altKey` at gesture start). Without `e`, alt is
+   * treated as `false` (legacy v2.2 behavior, kept for back-compat
+   * — hosts that pass only x/y still work).
+   */
+  start(nodeId: string, x: number, y: number, e?: { altKey?: boolean; ctrlKey?: boolean }): void {
     if (this._mode !== 'idle') return;
     this._beginGesture(
       {
         type: 'Node',
         nodes: [{ id: nodeId, componentName: '' } as unknown as TNode],
       },
-      { clientX: x, clientY: y, altKey: false, ctrlKey: false, button: 0 } as MouseEvent,
+      {
+        clientX: x,
+        clientY: y,
+        altKey: e?.altKey ?? false,
+        ctrlKey: e?.ctrlKey ?? false,
+        button: 0,
+      } as MouseEvent,
       false,
     );
   }

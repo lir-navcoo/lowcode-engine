@@ -27,6 +27,7 @@
 
 import type { Project } from './project';
 import type { DropTarget, Dragon } from './dragon';
+import type { Node } from './node';
 import { getHitInfo } from './dom';
 import { computeInsertLocation, type LocateChild } from './locate';
 import { Viewport } from './viewport';
@@ -201,11 +202,27 @@ export class BuiltinSimulatorHost {
    */
   computeDropTarget(x: number, y: number): DropTarget | null {
     const root = this.project.document.root;
+    // P8.3: drop the parent's `isLocked` flag rejects drops into
+    // the locked node OR any of its descendants. Ali's pattern
+    // (host.ts line 1228): `getClosestNode(dropContainer?.container,
+    // n => n.isLocked)` — same shape. We walk up the hit's
+    // ancestors looking for any with `props.isLocked === true`.
+    // Returns null so the Dragon emits `cancel` instead of `drop`.
     const hit = getHitInfo(this.canvas, x, y);
     if (!hit.hitId) {
-      // Empty canvas → append to root.
+      // Empty canvas → append to root. Walk root's ancestors
+      // (root has none) — drop is allowed by default.
       const rootChildren = root.children ?? [];
       return { parentId: null, index: rootChildren.length, placement: 'inside' };
+    }
+    // P8.3: walk the hit's ancestor chain. If any ancestor has
+    // `isLocked: true` in its props, reject the drop entirely.
+    let cursor: Node | undefined | null = this.project.document.getNode(hit.hitId);
+    while (cursor) {
+      if (cursor.props.isLocked === true) {
+        return null;
+      }
+      cursor = cursor.parent;
     }
     const hitNode = this.project.document.getNode(hit.hitId);
     if (!hitNode) return null;
@@ -454,7 +471,11 @@ export class BuiltinSimulatorHost {
       return;
     }
     this.pendingClick = null;
-    this.project.dragon.start(pending.id, pending.x, pending.y);
+    // P8.2: forward the source PointerEvent so the Dragon reads
+    // `altKey` / `ctrlKey` and sets `copy: true` on the
+    // `dragstart` payload. Ali-faithful UX (alt-drag a node =
+    // duplicate it instead of moving it).
+    this.project.dragon.start(pending.id, pending.x, pending.y, e);
     const target = this.computeDropTarget(pending.x, pending.y);
     this.project.dragon.move(pending.x, pending.y, target);
   }
