@@ -2,7 +2,7 @@
 
 > Last refreshed: 2026-06-08. Update this file whenever a task is completed, blocked, or a new direction is decided.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 392 tests passing
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 400 tests passing
 
 14 packages published to `@monbolc`:
 
@@ -23,7 +23,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (21 tests, ~530 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (18 tests, ~310 lines — init + default-preset + theme)** |
 
-`yarn test` ✅ 392 tests + 1 skip / 41 files, all passing in ~3.2s.
+`yarn test` ✅ 400 tests + 1 skip / 42 files, all passing in ~2.6s.
 
 `yarn typecheck` ✅ 0 errors across all 13 packages + demo.
 

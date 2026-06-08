@@ -4,7 +4,7 @@
 # Five checks across a 3-version Node matrix:
 #   1. yarn install --frozen-lockfile
 #   2. yarn build          (CJS output for all 14 packages)
-#   3. yarn test           (vitest, 363 tests expected)
+#   3. yarn test           (vitest, 400 tests expected)
 #   4. yarn typecheck      (per-package tsc, requires build to populate lib/)
 #   5. yarn demo:build     (Vite production build — proves the public
 #                           surface area is consumable from a host app)

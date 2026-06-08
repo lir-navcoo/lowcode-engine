@@ -1,8 +1,16 @@
 # SapuLowcodeEngine
 
+[![Tests](https://img.shields.io/badge/tests-400%20passed-brightgreen)](https://github.com/lir-navcoo/lowcode-engine/actions)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19.2-149eca)](https://react.dev/)
+[![BaseUI](https://img.shields.io/badge/BaseUI-1.0-7c3aed)](https://base-ui.com/)
+[![Tailwind v4](https://img.shields.io/badge/Tailwind-4.0-38bdf8)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![NPM scope](https://img.shields.io/badge/npm-@monbolc-orange)](https://www.npmjs.com/search?q=%40monbolc)
+
 > **从零重写** 的企业级低代码引擎。基于 **React 19.2.7** + **BaseUI 1.0** + **Tailwind CSS v4**。NPM scope `@monbolc`。比 `alibaba/lowcode-engine` v1.3.2 小约 **85%**，0 第三方新增依赖，0 `@alilc`/`@alifd` 残留。
 >
-> **SapuLowcodeEngine** is a from-scratch rewrite of `alibaba/lowcode-engine` v1.3.2, modernized for React 19, BaseUI, and Tailwind v4. 14 packages, 392 tests, 0 third-party deps added.
+> **SapuLowcodeEngine** is a from-scratch rewrite of `alibaba/lowcode-engine` v1.3.2, modernized for React 19, BaseUI, and Tailwind v4. 14 packages, 400 tests, 0 third-party deps added.
 
 ## 快速开始 / Quick start
 
@@ -54,7 +62,7 @@ That's the whole API surface for a basic integration. Everything else (custom se
 ```bash
 yarn install
 yarn build         # 构建所有包
-yarn test          # 392 tests / 41 files, ~3.2s
+yarn test          # 400 tests / 42 files, ~2.6s
 yarn typecheck     # 0 errors across all 14 packages + demo
 yarn demo          # Vite dev server at http://localhost:5173
 ```
