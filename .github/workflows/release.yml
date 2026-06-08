@@ -70,6 +70,14 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'yarn'
+          # CRITICAL: without registry-url, setup-node does NOT write
+          # ~/.npmrc with the //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+          # mapping. lerna's publish path uses libnpmpublish → npm-registry-fetch,
+          # which reads the token from npm config (i.e. .npmrc), not from
+          # NODE_AUTH_TOKEN directly. Without this, every PUT goes out
+          # unauthenticated; npm returns 401, libnpmpublish translates it
+          # to "E404 Not found" — which looks like the package doesn't exist.
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
