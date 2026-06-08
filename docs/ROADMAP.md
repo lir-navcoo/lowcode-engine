@@ -2,7 +2,7 @@
 
 > Last refreshed: 2026-06-08. Update this file whenever a task is completed, blocked, or a new direction is decided.
 
-## Current state — L0–L6 done, 345 tests passing
+## Current state — L0–L6 done, P0 fully closed, 392 tests passing
 
 13 packages published to `@monbolc`:
 
@@ -23,7 +23,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.1.4 | ✅ shipped (21 tests, ~530 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.1.4** | **✅ shipped (18 tests, ~310 lines — init + default-preset + theme)** |
 
-`yarn test` ✅ 363 tests + 1 skip / 40 files, all passing in ~2.5s.
+`yarn test` ✅ 392 tests + 1 skip / 41 files, all passing in ~3.2s.
 
 `yarn typecheck` ✅ 0 errors across all 13 packages + demo.
 
@@ -35,59 +35,35 @@
 
 ## P0 — must fix before next publish
 
-### P0.1 — `plugin-setters` h() vs `SetterComponent` type mismatch (8 errors) + must use BaseUI
+### P0.1 — `plugin-setters` h() vs `SetterComponent` type mismatch (8 errors) + must use BaseUI — **DONE 2026-06-07**
 
 - **Where**: `packages/plugin-setters/src/built-in.tsx:18, 40, 57, 77, 102, 127, 144` (7 errors) + `packages/plugin-setters/src/registry.ts:73` (1 error)
-- **Symptom**: `Type '({ value, onChange, field }) => { type, props, children? }' is not assignable to type 'SetterComponent'`
-- **Root cause (multi-part)**:
-  1. The 7 built-in setters are arrow functions returning vdom-shaped objects (`{ type: 'input', props: {...} }`), but `SetterComponent` is typed as `ComponentType<SetterProps>` (a React function component).
-  2. The registry code at `registry.ts:73` builds a fragment with `h()('div', ...)` and the inferred `ReactNode` complains about missing `key` props.
-  3. **NEW (per `feedback-react19-and-baseui`)**: sapu uses BaseUI. The 7 setters currently use raw `<input>` / `<button>` / `<select>` / `<textarea>` — that violates the directive. Each setter must reference a BaseUI component (`Input`, `Field`, `Switch`, `Select`, `Slider`, etc.), not raw DOM.
-- **Two paths**:
-  - **(a) Match the h() style + use BaseUI** — change `SetterComponent` to accept hyperscript descriptors (e.g. `{ type: 'Field', props: {...} }` where `Field` is a BaseUI name). The 7 setters return descriptors pointing to BaseUI components. The L4 settings panel maintains a `{ 'Field': BaseUIField, 'Switch': BaseUISwitch, ... }` lookup, calls them via `adapter.getRuntime().createElement(lookup[descriptor.type], descriptor.props, descriptor.children)`. **This is the recommended path** — keeps setters framework-agnostic in source AND uses BaseUI.
-  - **(b) Match the FC style + use BaseUI** — rewrite `built-in.tsx` to proper `React.FC<SetterProps>` returning JSX with BaseUI components. Cleaner types, but L4 settings panel must also use proper React (not h()).
-- **Recommendation**: **(a)** with the BaseUI requirement folded in. The "framework-agnostic setters" principle in ARCHITECTURE.md is the right call. Setters are portable; the L4 settings panel converts descriptors → BaseUI JSX.
-- **Styling via Tailwind v4** (per `feedback-baseui-with-tailwind`, decided 2026-06-07): the 7 setters' descriptors include Tailwind class strings in `props.className` (e.g. `className: 'w-full px-3 py-2 border rounded'`). No raw CSS, no inline `style` objects. `plugin-setters` package gets:
-  - `tailwindcss` (devDep)
-  - `src/styles.css` with `@import "tailwindcss"` + `@theme` design tokens
-  - `build:css` script: `tailwindcss -i src/styles.css -o lib/styles.css --minify`
-  - Updated `build` script: `yarn build:css && tsc`
-- **BaseUI mapping** (per `feedback-react19-and-baseui`):
+- **Resolution**: went with path (a) — `SetterComponent` is now `(props) => SetterDescriptor` returning `{ type, props, children? }` where `type` is a BaseUI component name (`'Field'`, `'Switch'`, `'Select'`, etc.). The 7 built-in setters reference BaseUI primitives via `type: 'Field'` etc.; `props.className` carries Tailwind utility strings (`'w-full px-3 py-2 border border-slate-200 rounded'`, `'bg-blue-500/...'`, etc.). `registry.ts` no longer builds the descriptor fragment; consumers (`SettingsPanel`) call `adapter.getRuntime().createElement(lookup[descriptor.type], descriptor.props, descriptor.children)` to materialize the BaseUI element.
+- **Build pipeline**: `packages/plugin-setters/` has `tailwindcss` + `@tailwindcss/cli` devDeps, `src/styles.css` (`@import "tailwindcss"`), `build:css` script (`tailwindcss -i src/styles.css -o lib/styles.css --minify`), and the `build` script chains `build:css` before `tsc`. The compiled CSS is published as `lib/styles.css`; consumers can also bring their own Tailwind build that scans the JSX.
+- **Status**: `yarn typecheck` reports 0 errors in this package, 40 tests passing (built-in setter vdom + registry behavior), Tailwind utilities are present on the setters' className output, no raw `<input>`/`<button>`/`<select>`/`<textarea>` tags remain.
+- **Why P0 closed**: blocks removed — `yarn typecheck` is clean, BaseUI directive satisfied, framework-agnostic setter source preserved (L4 panel does the descriptor→BaseUI lookup).
 
-  | Setter | Current (raw HTML) | BaseUI component to reference |
-  |---|---|---|
-  | `Input` | `<input type="text" />` | `Field` (single-line) |
-  | `TextArea` | `<textarea />` | `Field` (multiline) |
-  | `Number` | `<input type="number" />` | `Field` (type=number) or `Slider` + number readout |
-  | `Switch` | `<button>` with conditional class | `Switch` |
-  | `Select` | `<select>` | `Select` |
-  | `ColorPicker` | `<input type="color" />` | `Slider` (HSL) or custom BaseUI primitive |
-  | `Slider` | `<input type="range" />` | `Slider` |
-
-- **Why P0**: blocks `yarn typecheck` from passing, blocks republishing `plugin-setters`, blocks wiring setters into the L4 settings panel, AND violates the BaseUI directive.
-
-### P0.2 — `designer` `SetPropCommand.undo` type mismatch (1 error)
+### P0.2 — `designer` `SetPropCommand.undo` type mismatch (1 error) — **DONE 2026-06-07**
 
 - **Where**: `packages/designer/src/commands.ts:133`
-- **Symptom**: `Property 'undo' in type 'SetPropCommand' is not assignable to the same property in base type 'ICommand<{ nodeId, key, value: JSONValue }, JSONValue | undefined>'`
-- **Root cause**: `SetPropCommand.undo` likely returns `JSONValue` instead of `JSONValue | undefined` (or similar one-off).
-- **Fix**: narrow the parameter type on `undo` to match `ICommand`'s declared return.
-- **Why P0**: blocks `yarn typecheck`, blocks republishing `designer`.
+- **Resolution**: `SetPropCommand.undo` signature is `undo(args, prev: JSONValue | undefined): JSONValue | undefined` — matches `ICommand<{ nodeId, key, value: JSONValue }, JSONValue | undefined>` exactly. `yarn typecheck` reports 0 errors in this package.
+- **Why P0 closed**: typecheck clean; nothing further to do.
 
-### P0.3 — Commit the v2.0.2 types package
+### P0.3 — Commit the v2.0.2 types package — **DONE 2026-06-07**
 
-- **Where**: `packages/types/package.json` + `packages/types/src/index.ts` (uncommitted working-tree changes)
-- **What**: version 2.0.1 → **2.0.2**, new fields `conditionGroup`, `loopArgs` on `IPublicTypeNodeSchema` (plus many other uncommitted additions: `variable` variant on `IPublicTypeNodeData`, `i18n`/`meta` on `IPublicTypeRootSchema`, `keywords`/`isPage`/`isBlock`/`isContainer`/`isLowCode`/`docUrl`/`screenshot`/`tags`/`behaviors` on `IPublicTypeComponentSchema`, etc.)
-- **Action**: `git diff` to review the full set, then `git add packages/types && git commit` with a clear message. The npm publish was already done; the commit is what's missing.
-- **Why P0**: changes to a published package should be in git history; downstream consumers should be able to clone and see what 2.0.2 actually contains.
+- **Where**: `packages/types/package.json` + `packages/types/src/index.ts` + downstream consumers
+- **Resolution**: the 2.0.2 changes (new fields `conditionGroup`, `loopArgs` on `IPublicTypeNodeSchema`; `variable` variant on `IPublicTypeNodeData`; `i18n`/`meta` on `IPublicTypeRootSchema`; `keywords`/`isPage`/`isBlock`/`isContainer`/`isLowCode`/`docUrl`/`screenshot`/`tags`/`behaviors` on `IPublicTypeComponentSchema`; etc.) are committed. The package is now at version **2.1.6** (post several L0–L7 release bumps); all downstream packages consume the same published set.
+- **Why P0 closed**: working tree is clean, git history reflects what 2.0.2+ actually contains, downstream consumers all pass typecheck against the published types.
 
-### P0.4 — `editor-skeleton` hand-rolled CSS → Tailwind v4 (one-time full migration)
+### P0.4 — `editor-skeleton` hand-rolled CSS → Tailwind v4 (one-time full migration) — **DONE 2026-06-08**
 
-- **Where**: `packages/editor-skeleton/src/skeleton.tsx` (injected `<style>` block with `sapu-skel-*` / `sapu-border-overlay` / `sapu-drag-ghost` / `sapu-insertion-indicator`)
-- **What**: translate all hand-rolled CSS to Tailwind v4 utility classes. Add `tailwindcss` to `editor-skeleton` devDeps + `build:css` script. Add `@tailwindcss/vite` to `examples/demo/vite.config.ts` (Vite project from P0.4a is already in place).
-- **Pre-req**: P0.1 done (so the Tailwind v4 setup pattern is established in `plugin-setters`).
-- **Why P0**: required by `feedback-baseui-with-tailwind` ("一次性全量迁移" = one-time full migration). Without this, the hand-rolled CSS and Tailwind coexist indefinitely — defeats the purpose of the directive.
-- **See**: `docs/ROADMAP.md` "Styling strategy" → "Implementation notes" for the build pipeline setup.
+- **Where**: `packages/editor-skeleton/src/skeleton.tsx` (previously had an injected `<style>` block with `sapu-skel-*` / `sapu-border-overlay` / `sapu-drag-ghost` / `sapu-insertion-indicator` CSS rules)
+- **Resolution**:
+  1. **`skeleton.tsx`** uses Tailwind utility classes exclusively. The `CN` constant block at the top of the file holds stable class strings (`'h-full w-full font-[system-ui,sans-serif] text-xs'`, `'flex flex-col overflow-hidden border-r border-slate-200 h-full [&:last-child]:border-r-0 [&:last-child]:border-l'`, etc.) so the Tailwind purger has stable strings to scan. No `<style>` block; no hand-rolled `.sapu-*` class. The previous `sapu-skel` className now appears only as the `autoSaveId` for `react-resizable-panels` (panel-width persistence key) — not a CSS class.
+  2. **`overlays.tsx`** has 4 `render*` helpers that build DOM imperatively (borders, hover, drag ghost, insertion indicator). All of them attach `absolute border-[...] bg-blue-500 ...` Tailwind utilities to the `className`. The `overlay.style.left/top/width/height/zIndex` assignments that remain are **dynamic computed positions** derived from `getBoundingClientRect()` — these are not CSS rules and cannot be expressed as static Tailwind utilities. The `sapu-border-overlay` / `sapu-hover-overlay` / `sapu-drag-ghost` / `sapu-insertion-indicator` strings that remain in the code are now used **only as DOM query hooks** (`canvas.querySelectorAll('.sapu-border-overlay')` to clear stale overlays between repaints) — they are no longer CSS rules.
+  3. **`packages/editor-skeleton/src/styles.css`** is now exactly one line: `@import "tailwindcss";` — no hand-rolled rules, no design tokens, no `@theme` block. The package's `build:css` script (`tailwindcss -i src/styles.css -o lib/styles.css --minify`) compiles the utilities referenced from the JSX into a publishable `lib/styles.css`. `package.json` exports `./styles.css` as a subpath.
+  4. **Tests** confirm the overlay classes are still produced (e.g. `canvas.querySelector('.sapu-border-overlay')` resolves) — the class is on the element as a Tailwind-prependable hook, not as a CSS rule.
+- **Why P0 closed**: no hand-rolled CSS rules anywhere in the L4 source. Every layout rule lives as a Tailwind utility in JSX; the only `style.*` assignments are dynamic position math. `yarn typecheck` is 0 errors in editor-skeleton, 40/40 tests passing.
 
 ## P1 — quality polish
 
