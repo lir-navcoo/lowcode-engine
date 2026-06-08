@@ -18,12 +18,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
     "typecheck": "node scripts/typecheck.mjs",
     "pub:patch": "lerna publish patch --yes --force-publish --no-changelog",
     "pub:minor": "lerna publish minor --yes --force-publish --no-changelog",
     "pub:major": "lerna publish major --yes --force-publish --no-changelog"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.0",
