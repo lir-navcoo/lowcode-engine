@@ -116,20 +116,26 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
       }, '▶')
     : h()('span', { key: 'arrow', style: { display: 'inline-block', width: 12 } }, '');
 
-  // Title cell: either a span (view mode, double-click → rename) or
-  // an input (edit mode, Enter/blur → commit, Escape → cancel).
-  // When the input mounts we autoFocus + select() so the user can
-  // type to replace. The callback ref pattern works with the
-  // hyperscript descriptor without needing forwardRef.
+  // Title cell: either a span (view mode) or an input (edit mode,
+  // Enter/blur → commit, Escape → cancel). The ✎ button on the
+  // right is the only rename entry point — neither single-click
+  // nor dblclick on the title itself triggers rename.
   //
-  // We deliberately do NOT install an onClick on the title — a
-  // single click would enter rename mode immediately, which
-  // competes with the browser's dblclick detection (the second
-  // click of a dblclick would land on the already-mounted input,
-  // not on the title). Ali's reference uses a hover-revealed
-  // RenameBtn; the dblclick is a discoverable shortcut for users
-  // who don't notice the button. The ✎ button on the right
-  // remains the single-click path.
+  // Why no click-to-rename: clicking the title in a tree should
+  // navigate (select) the node, not mutate it. Rename is an
+  // explicit, opt-in operation; the ✎ button is a small,
+  // discoverable affordance that doesn't compete with selection.
+  // Ali's reference (tree-title.tsx:146) gates the rename UI on
+  // `isCNode && isNodeParent`; we match that with `canRename =
+  // rowNode.parentId !== ''` (root is excluded). dblclick was
+  // tried first but in real browsers React 19 + react-arborist
+  // event delegation occasionally swallowed the second click of a
+  // dblclick, leaving the user in "I clicked but nothing
+  // happened" land. ✎ is the supported path.
+  //
+  // When the input mounts we autoFocus + select() so the user
+  // can type to replace. The callback ref pattern works with the
+  // hyperscript descriptor without needing forwardRef.
   //
   // The input holds its own DOM value while the user types — we
   // don't push every keystroke back into OutlineView's React state
@@ -156,7 +162,6 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
           }
         },
         onClick: (e: { stopPropagation: () => void }) => e.stopPropagation(),
-        onDoubleClick: (e: { stopPropagation: () => void }) => e.stopPropagation(),
         style: {
           flex: 1,
           fontSize: 12,
@@ -173,15 +178,7 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
         style: {
           flex: 1,
           color: '#475569',
-          cursor: helpers.canRename ? 'text' : 'default',
         },
-        onDoubleClick: helpers.canRename
-          ? (e: { stopPropagation: () => void }) => {
-              e.stopPropagation();
-              helpers.startRename();
-            }
-          : undefined,
-        title: helpers.canRename ? 'Double-click to rename label (display title only — does not change component type)' : undefined,
       }, node.title);
 
   // Pencil button — visible for any renamable row. Ali hides it

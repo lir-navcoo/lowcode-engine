@@ -187,7 +187,7 @@ describe('defaultRenderRow (row-level UX, no react-arborist)', () => {
     };
   }
 
-  it('title span exposes onDoubleClick that calls startRename', () => {
+  it('title span does NOT expose click-to-rename (only the ✎ button does)', () => {
     const startRename = vi.fn();
     const el = defaultRenderRow(bodyNode, makeHelpers({ startRename }));
     const { container } = render(el as React.ReactElement);
@@ -195,19 +195,14 @@ describe('defaultRenderRow (row-level UX, no react-arborist)', () => {
     // Index 0 = arrow, 1 = title, 2 = ✎, 3 = componentName.
     const title = spans[1];
     expect(title.textContent).toBe('Body');
-    fireEvent.doubleClick(title);
-    expect(startRename).toHaveBeenCalledTimes(1);
-  });
-
-  it('title span is not double-clickable when canRename is false (root row)', () => {
-    const startRename = vi.fn();
-    const rootNode: ITreeNode = { ...bodyNode, id: 'root', parentId: '' };
-    const el = defaultRenderRow(rootNode, makeHelpers({ canRename: false, startRename }));
-    const { container } = render(el as React.ReactElement);
-    const spans = container.querySelectorAll('span');
-    const title = spans[1];
-    expect(title.textContent).toBe('Body');
-    fireEvent.doubleClick(title);
+    // Clicking the title (or the componentName span) must NOT enter
+    // rename mode — rename is gated on the ✎ button only. Single-
+    // click on the title should fall through to the row's outer
+    // onClick, which selects; no rename intent is implied.
+    fireEvent.click(title);
+    expect(startRename).not.toHaveBeenCalled();
+    const componentName = spans[3];
+    fireEvent.click(componentName);
     expect(startRename).not.toHaveBeenCalled();
   });
 

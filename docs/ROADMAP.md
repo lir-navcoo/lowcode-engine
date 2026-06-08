@@ -129,19 +129,27 @@
 
 The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") has been **elevated to a hard requirement** and folded into P0.1. Per `feedback-react19-and-baseui`: sapu uses BaseUI; UI code must use BaseUI components; declaring a peerDep and not using it is an anti-pattern.
 
-### P1.6 — OutlineView inline rename (ali-style display title) — **DONE 2026-06-07 (dblclick deferred)**
+### P1.6 — OutlineView inline rename (ali-style display title) — **DONE 2026-06-07, ✎-only entry point 2026-06-08**
 
 - **Where**:
-  - `packages/plugin-outline-pane/src/view.tsx` — added `isEditing` / `draft` / `startRename` / `commitRename` / `cancelRename` / `canRename` to `RowHelpers`; `defaultRenderRow` now shows a `✎` button on every non-root row and a double-click handler on the title; clicking either swaps the title span for an `<input>` that autoFocuses and selects; Enter or blur commits via `pane.rename(id, trimmed)`, Escape cancels.
+  - `packages/plugin-outline-pane/src/view.tsx` — added `isEditing` / `draft` / `startRename` / `commitRename` / `cancelRename` / `canRename` to `RowHelpers`; `defaultRenderRow` shows a `✎` button on every non-root row. The title span is read-only; clicking it selects the row, not enters rename mode. The ✎ button is the **only** rename entry point.
   - `packages/plugin-outline-pane/src/api.ts` — `pane.rename(id, title)` already existed; it mutates the tree node's `title` only, **never** the underlying schema's `componentName`. Fires the `renamed` event.
   - `packages/editor-skeleton/src/skeleton.tsx` — added `onPaneReady?: (pane: OutlinePane) => void` so the host can drive pane-level actions from outside React (used by the demo toolbar).
   - `examples/demo/src/main.ts` — `Body → App` button now calls `pane.rename(bodyNodeId, 'App')` instead of mutating the schema. This is the **ali-faithful** flow: title is for display, type is for rendering. The canvas is **not** affected; the outline label changes; settings panel keeps showing `Body` as the component type.
   - `examples/demo/index.html` — button label changed from `Rename Page → App` to `Body → App`; `title` attribute explains the semantics.
 - **Reference**: ali's `plugin-outline-pane/src/views/tree-title.tsx:146` `shouldEditBtn = isCNode && isNodeParent` (root is excluded). Sapu matches that with `canRename = rowNode.parentId !== ''`.
-- **Tests added**: 3 in `packages/plugin-outline-pane/tests/view.test.tsx` (renames label without touching componentName, fires the renamed event, no-op on unknown id). 214/214 total.
-- **Typecheck**: 0 new errors. The 8 pre-existing P0.1 errors in `plugin-setters` are unchanged.
+- **Tests** in `packages/plugin-outline-pane/tests/view.test.tsx`:
+  - 3 in `api.test.ts` (renames label without touching componentName, fires the `renamed` event, no-op on unknown id).
+  - 1 row-render test confirms the title span has no click-to-rename (only the ✎ button does).
+  - 1 row-render test confirms the ✎ button's onClick calls `startRename` and stops propagation.
+  - 1 row-render test confirms clicking the row selects (not renames).
+  - 2 input-render tests confirm Enter commits, Escape cancels, blur commits.
+- **Typecheck**: 0 errors.
 - **Why P1**: completes the rename UX that ali ships in its engine. Also unblocks clean wiring of the demo's rename button (no more "rename Page → App" canvas-breakage surprise).
-- **Known issue (deferred to 2.1.1)**: dblclick on a non-root title span does not enter rename mode in the user's browser, even though the 4 row-render unit tests prove the `onDoubleClick` handler is correctly attached and the state-transition works. Possible causes: Vite HMR didn't pick up the latest module in the user's session; the user's dblclick speed exceeds the browser threshold; hyperscript + react-arborist + React 19 event delegation interact oddly. Reproduction-tested via `fireEvent.doubleClick` (testing-library) — passes. Not browser-tested. **Workaround**: use the `✎` button on the right of each row, which works. **Will investigate** in 2.1.1 with an E2E test (Playwright) that simulates real browser dblclick.
+- **Why ✎-only, not dblclick/click-on-title**:
+  - **dblclick on title** (the original ali-style shortcut): in real browsers React 19 + react-arborist event delegation occasionally swallowed the second click of a dblclick, leaving the user with "I clicked but nothing happened". testing-library's `fireEvent.doubleClick` passes but `dblclick` is unreliable in production. Tried 2026-06-07, deferred.
+  - **click on title** (try #2, attempted 2026-06-08 morning): selecting a node and renaming it are two different intents; bundling them in the same click makes accidental renames too easy. Rejected the same day.
+  - **✎ button on the right** (current): explicit, discoverable, no event-delegation surprises, and matches the row's other affordances (arrow toggles, the body selects, ✎ renames). One per row, always visible, with a `title` tooltip. This is the path the user picked.
 
 ## P2 — incremental improvements
 
