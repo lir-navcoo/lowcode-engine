@@ -10,6 +10,7 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | L0–L7 layering, dependency graph, design principles, the React injection boundary |
 | [COMPARISON-WITH-ALI.md](COMPARISON-WITH-ALI.md) | sapu package ↔ `alibaba/lowcode-engine` package mapping, API differences, scope slimming |
 | [ROADMAP.md](ROADMAP.md) | Current state (L0–L7 done), per-layer status, deferred work |
+| [PLAYWRIGHT.md](PLAYWRIGHT.md) | P2.5 Playwright E2E suite — 5 specs, how to add a new one, selector conventions |
 | [packages/types.md](packages/types.md) | L0 — core type system |
 | [packages/ignitor.md](packages/ignitor.md) | L0 — **DEPRECATED**; use `@monbolc/lowcode-engine` instead |
 | [packages/utils.md](packages/utils.md) | L1 — pure utility functions |
