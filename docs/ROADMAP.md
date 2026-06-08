@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 611 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 644 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 611 unit tests + 1 skip / 56 files, all passing in ~3.4s.
+`yarn test` ✅ 644 unit tests + 1 skip / 57 files, all passing in ~3.4s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -222,6 +222,20 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
 - **Bug fixes during verify** (documented in commit `df4bae4`):
   - Constructor was setting `_scrollTarget = options.canvas` but NOT attaching the `scroll` listener (only `setScrollTarget` did). Fixed by calling `setScrollTarget(options.canvas)` in the constructor so the default canvas target has the listener from the start. Caught by 5 failing scroll tests; first run had 5/18 fail, after the fix 18/18 pass.
 - **Why P2.2d closed**: the Phase D bem-tool files (border-selecting, border-detecting, border-resizing) all need to react to viewport scroll / scale changes to re-position their overlays. Without Observable-lite on the Viewport, the bem-tool files would have to poll. With it, `autorun` + the `*Obs` accessors give them the same UX ali gets from MobX, with no MobX in the dep tree.
+
+### P2.2e — Ali-mirror Phase C.Z locate axis helpers — **DONE 2026-06-09 (120 LoC + 33 tests, 611 → 644)**
+
+- **Where**: `packages/designer/src/locate.ts` (+120 LoC) + `tests/locate-axis-helpers.test.ts` (NEW, 33 tests) + `index.ts` (barrel)
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C, last pure-helper gap in locate subsystem)
+- **Resolution**: closes the gap that the Phase B+C.X port left behind — the `locate.ts` doc-comment mentions `isChildInline` / `isRowContainer` but they weren't actually exported. This commit ports them verbatim from `alibaba/lowcode-engine/packages/designer/src/designer/location.ts:40-99`.
+  - **`locate.ts` additions**: 4 exports + 2 internal type-guards + 1 internal `getRectTarget` unwrap helper. The 4 exports: `isRowContainer(el, win?)` (flex row/row-reverse/grid/inline-flex/inline-grid → true; Text → true), `isChildInline(el, win?)` (display:inline* or float:* → true; Text → true), `isVerticalContainer(rect)` (rect.firstElement + isRowContainer), `isVertical(rect)` (rect.firstElement + isChildInline OR parent isRowContainer fallback).
+  - **`index.ts`**: 4 new barrel exports for plugins + Phase D bem-tool files.
+  - **Tests** (+33): `locate-axis-helpers.test.ts` covers isRowContainer (10: flex row/col/row-reverse/column-reverse, inline-flex, grid, inline-grid, block, inline-block, Text), isChildInline (9: inline/inline-block/inline-flex/block/flex + float left/right/none + Text), isVerticalContainer (6: row/column/grid via rect + null + empty + computed:true), isVertical (8: inline/Text/block-in-row/block-in-block/no-parent/null/computed:true/float:left).
+- **Bug fixes during verify** (documented in commit `5e137f8`):
+  - TS: ali's `as Window as unknown as Document` double cast failed. Ali's code does the same; sapu uses `as unknown as Document` (single cast, narrowed by `isDocument(elem)`).
+  - happy-dom's `getComputedStyle` does NOT return inline-set values reliably. The ali-faithful impl uses `Window.getComputedStyle(el).getPropertyValue(name)`. Test helper builds a fake `Window` per element with a controlled `getComputedStyle`, then either passes it as the `win?` arg (for isRowContainer/isChildInline) OR patches `document.defaultView.getComputedStyle` (for isVerticalContainer/isVertical which call `getWindow(el).getComputedStyle(el)` internally).
+  - Test stub's `dict` keys are camelCase (`flexDirection`) but the impl queries kebab-case (`flex-direction`). Added kebab→camel conversion in the stub.
+- **Why P2.2e closed**: dropping into a `flex-direction: row` container without these helpers puts the new item "above" the row instead of "to the left of" — wrong visual UX. With them, the drop algorithm can pick the right insert axis. Also a building block for the Phase D bem-tool files (any tool that overlays a container needs to know if it's a row or column).
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
