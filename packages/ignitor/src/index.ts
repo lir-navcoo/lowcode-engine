@@ -69,8 +69,10 @@ export async function bootstrap(options: IPublicEngineOptions): Promise<IIgnitor
     );
   }
 
-  // L0 placeholder: print a friendly banner.
-  // Will be replaced by `engine.init(options)` in a later layer.
+  // L0 placeholder: print a friendly banner that explicitly
+  // points the user to the new home for the real init().
+  // Without this, the banner claims "Engine core not yet
+  // implemented" which is no longer true (L7 ships in 2.2.0).
   container.innerHTML = `
     <div style="
       display: flex;
@@ -82,7 +84,14 @@ export async function bootstrap(options: IPublicEngineOptions): Promise<IIgnitor
     ">
       <div style="text-align: center;">
         <h1 style="font-size: 28px; margin: 0;">SapuLowcodeEngine</h1>
-        <p style="margin: 8px 0 0;">L0 bootstrap ready. Engine core not yet implemented.</p>
+        <p style="margin: 8px 0 0;">ignitor is deprecated since v2.2.0 — use
+          <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px;">@monbolc/lowcode-engine</code>
+          instead.</p>
+        <p style="margin: 8px 0 0;">
+          <code style="background:#f1f5f9;padding:2px 6px;border-radius:3px;">
+            import { init } from '@monbolc/lowcode-engine';
+          </code>
+        </p>
         <p style="margin: 4px 0 0; font-size: 12px; color: #aaa;">
           Theme: <code>${options.theme ?? 'light'}</code>
         </p>
