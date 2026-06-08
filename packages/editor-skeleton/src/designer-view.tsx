@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { BuiltinSimulatorHost, Project, Simulator } from '@monbolc/lowcode-designer';
+import { BuiltinSimulatorHost, DragResizeEngine, Project, Simulator } from '@monbolc/lowcode-designer';
 
 import { Overlays } from './overlays';
 
@@ -103,17 +103,35 @@ export function DefaultDesignerView(props: DesignerViewProps): ReactNode {
 
   // 挂 BuiltinSimulatorHost — 把 canvas DOM 的 pointer 事件桥接到 Dragon.
   // Host 自己不创建 DOM, 只挂监听, 所以 cleanup 极简.
+  //
+  // P9.2: also create a DragResizeEngine per canvas mount and
+  // pass it to <Overlays>. The Overlays wire each resize
+  // handle's pointerdown → engine.start(id, anchor, e). The
+  // engine is per-mount (mirrors the BuiltinSimulatorHost
+  // lifecycle) and gets GC'd on unmount when the next mount
+  // re-creates it.
   useEffect(() => {
     if (!canvasEl) return;
     const host = new BuiltinSimulatorHost(props.project, { canvas: canvasEl });
     host.mount();
-    return () => host.unmount();
+    const resizeEngine = new DragResizeEngine({ project: props.project, canvas: canvasEl });
+    setEngine(resizeEngine);
+    return () => {
+      host.unmount();
+      resizeEngine.cancel();
+      setEngine(null);
+    };
   }, [canvasEl, props.project]);
+
+  // P9.2: the engine is created in the mount effect, but <Overlays>
+  // needs a stable reference. State-ize it so React re-renders
+  // Overlays once the engine exists.
+  const [engine, setEngine] = useState<DragResizeEngine | null>(null);
 
   return (
     <div className={props.canvasClassName ?? CN.canvas}>
       <div className={props.canvasInnerClassName ?? CN.canvasInner} ref={setCanvasRef}>
-        <Overlays project={props.project} canvasContainer={canvasEl} />
+        <Overlays project={props.project} canvasContainer={canvasEl} resizeEngine={engine} />
       </div>
     </div>
   );

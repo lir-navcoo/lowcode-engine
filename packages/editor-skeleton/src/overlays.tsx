@@ -29,7 +29,7 @@
 import { useEffect } from 'react';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { Project } from '@monbolc/lowcode-designer';
-import type { DropTarget } from '@monbolc/lowcode-designer';
+import type { DropTarget, ResizeAnchor } from '@monbolc/lowcode-designer';
 
 const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
   adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
@@ -38,6 +38,18 @@ export interface OverlaysProps {
   project: Project;
   /** The canvas container (used to position overlays relative to it). */
   canvasContainer: HTMLElement | null;
+  /**
+   * v2.4: optional resize engine. When provided, the visual
+   * ResizeHandles become draggable — pointerdown on a handle
+   * starts a real resize that mutates the node's
+   * `width` / `height` (and `left` / `top` for NW/N/NE/W/SW
+   * anchors) on commit. When omitted, handles are visual only
+   * (back-compat with P6.3 hosts). See
+   * `packages/designer/src/drag-resize.ts`.
+   */
+  resizeEngine?: {
+    start: (id: string, anchor: ResizeAnchor, e: PointerEvent) => void;
+  } | null;
 }
 
 function tagSelector(id: string): string {
@@ -180,7 +192,11 @@ function renderInsertion(canvas: HTMLElement, target: DropTarget | null): void {
  *  v2.4). For now they prove the boundary is readable; the user
  *  can already resize by editing props in the Settings panel.
  */
-function renderResizeHandles(canvas: HTMLElement, selectedIds: string[]): void {
+function renderResizeHandles(
+  canvas: HTMLElement,
+  selectedIds: string[],
+  resizeEngine: { start: (id: string, anchor: ResizeAnchor, e: PointerEvent) => void } | null,
+): void {
   canvas.querySelectorAll('.sapu-resize-handle').forEach((n) => n.remove());
   if (selectedIds.length === 0) return;
   // Only show handles for the first selected node. Multi-select
@@ -197,7 +213,7 @@ function renderResizeHandles(canvas: HTMLElement, selectedIds: string[]): void {
   const cx = left + r.width / 2;
   const cy = top + r.height / 2;
   // 8 anchor points: 4 corners + 4 edge midpoints.
-  const anchors: { name: string; x: number; y: number }[] = [
+  const anchors: { name: ResizeAnchor; x: number; y: number }[] = [
     { name: 'nw', x: left,   y: top },
     { name: 'n',  x: cx,     y: top },
     { name: 'ne', x: right,  y: top },
@@ -211,12 +227,31 @@ function renderResizeHandles(canvas: HTMLElement, selectedIds: string[]): void {
     const handle = document.createElement('div');
     handle.className =
       'sapu-resize-handle absolute w-2 h-2 bg-white border border-blue-500 pointer-events-auto ' +
-      'hover:bg-blue-100 data-[anchor=se]:cursor-se-resize';
+      'hover:bg-blue-100';
+    // Per-anchor cursor — Figma/ali convention.
+    handle.setAttribute('data-anchor', a.name);
+    const cursorMap: Record<ResizeAnchor, string> = {
+      nw: 'nwse-resize', n: 'ns-resize', ne: 'nesw-resize', e: 'ew-resize',
+      se: 'nwse-resize', s: 'ns-resize', sw: 'nesw-resize', w: 'ew-resize',
+    };
+    handle.style.cursor = cursorMap[a.name];
     handle.style.left = `${a.x - 4}px`;
     handle.style.top = `${a.y - 4}px`;
     handle.style.zIndex = '9998';
     handle.setAttribute('data-lce-handle', a.name);
     handle.setAttribute('data-lce-target', id);
+    // P9.2: wire mousedown to the resize engine. When a host
+    // doesn't pass an engine (older Skeleton callsites), the
+    // handle is purely visual — settings-panel prop editing
+    // remains the way to resize. When an engine IS passed, the
+    // handle becomes draggable.
+    if (resizeEngine) {
+      handle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        resizeEngine.start(id, a.name, e as PointerEvent);
+      });
+    }
     canvas.appendChild(handle);
   }
 }
@@ -268,7 +303,7 @@ export function Overlays(props: OverlaysProps) {
 
     const repaint = () => {
       renderBorders(canvas, props.project.selectedIds);
-      renderResizeHandles(canvas, props.project.selectedIds);
+      renderResizeHandles(canvas, props.project.selectedIds, props.resizeEngine ?? null);
       const ds = props.project.dragon.state;
       // Two drag modes share the same overlay:
       //   - move (draggingNodeId set)    → ghost shows `↔ ComponentName`
