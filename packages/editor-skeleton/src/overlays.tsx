@@ -23,7 +23,7 @@
  * so a flurry of mutations collapses to one repaint.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { Project } from '@monbolc/lowcode-designer';
 import type { DropTarget } from '@monbolc/lowcode-designer';
@@ -39,39 +39,6 @@ export interface OverlaysProps {
 
 function tagSelector(id: string): string {
   return `[data-lce-id="${id.replace(/"/g, '\\"')}"]`;
-}
-
-/**
- * Subscribe to project + dragon events and force a re-render.
- * (A useSyncExternalStore would be more correct but requires more
- * setup; the manual subscription is fine for these overlays.)
- */
-function useRev(project: Project): number {
-  const [rev, setRev] = useState(0);
-  useEffect(() => {
-    const bump = () => setRev((n) => n + 1);
-    project.events.on('selectionChanged', bump);
-    project.events.on('nodeMoved', bump);
-    project.events.on('nodeAdded', bump);
-    project.events.on('nodeRemoved', bump);
-    project.dragon.events.on('start', bump);
-    project.dragon.events.on('move', bump);
-    project.dragon.events.on('end', bump);
-    project.dragon.events.on('drop', bump);
-    project.dragon.events.on('cancel', bump);
-    return () => {
-      project.events.off('selectionChanged', bump);
-      project.events.off('nodeMoved', bump);
-      project.events.off('nodeAdded', bump);
-      project.events.off('nodeRemoved', bump);
-      project.dragon.events.off('start', bump);
-      project.dragon.events.off('move', bump);
-      project.dragon.events.off('end', bump);
-      project.dragon.events.off('drop', bump);
-      project.dragon.events.off('cancel', bump);
-    };
-  }, [project]);
-  return rev;
 }
 
 /**
@@ -173,15 +140,21 @@ function renderInsertion(canvas: HTMLElement, target: DropTarget | null): void {
  * renders the overlay divs. Itself returns null.
  */
 export function Overlays(props: OverlaysProps) {
-  useRev(props.project);
-
   // Build a single `repaint(canvas)` closure that's the one source
   // of truth for "draw the borders + the drag-ghost + the
   // insertion indicator based on current Project + Dragon state".
-  // Multiple effects call it: the useRev-driven re-render below
-  // for state changes, a MutationObserver for React's commit
-  // reordering the canvas children, and the scroll/resize effect
-  // at the bottom for window events.
+  // Multiple effects call it: the project/dragon effect for state
+  // changes, a MutationObserver for React's commit reordering the
+  // canvas children, and the scroll/resize effect at the bottom
+  // for window events.
+  //
+  // The component returns null — it has no visual output of its
+  // own; everything it draws is imperatively attached to the
+  // canvas container. State subscriptions for "trigger a re-render"
+  // are unnecessary: the repaint closure already reads
+  // `props.project.selectedIds` and `props.project.dragon.state`
+  // fresh on every invocation, so an external event just needs to
+  // call repaint, not force a re-render.
   //
   // The MutationObserver path is the important one: when the user
   // drags a node to a new parent, the Skeleton's document-change
@@ -264,10 +237,33 @@ export function Overlays(props: OverlaysProps) {
     scrollables.forEach((s) => s.addEventListener('scroll', scheduleRepaint, { passive: true }));
     window.addEventListener('resize', scheduleRepaint);
 
+    // Project + Dragon events: any selection / document / drag
+    // change requires a repaint. The mutation observer catches
+    // DOM-level effects of document changes, but selection-only
+    // changes (no DOM change) and Dragon state-only changes
+    // (no DOM change yet) wouldn't otherwise trigger a repaint.
+    // We subscribe to the same 9 events the previous `useRev`
+    // hook did, but route them straight to `scheduleRepaint`
+    // instead of bumping a React state counter — the repaint
+    // closure reads live project + dragon state, so a re-render
+    // would be wasted work.
+    const ev = props.project.events;
+    const dEv = props.project.dragon.events;
+    const eventNames = [
+      'selectionChanged', 'nodeMoved', 'nodeAdded', 'nodeRemoved',
+    ] as const;
+    const dragonEventNames = [
+      'start', 'move', 'end', 'drop', 'cancel',
+    ] as const;
+    eventNames.forEach((n) => ev.on(n, scheduleRepaint));
+    dragonEventNames.forEach((n) => dEv.on(n, scheduleRepaint));
+
     return () => {
       observer.disconnect();
       scrollables.forEach((s) => s.removeEventListener('scroll', scheduleRepaint));
       window.removeEventListener('resize', scheduleRepaint);
+      eventNames.forEach((n) => ev.off(n, scheduleRepaint));
+      dragonEventNames.forEach((n) => dEv.off(n, scheduleRepaint));
     };
   }, [props.canvasContainer, props.project]);
 

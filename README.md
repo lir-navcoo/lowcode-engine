@@ -2,7 +2,7 @@
 
 > **从零重写** 的企业级低代码引擎。基于 **React 19.2.7** + **BaseUI 1.0** + **Tailwind CSS v4**。NPM scope `@monbolc`。比 `alibaba/lowcode-engine` v1.3.2 小约 **85%**，0 第三方新增依赖，0 `@alilc`/`@alifd` 残留。
 >
-> **SapuLowcodeEngine** is a from-scratch rewrite of `alibaba/lowcode-engine` v1.3.2, modernized for React 19, BaseUI, and Tailwind v4. 14 packages, 363 tests, 0 third-party deps added.
+> **SapuLowcodeEngine** is a from-scratch rewrite of `alibaba/lowcode-engine` v1.3.2, modernized for React 19, BaseUI, and Tailwind v4. 14 packages, 392 tests, 0 third-party deps added.
 
 ## 快速开始 / Quick start
 
@@ -34,27 +34,27 @@ That's the whole API surface for a basic integration. Everything else (custom se
 
 | Layer | Package | Version | Description |
 |---|---|---|---|
-| L0 | `@monbolc/lowcode-types` | 2.1.4 | 核心类型 / Core type system |
-| L0 | `@monbolc/lowcode-ignitor` | 2.1.4 | ⚠️ **DEPRECATED** — use `@monbolc/lowcode-engine` instead |
-| L1 | `@monbolc/lowcode-utils` | 2.1.4 | 纯函数工具 / Pure utility functions |
-| L2 | `@monbolc/lowcode-editor-core` | 2.1.4 | DI 容器 + i18n + plugin manager |
-| L2 | `@monbolc/lowcode-plugin-command` | 2.1.4 | 命令模式 + undo/redo |
-| L2 | `@monbolc/lowcode-renderer-core` | 2.1.4 | 框架无关渲染抽象 |
-| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.4 | 大纲树（react-arborist） |
-| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.4 | BaseUI setters 仓库 |
-| L3 | `@monbolc/lowcode-react-renderer` | 2.1.4 | React 19.2.7 运行时注入 |
-| L3 | `@monbolc/lowcode-designer` | 2.1.4 | DocumentModel + Project + Dragon |
-| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.4 | 3-pane 编辑器 UI |
-| L5 | `@monbolc/lowcode-workspace` | 2.1.4 | Resource / EditorWindow / Workspace |
-| L6 | `@monbolc/lowcode-shell` | 2.1.4 | SapuEngine + ErrorBoundary + i18n + bus |
-| **L7** | **`@monbolc/lowcode-engine`** | **2.1.4** | **组合根 / Composition root** — `init()` lives here |
+| L0 | `@monbolc/lowcode-types` | 2.1.6 | 核心类型 / Core type system |
+| L0 | `@monbolc/lowcode-ignitor` | 2.1.6 | ⚠️ **DEPRECATED** — use `@monbolc/lowcode-engine` instead |
+| L1 | `@monbolc/lowcode-utils` | 2.1.6 | 纯函数工具 / Pure utility functions |
+| L2 | `@monbolc/lowcode-editor-core` | 2.1.6 | DI 容器 + i18n + plugin manager |
+| L2 | `@monbolc/lowcode-plugin-command` | 2.1.6 | 命令模式 + undo/redo |
+| L2 | `@monbolc/lowcode-renderer-core` | 2.1.6 | 框架无关渲染抽象 |
+| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.6 | 大纲树（react-arborist） |
+| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.6 | BaseUI setters 仓库 |
+| L3 | `@monbolc/lowcode-react-renderer` | 2.1.6 | React 19.2.7 运行时注入 |
+| L3 | `@monbolc/lowcode-designer` | 2.1.6 | DocumentModel + Project + Dragon |
+| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.6 | 3-pane 编辑器 UI |
+| L5 | `@monbolc/lowcode-workspace` | 2.1.6 | Resource / EditorWindow / Workspace |
+| L6 | `@monbolc/lowcode-shell` | 2.1.6 | SapuEngine + ErrorBoundary + i18n + bus |
+| **L7** | **`@monbolc/lowcode-engine`** | **2.1.6** | **组合根 / Composition root** — `init()` lives here |
 
 ## Development
 
 ```bash
 yarn install
 yarn build         # 构建所有包
-yarn test          # 363 tests / 40 files, ~2.5s
+yarn test          # 392 tests / 41 files, ~3.2s
 yarn typecheck     # 0 errors across all 14 packages + demo
 yarn demo          # Vite dev server at http://localhost:5173
 ```

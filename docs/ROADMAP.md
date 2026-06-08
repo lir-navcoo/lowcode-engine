@@ -156,10 +156,19 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
 - **Current state**: 5 commands ported (Insert, Remove, Move, SetProp, Rename)
 - **Missing**: `Detecting` (hover), `Scroller` (scroll-into-view), `Clipboard` (cut/copy/paste), `ComponentMeta` parser, `BuiltinSimulatorHost`, `LowCodePluginManager` (the designer's own plugin manager, distinct from editor-core's)
 
-### P2.3 — L4 editor-skeleton needs more widgets
+### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
-- **Current state**: 3-pane layout with hand-rolled settings panel
-- **Missing**: `Widget`/`Panel`/`Dock`/`DialogDock`/`Stage` primitives, `PopupService`, `createField`, the 9 `Area` types, the workbench tabbing UI
+- **Shipped in `packages/editor-skeleton/src/widgets/`**:
+  - `icons.tsx` — `CloseIcon`, `OutlineIcon`, `ComponentsIcon` (inline SVG, Tailwind utilities for color/size). Used by the floating panel close button, the default leftArea switcher.
+  - `floating-panel.tsx` — `SapuFloatingPanel` (draggable via title-bar mousedown, optional close button, fixed position). This is Sapu's `Panel` primitive — replaces ali's full DockPanel (~300 lines) with "let the content size itself" + an optional `width`/`height` prop.
+  - `modal.tsx` — `SapuModal` (controlled, BaseUI `Dialog` underneath, primary/danger tone, optional children). One component, no `Dock` registry. Host owns the open-state array.
+  - `toast.tsx` — `SapuToaster` + `createToastManager` (in-process manager with push/dismiss/clear; the toaster subscribes via a small in-file event bus). Replaces ali's `PopupService` (~250 lines) with a one-component + one-factory pair.
+- **Tests** in `packages/editor-skeleton/tests/widgets.test.tsx`: 11 cases covering confirm/cancel + tone for Modal, title + close-button for FloatingPanel, push/dismiss/clear + visible rendering + dismiss click for Toast.
+- **Not in scope (intentional)**:
+  - `Dock` registry + multi-area docking — Sapu stance: hosts that need stacked panels manage their own arrays and render one at a time. A global dock registry was upstream's answer to "9 different Areas" — Sapu collapsed the area taxonomy to 4 (`top`/`left`/`center`/`right` in the Skeleton + the 2 slot props).
+  - `Stage` with zoom/pan — the canvas (center pane) is currently a 1:1 view; zoom/pan is a post-P2 feature.
+  - `createField` + the 9 `Area` types — Sapu skipped the `SettingTopEntry` / `SettingField` abstraction (SettingsPanel is the only settings surface).
+  - Workbench tabbing UI — L5 multi-mount of `<Skeleton>` replaces the upstream Workbench tab strip; the demo's "Open second doc" button proves it.
 
 ## React 19 features to leverage (per `feedback-react19-and-baseui`)
 
@@ -177,7 +186,7 @@ sapu uses React 19.2.7. New code and refactors should use React 19's new feature
 | **`useSyncExternalStore`** | **Canonical replacement for the custom `useRev` hook** — when refactoring `useRev` consumers, prefer this |
 
 **Do NOT introduce (banned patterns):**
-- `useRev` in new code (use `useSyncExternalStore`)
+- `useRev` in new code — the only `useRev` in the codebase lived in `packages/editor-skeleton/src/overlays.tsx` and was a no-op (its return value was ignored; the component itself returns null). Removed 2026-06-08; the same useEffect now subscribes to the 9 project/dragon events directly and routes them to the rAF-debounced `scheduleRepaint` closure. For new state subscriptions, prefer `useSyncExternalStore`.
 - `forwardRef` in new code (pass `ref` as a prop)
 - Class components (already banned; this reinforces the "no legacy" stance)
 - `mobx` (already banned)
