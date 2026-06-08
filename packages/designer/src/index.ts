@@ -29,7 +29,12 @@ export { Simulator } from './simulator';
 export type { SimulatorOptions } from './simulator';
 
 export { BuiltinSimulatorHost } from './simulator-host';
-export type { SimulatorHostOptions } from './simulator-host';
+export type {
+  SimulatorHostOptions,
+  IPublicTypeComponentInstance,
+  IPublicTypeRect,
+  ComponentMoveHooks,
+} from './simulator-host';
 
 export { DragResizeEngine, computeResize } from './drag-resize';
 export type { ResizeAnchor, DragResizeEngineOptions } from './drag-resize';
@@ -58,8 +63,10 @@ export {
   tagElementWithNodeId,
   hitTest,
   getHitInfo,
+  findDOMNodes,
+  instanceToElement,
 } from './dom';
-export type { Rect, HitInfo } from './dom';
+export type { Rect, HitInfo, InstanceLike } from './dom';
 
 // ---- Phase B ali-mirror (slim pure-helper port) ----
 

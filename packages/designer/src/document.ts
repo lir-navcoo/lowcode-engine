@@ -15,6 +15,18 @@ import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@m
 
 import { Node } from './node';
 
+/**
+ * Rect shape returned by `DocumentModel.computeRect` /
+ * `getNodeInstancesRect`. Ali-faithful: a `DOMRect` augmented with
+ * the elements the rect was computed from + a `computed` flag for
+ * multi-instance union rects.
+ *
+ * Re-exported as `IPublicTypeRect` from `simulator-host.ts`; we
+ * mirror the alias here so consumers that already import from
+ * `./document` don't need a second import.
+ */
+export type IPublicTypeRect = import('./simulator-host').IPublicTypeRect;
+
 export interface DocumentEvents extends Record<string, unknown> {
   /** A new root was loaded (replaces the entire document). */
   rootChanged: { root: IPublicTypeRootSchema };
@@ -28,6 +40,16 @@ export interface DocumentEvents extends Record<string, unknown> {
   nodeMoved: { node: Node; oldParent: Node | null; newParent: Node | null; oldIndex: number; newIndex: number };
   /** A node's componentName was changed. */
   nodeRenamed: { node: Node; oldName: string; newName: string };
+}
+
+/** Minimal contract a `DocumentModel` host must satisfy to answer
+ *  `computeRect` / `getNodeInstancesRect` queries. Ali-faithful:
+ *  the `BuiltinSimulatorHost` is the only known implementation,
+ *  but tests can pass a mock to drive the rect math without a
+ *  real simulator. */
+export interface IDocumentModelHost {
+  getComponentInstances(node: Node): unknown[] | null;
+  computeComponentInstanceRect(instance: unknown, selector?: string): IPublicTypeRect | null;
 }
 
 export interface IDocumentModel {
@@ -53,12 +75,28 @@ export interface IDocumentModel {
   rename(node: Node, newName: string): void;
   /** Move a node to a new parent / index. */
   move(node: Node, newParent: Node | null, newIndex: number): void;
+
+  // ---- Phase C ali-mirror: rect math ----
+  /** Wire the host that answers rect queries. The Project wires
+   *  its `BuiltinSimulatorHost` in at construction; tests can
+   *  wire a mock. */
+  setHost(host: IDocumentModelHost | null): void;
+  /** Compute the live rect for a node. Ali-faithful: returns
+   *  `null` when no instances are registered (the node isn't
+   *  mounted on the canvas). */
+  computeRect(node: Node, selector?: string): IPublicTypeRect | null;
+  /** Ali-faithful alias for `computeRect(node)`. */
+  getNodeInstancesRect(node: Node, selector?: string): IPublicTypeRect | null;
 }
 
 export class DocumentModel implements IDocumentModel {
   readonly events = new Emitter<DocumentEvents>();
   private _root: IPublicTypeRootSchema;
   private readonly _nodes = new Map<string, Node>();
+  /** Phase C: host that answers rect queries. Set via `setHost`
+   *  from the Project (so a `BuiltinSimulatorHost` is the canonical
+   *  implementation). Tests can pass a mock. */
+  private _host: IDocumentModelHost | null = null;
 
   constructor(root: IPublicTypeRootSchema) {
     this._root = root;
@@ -192,5 +230,32 @@ export class DocumentModel implements IDocumentModel {
     for (const child of node.children) {
       this.unindexSubtree(child);
     }
+  }
+
+  // ---- Phase C ali-mirror: rect math ----
+
+  /** Wire the host (Project does this at construction). Pass
+   *  `null` to clear. */
+  setHost(host: IDocumentModelHost | null): void {
+    this._host = host;
+  }
+
+  /**
+   * Ali-faithful: compute the live rect for a node. Looks up
+   * the node's first registered component instance, then
+   * delegates to the host's `computeComponentInstanceRect`.
+   * Returns `null` when no host is wired OR the node has no
+   * registered instances.
+   */
+  computeRect(node: Node, selector?: string): IPublicTypeRect | null {
+    if (!this._host) return null;
+    const instances = this._host.getComponentInstances(node);
+    if (!instances || instances.length === 0) return null;
+    return this._host.computeComponentInstanceRect(instances[0]!, selector);
+  }
+
+  /** Ali-faithful alias for `computeRect(node, selector?)`. */
+  getNodeInstancesRect(node: Node, selector?: string): IPublicTypeRect | null {
+    return this.computeRect(node, selector);
   }
 }

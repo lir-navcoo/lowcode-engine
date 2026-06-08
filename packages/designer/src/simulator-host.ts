@@ -28,7 +28,7 @@
 import type { Project } from './project';
 import type { DropTarget, Dragon } from './dragon';
 import type { Node } from './node';
-import { getHitInfo } from './dom';
+import { getHitInfo, findDOMNodes, type InstanceLike } from './dom';
 import { computeInsertLocation, type LocateChild } from './locate';
 import { Viewport } from './viewport';
 import { Scroller } from './scroller';
@@ -42,6 +42,29 @@ import type {
   IPublicTypeNodeSchema,
   JSONValue,
 } from '@monbolc/lowcode-types';
+
+/**
+ * Ali-faithful component-instance type. Slim union:
+ *   - `Element` — the common case (sapu's `data-lce-id`-tagged canvas)
+ *   - `{ dom?: Element; element?: Element }` — for plugins/objects
+ *     that wrap the DOM element under one of these keys.
+ *
+ * Phase D's bem-tool files will add React-fibre / synthetic-component
+ * unwrapping (via a renderer abstraction). For Phase C, the slim
+ * `InstanceLike` from `./dom` covers the drag/rect/border math.
+ */
+export type IPublicTypeComponentInstance = InstanceLike;
+
+/**
+ * Ali-faithful rect shape — a `DOMRect` augmented with the elements
+ * the rect was computed from, plus a `computed` flag that's true
+ * when the rect spans multiple disjoint sub-rects (union of instances).
+ * `computeComponentInstanceRect` sets both.
+ */
+export type IPublicTypeRect = DOMRect & {
+  elements?: Array<Element | Text>;
+  computed?: boolean;
+};
 
 /** v2.4: per-component move hooks. Ali-faithful (`onMoveHook` +
  *  `onChildMoveHook` in `node.componentMeta.advanced.callbacks`).
@@ -121,6 +144,12 @@ export class BuiltinSimulatorHost {
   private _boundAddNoSelect: (() => void) | null = null;
   private _boundRemoveNoSelect: (() => void) | null = null;
   private _noSelectCount = 0;
+  // Phase C: per-node component-instance map. Sapu is single-document
+  // per Project, so we drop ali's `docId` dimension and key the map
+  // by `node.id` directly. Populated by `setInstance` (the simulator
+  // calls it on every mount/unmount); read by `getComponentInstances`
+  // + `computeComponentInstanceRect` + `DocumentModel.computeRect`.
+  private readonly _instancesMap = new Map<string, IPublicTypeComponentInstance[]>();
 
   constructor(project: Project, options: SimulatorHostOptions) {
     this.project = project;
@@ -131,6 +160,16 @@ export class BuiltinSimulatorHost {
     this.componentMeta = options.componentMeta ?? {};
     this.viewport = new Viewport({ canvas: options.canvas });
     this.scroller = new Scroller({ viewport: this.viewport });
+    // Phase C: register this host as the document's `IDocumentModelHost`
+    // so `document.computeRect(node)` / `getNodeInstancesRect(node)` route
+    // through `getComponentInstances` + `computeComponentInstanceRect`.
+    // Tests that construct a host get the wiring for free; the test for
+    // `document.computeRect` swaps the host out via `setHost` to verify
+    // the indirection works.
+    project.document.setHost({
+      getComponentInstances: (n) => this.getComponentInstances(n),
+      computeComponentInstanceRect: (inst, sel) => this.computeComponentInstanceRect(inst as IPublicTypeComponentInstance, sel),
+    });
   }
 
   /** Attach DOM listeners. Idempotent. */
@@ -197,6 +236,138 @@ export class BuiltinSimulatorHost {
     }
     document.removeEventListener('selectstart', this._onSelectStart, { capture: true });
     this._noSelectCount = 0;
+  }
+
+  // ==========================================================================
+  // Phase C ali-mirror: per-node instance registry + rect computation
+  // ==========================================================================
+  //
+  // Ali-faithful port of
+  // `alibaba/lowcode-engine/packages/designer/src/builtin-simulator/host.ts`:
+  //   - `setInstance(docId, id, instances)`        → host.ts:907
+  //   - `getComponentInstances(node, context?)`   → host.ts:921
+  //   - `computeComponentInstanceRect(...)`       → host.ts:969
+  //   - `findDOMNodes(instance, selector?)`       → host.ts:1035
+  //
+  // Sapu is single-document per Project, so the `docId` dimension
+  // ali uses is dropped. The map is keyed by `node.id` directly.
+  // The rect-union algorithm is ported verbatim — sapu uses real
+  // `Element.getClientRects()` (no iframe contentDocument in slim),
+  // so the slim `findDOMNodes` in `./dom.ts` is the unwrap step.
+
+  /**
+   * Register (or unregister) the DOM instance(s) for a node. Call
+   * this on every mount/unmount so the host's rect math stays
+   * accurate. Pass `null` to clear.
+   *
+   * Ali-faithful: the simulator calls this from the renderer
+   * mount/unmount lifecycle. Sapu's slim version: the host (or a
+   * test) calls it directly.
+   */
+  setInstance(nodeId: string, instances: IPublicTypeComponentInstance[] | null): void {
+    if (instances == null) {
+      this._instancesMap.delete(nodeId);
+      return;
+    }
+    this._instancesMap.set(nodeId, instances.slice());
+  }
+
+  /**
+   * Ali-faithful: return the per-instance list for a node, or
+   * `null` if no instances are registered. The optional
+   * `context` parameter (a `IPublicTypeNodeInstance` shape) is
+   * ali-faithful for filtering; sapu's slim version accepts a
+   * `{ nodeId?: string; instance?: unknown }` shape and returns
+   * all matching instances.
+   */
+  getComponentInstances(
+    node: Node,
+    _context?: { nodeId?: string; instance?: unknown },
+  ): IPublicTypeComponentInstance[] | null {
+    const instances = this._instancesMap.get(node.id) ?? null;
+    return instances ? instances.slice() : null;
+  }
+
+  /**
+   * Ali-faithful: find the DOM elements backing an instance. Slim
+   * version: unwraps `IPublicTypeComponentInstance` to a DOM Element
+   * via `./dom.ts`'s `findDOMNodes`. Phase D's bem-tool files will
+   * need React-fibre / synthetic-component unwrapping — that's
+   * the only thing this stub doesn't cover.
+   */
+  findDOMNodes(
+    instance: IPublicTypeComponentInstance,
+    selector?: string,
+  ): Array<Element | Text> | null {
+    return findDOMNodes(instance, selector);
+  }
+
+  /**
+   * Ali-faithful: compute the union rect for one component
+   * instance. Walks all the instance's DOM elements + their
+   * `getClientRects()` (which can be multiple for inline /
+   * multi-line elements), returns the smallest rect that
+   * contains them all. Sets `computed: true` when the union
+   * spans more than one rect.
+   *
+   * Returns `null` when no DOM elements are found (the instance
+   * is unmounted, or the renderer returned nothing).
+   */
+  computeComponentInstanceRect(
+    instance: IPublicTypeComponentInstance,
+    selector?: string,
+  ): IPublicTypeRect | null {
+    const elements = this.findDOMNodes(instance, selector);
+    if (!elements || elements.length === 0) return null;
+
+    // Ali-faithful union algorithm: pop elements + their
+    // `getClientRects()` off a stack; for each rect, expand
+    // the running `{x, y, r, b}` box. `computed: true` if the
+    // box was ever expanded (i.e. the union is non-trivial).
+    const elems = elements.slice();
+    const rects: DOMRect[] = [];
+    let last: { x: number; y: number; r: number; b: number } | undefined;
+    let computed = false;
+    while (true) {
+      if (rects.length < 1) {
+        const elem = elems.pop();
+        if (!elem) break;
+        // `getClientRects` is an Element method (TS DOM lib doesn't
+        // expose it on Text). Text nodes' rects are subsumed by
+        // their parent Element's rects, so skipping them is a
+        // safe no-op for the union computation.
+        if (elem instanceof Element) {
+          const got = elem.getClientRects();
+          for (let i = got.length - 1; i >= 0; i--) rects.push(got.item(i) as DOMRect);
+        }
+      }
+      const rect = rects.pop();
+      if (!rect) continue;
+      if (rect.width === 0 && rect.height === 0) continue;
+      if (!last) {
+        last = { x: rect.left, y: rect.top, r: rect.right, b: rect.bottom };
+        continue;
+      }
+      if (rect.left < last.x) { last.x = rect.left; computed = true; }
+      if (rect.top < last.y) { last.y = rect.top; computed = true; }
+      if (rect.right > last.r) { last.r = rect.right; computed = true; }
+      if (rect.bottom > last.b) { last.b = rect.bottom; computed = true; }
+    }
+    if (!last) return null;
+    const rect: IPublicTypeRect = new DOMRect(last.x, last.y, last.r - last.x, last.b - last.y);
+    rect.elements = elements;
+    rect.computed = computed;
+    return rect;
+  }
+
+  /**
+   * Convenience: clear all registered instances. Called by
+   * `unmount()` (already done above) or by tests that swap
+   * schemas. Not ali-faithful (ali does this via document
+   * destruction); sapu exposes it for tests + the demo.
+   */
+  clearInstances(): void {
+    this._instancesMap.clear();
   }
 
   // ==========================================================================

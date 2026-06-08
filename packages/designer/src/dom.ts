@@ -102,3 +102,73 @@ export function getHitInfo(
   const r = el.getBoundingClientRect();
   return { hitId, relativeY: y - r.top, height: r.height };
 }
+
+// ---------------------------------------------------------------------------
+// Phase C ali-mirror: instance → DOM helpers
+// ---------------------------------------------------------------------------
+//
+// Ali-faithful port of
+// `alibaba/lowcode-engine/packages/designer/src/builtin-simulator/host.ts:1035`
+// (`findDOMNodes`) + `:1601` (`getMatched`).
+//
+// `findDOMNodes` is the bridge between a *component instance* (the
+// runtime object ali's renderer tracks for each node) and the
+// underlying DOM elements. The slim sapu version accepts a plain
+// `Element | { dom: Element } | { element: Element }` shape — enough
+// for the existing canvas (which uses `data-lce-id` on real DOM
+// nodes) and for the Phase B `OffsetObserver.rectProvider` consumers.
+// React-fibre / synthetic-component unwrapping is deferred to Phase D
+// when the bem-tool `border-selecting` + `node-selector` files
+// bring their own instance shapes.
+
+/** Slim sapu-faithful instance type. Accepts a real DOM Element
+ *  (the common case for sapu's `data-lce-id`-tagged canvas), OR
+ *  an object that carries the DOM element under one of the
+ *  conventional `.dom` / `.element` keys. */
+export type InstanceLike = Element | { dom?: Element; element?: Element };
+
+/** Extract a DOM Element from an `InstanceLike`, or null if the
+ *  instance is not a DOM element and doesn't carry one. */
+export function instanceToElement(instance: InstanceLike | null | undefined): Element | null {
+  if (!instance) return null;
+  if (instance instanceof Element) return instance;
+  const obj = instance as { dom?: Element; element?: Element };
+  return obj.dom ?? obj.element ?? null;
+}
+
+/** Ali-faithful `getMatched(elements, selector)`. Walk the list;
+ *  return the first element that matches `selector` itself, OR
+ *  the first element that contains a matching descendant. */
+function getMatched(elements: Array<Element | Text>, selector: string): Element | null {
+  let firstQueried: Element | null = null;
+  for (const elem of elements) {
+    if (elem instanceof Element) {
+      if (elem.matches(selector)) return elem;
+      if (!firstQueried) firstQueried = elem.querySelector(selector);
+    }
+  }
+  return firstQueried;
+}
+
+/**
+ * Ali-faithful `findDOMNodes(instance, selector?)`. Slim version
+ * (no renderer abstraction) — unwraps `InstanceLike` to a list of
+ * DOM elements directly. If `selector` is given, narrows to the
+ * first matching element (or the first element containing a
+ * matching descendant) and returns `[matched]`; returns null on
+ * no match.
+ */
+export function findDOMNodes(
+  instance: InstanceLike | null | undefined,
+  selector?: string,
+): Array<Element | Text> | null {
+  const el = instanceToElement(instance);
+  if (!el) return null;
+  const elements: Array<Element | Text> = [el];
+  if (selector) {
+    const matched = getMatched(elements, selector);
+    if (!matched) return null;
+    return [matched];
+  }
+  return elements;
+}
