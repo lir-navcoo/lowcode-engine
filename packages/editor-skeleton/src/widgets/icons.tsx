@@ -54,22 +54,31 @@ export function CloseIcon({ size = 10 }: { size?: number }): unknown {
 }
 
 /**
- * Outline view — a small tree/hierarchy: one root node with two
- * children. Mirrors the visual idiom of "list/tree" icons in most
- * design tools.
+ * Outline view — a flat bulleted list: a small filled dot on the
+ * left, a short horizontal stroke as the "title bar". Reads as
+ * "a list of rows" rather than "a tree of nested boxes", which
+ * is the more common shape of an editor outline pane.
+ *
+ * 5 short rows, dot + line per row, lines of varying length so
+ * the glyph doesn't look like a checkbox column.
  */
 export function OutlineIcon({ size = 14 }: { size?: number }): unknown {
+  // (dotX, dotY, lineEndX) — the y is the row's vertical centre,
+  // the line is a 1.4px stroke from dotX+1 to lineEndX.
+  const rows: Array<{ y: number; end: number }> = [
+    { y: 2,   end: 12.5 },
+    { y: 4.5, end: 9    },
+    { y: 7,   end: 12   },
+    { y: 9.5, end: 7.5  },
+    { y: 12,  end: 10.5 },
+  ];
   return h()(
     'svg',
     baseSvgProps(size),
-    // root node
-    h()('rect', { x: 1.5, y: 2, width: 3.5, height: 2, rx: 0.4 }),
-    // child node 1
-    h()('rect', { x: 1.5, y: 6.5, width: 3.5, height: 2, rx: 0.4 }),
-    // child node 2
-    h()('rect', { x: 1.5, y: 11, width: 3.5, height: 2, rx: 0.4 }),
-    // vertical connector from root to its children
-    h()('path', { d: 'M3.25 4 L3.25 13' }),
+    ...rows.flatMap((r) => [
+      h()('circle', { cx: 2, cy: r.y, r: 0.7, fill: 'currentColor', stroke: 'none' }),
+      h()('path', { d: `M3.2 ${r.y} L${r.end} ${r.y}` }),
+    ]),
   );
 }
 
