@@ -43,6 +43,24 @@ export interface OutlineViewProps {
   renderRow?: (node: ITreeNode, helpers: RowHelpers) => unknown;
   /** Called when a row is clicked. */
   onRowClick?: (id: string, evt: { meta: boolean; shift: boolean }) => void;
+  /**
+   * v2.4: called when the user clicks the row's delete (×)
+   * button. The host wires this to its own removal logic
+   * (e.g. `project.document.remove(node)` wrapped in a
+   * `RemoveCommand` for undo/redo). Optional — when omitted,
+   * the × button is not rendered. Ali-faithful: ali's tree
+   * exposes a per-row delete affordance and a
+   * `Delete`/`Backspace` keyboard shortcut on the selected
+   * row(s).
+   */
+  onRowRemove?: (id: string) => void;
+  /**
+   * v2.4: which row is the "root" (excluded from delete +
+   * rename). Defaults to the first node in the tree. The host
+   * can override to point at any id (e.g. the `__root__` key
+   * the demo's seed uses).
+   */
+  rootId?: string;
 }
 
 export interface RowHelpers {
@@ -67,6 +85,15 @@ export interface RowHelpers {
    * button and is not double-clickable to rename.
    */
   canRename: boolean;
+  /**
+   * v2.4: True for non-root rows when the host passed
+   * `onRowRemove`. The × button is rendered next to the ✎
+   * button. Clicking it calls `helpers.remove()` which in
+   * turn fires the host's `onRowRemove(id)` callback.
+   */
+  canRemove: boolean;
+  /** v2.4: fire the host's onRowRemove(id) callback for this row. */
+  remove: () => void;
 }
 
 /** Re-export the pane event types for downstream consumers. */
@@ -202,6 +229,33 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
       }, '✎')
     : h()('span', { key: 'rename', style: { width: 0 } }, '');
 
+  // v2.4: delete (×) button. Visible when the host wired
+  // `onRowRemove` (the host controls the removal logic — pane
+  // just routes the click). Mirrors the rename button: never on
+  // the root row, always visible (not hover-gated) for parity
+  // with rename. Ali-faithful UX: delete is one click away per
+  // row + a Delete/Backspace keyboard shortcut on the
+  // selected row.
+  const removeBtn = helpers.canRemove
+    ? h()('span', {
+        key: 'remove',
+        'data-lce-remove': 'true',
+        'data-lce-id': node.id,
+        onClick: (e: { stopPropagation: () => void }) => {
+          e.stopPropagation();
+          helpers.remove();
+        },
+        title: 'Delete this node (also: Delete or Backspace key)',
+        style: {
+          fontSize: 13,
+          color: '#cbd5e1',
+          cursor: 'pointer',
+          padding: '0 3px',
+          userSelect: 'none',
+        },
+      }, '×')
+    : h()('span', { key: 'remove', style: { width: 0 } }, '');
+
   return h()('div', {
     onClick: (e: { metaKey: boolean; shiftKey: boolean; stopPropagation: () => void }) => {
       // Don't clobber the selection when the user clicks inside the
@@ -225,6 +279,7 @@ const defaultRenderRow = (node: ITreeNode, helpers: RowHelpers) => {
     arrow,
     titleCell,
     renameBtn,
+    removeBtn,
     h()('span', {
       key: 'componentName',
       style: {
@@ -289,11 +344,48 @@ export function OutlineView(props: OutlineViewProps) {
   // can use them. (react-arborist does not forward rowProps to the
   // children function, so we need this approach.)
   const paneRef = props.pane;
+  const onRowRemoveRef = props.onRowRemove;
+  const rootIdRef = props.rootId;
 
   // Fill the parent: width defaults to '100%' (string is accepted by
   // react-arborist 3.9.x), height is observed from the host div.
   const width: number | string = props.width ?? '100%';
   const { hostRef, height } = useContainerHeight(props.height);
+  const onRowRemove = props.onRowRemove;
+
+  // v2.4: keyboard shortcut for the selected row(s). Delete
+  // or Backspace fires the host's onRowRemove for every
+  // selected row. Ali-faithful: ali's tree lets the user press
+  // Delete on a focused row to remove it. The shortcut is
+  // scoped to the outline tree (event bound on the tree's
+  // host div) so it doesn't fight the document's
+  // `keydown` handlers (Settings panel input, etc.).
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !onRowRemove) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      // Don't fire when the user is typing in the rename input
+      // (the input has its own Backspace handler).
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      const ids = props.pane.selectedIds;
+      if (ids.length === 0) return;
+      // Don't delete the root — its id matches props.rootId (or
+      // the first node when rootId is undefined → top-level row
+      // has parentId '').
+      const rootId = props.rootId;
+      for (const id of ids) {
+        if (rootId !== undefined && id === rootId) continue;
+        const node = props.pane.getNode(id);
+        if (rootId === undefined && node && node.parentId === '') continue;
+        onRowRemove(id);
+      }
+      e.preventDefault();
+    };
+    host.addEventListener('keydown', onKey);
+    return () => host.removeEventListener('keydown', onKey);
+  }, [props.pane, onRowRemove, props.rootId, hostRef]);
 
   // Per-row rename state. Only one row is in edit mode at a time.
   // The "draft" is the initial value seeded when edit mode starts;
@@ -333,6 +425,13 @@ export function OutlineView(props: OutlineViewProps) {
     // Root has no parent → depth 0 + parentId '' → not renamable,
     // matching ali's `isCNode` guard (tree-title.tsx:146).
     const canRename = rowNode.parentId !== '';
+    // v2.4: the × button is rendered for any non-root row when
+    // the host wired `onRowRemove`. The root id can be overridden
+    // via `props.rootId` (default: top-level node → parentId '').
+    const isRoot = rootIdRef !== undefined
+      ? rowNode.id === rootIdRef
+      : rowNode.parentId === '';
+    const canRemove = !isRoot && onRowRemoveRef !== undefined;
     const isEditing = editingId === rowNode.id;
     const helpers: RowHelpers = {
       isSelected: pane.isSelected(rowNode.id),
@@ -355,6 +454,10 @@ export function OutlineView(props: OutlineViewProps) {
         if (onRowClick) onRowClick(rowNode.id, { meta: modifiers.meta, shift: modifiers.shift });
       },
       canRename,
+      canRemove,
+      remove: () => {
+        if (canRemove && onRowRemoveRef) onRowRemoveRef(rowNode.id);
+      },
       isEditing,
       draft,
       startRename: () => {

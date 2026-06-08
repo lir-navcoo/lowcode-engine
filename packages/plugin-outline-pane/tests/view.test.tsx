@@ -183,6 +183,8 @@ describe('defaultRenderRow (row-level UX, no react-arborist)', () => {
       commitRename: noop,
       cancelRename: noop,
       canRename: true,
+      canRemove: false,
+      remove: noop,
       ...overrides,
     };
   }
@@ -228,5 +230,46 @@ describe('defaultRenderRow (row-level UX, no react-arborist)', () => {
     fireEvent.click(rowDiv);
     expect(select).toHaveBeenCalledTimes(1);
     expect(startRename).not.toHaveBeenCalled();
+  });
+
+  // ===== P11 — delete (×) row button =====
+  //
+  // v2.4 brings ali's per-row delete affordance + Delete/Backspace
+  // keyboard shortcut. The pane just routes the click; the host
+  // decides what to do (call RemoveCommand, show a confirm, etc.).
+
+  it('× button is rendered when canRemove=true', () => {
+    const el = defaultRenderRow(bodyNode, makeHelpers({ canRemove: true }));
+    const { container } = render(el as React.ReactElement);
+    // After the pencil (✎) is the ×, then componentName. The
+    // remove span has data-lce-remove="true" for e2e selector.
+    const removeSpan = container.querySelector('[data-lce-remove="true"]');
+    expect(removeSpan).not.toBeNull();
+    expect(removeSpan!.textContent).toBe('×');
+    expect(removeSpan!.getAttribute('data-lce-id')).toBe(bodyNode.id);
+  });
+
+  it('× button is NOT rendered when canRemove=false (host did not pass onRowRemove)', () => {
+    const el = defaultRenderRow(bodyNode, makeHelpers({ canRemove: false }));
+    const { container } = render(el as React.ReactElement);
+    expect(container.querySelector('[data-lce-remove="true"]')).toBeNull();
+  });
+
+  it('× button onClick calls helpers.remove() and stops propagation', () => {
+    const remove = vi.fn();
+    const el = defaultRenderRow(bodyNode, makeHelpers({ canRemove: true, remove }));
+    const { container } = render(el as React.ReactElement);
+    const removeSpan = container.querySelector('[data-lce-remove="true"]')!;
+    fireEvent.click(removeSpan);
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('row click on the row div does NOT fire remove (× is a separate handler)', () => {
+    const remove = vi.fn();
+    const el = defaultRenderRow(bodyNode, makeHelpers({ canRemove: true, remove }));
+    const { container } = render(el as React.ReactElement);
+    const rowDiv = container.querySelector('div')!;
+    fireEvent.click(rowDiv);
+    expect(remove).not.toHaveBeenCalled();
   });
 });

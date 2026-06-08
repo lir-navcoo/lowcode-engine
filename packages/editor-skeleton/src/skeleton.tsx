@@ -243,9 +243,24 @@ export function Skeleton(props: SkeletonProps) {
   // active; body swaps between the outline tree and the drag-source
   // component palette.
   const leftHeader = leftView === 'outline' ? 'Outline' : 'Components';
+  // v2.4: outline row delete. Routes through the host's removal
+  // logic — the demo wires it to a `RemoveCommand` via
+  // `engine.commands`; other hosts can wire it to whatever
+  // they want. The root id is the document's root key so the
+  // × button is never shown on the root row.
+  const onOutlineRemove = (id: string): void => {
+    const node = props.project.document.getNode(id);
+    if (!node) return;
+    props.project.document.remove(node);
+  };
   const leftBody =
     leftView === 'outline'
-      ? h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) })
+      ? h()(OutlineView, {
+          pane,
+          onRowClick: (id: string) => onOutlineSelect(id),
+          onRowRemove: onOutlineRemove,
+          rootId: props.project.document.root.key,
+        })
       : h()(ComponentPalette, { project: props.project, components: props.components, componentMeta: props.componentMeta, dragon: props.dragon });
 
   return h()('div', { className: CN.skel },
