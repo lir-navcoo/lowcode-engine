@@ -16,7 +16,8 @@
   },
   "files": [
     "lib",
-    "es"
+    "es",
+    "LICENSE"
   ],
   "scripts": {
     "build": "yarn build:css && tsc -p tsconfig.json",
