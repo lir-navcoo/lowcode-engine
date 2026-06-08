@@ -38,17 +38,23 @@ export interface OffsetObserverEvents extends EventMap {
   change: { hasOffset: boolean };
 }
 
-/** Minimal viewport contract (slim; ali's is larger). */
+/** Minimal viewport contract (slim; ali's is larger).
+ *  Phase C.Y: each numeric field can be a plain getter (slim
+ *  consumers) OR an ali-faithful `Observable<number>`-backed
+ *  getter on a real `Viewport`. The OffsetObserver reads these
+ *  once per `_compute()` call; consumers that want to react to
+ *  scroll/scale changes can subscribe via the `*Obs` accessors
+ *  on the concrete `Viewport` class. */
 export interface IViewportLite {
   readonly width: number;
   readonly height: number;
   readonly scrollX: number;
   readonly scrollY: number;
   readonly scale: number;
-  /** Ali-faithful: `viewport.scrolling` is true while the scroller
-   *  is in the middle of an auto-scroll. We use it to decide
-   *  whether to refresh the cached offset (avoid jitter during
-   *  scroll). */
+  /** Ali-faithful: `true` while the scroll target is actively
+   *  scrolling (any cause: user drag, `scrollBy`, `scrollTo`).
+   *  Auto-resets 80ms after the last `scroll` event. We use
+   *  it to skip geometry refreshes during scroll. */
   readonly scrolling: boolean;
 }
 
