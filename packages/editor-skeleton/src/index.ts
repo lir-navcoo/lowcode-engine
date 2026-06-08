@@ -21,6 +21,9 @@ export {
   createToastManager,
   SapuModal,
   SapuFloatingPanel,
+  OutlineIcon,
+  ComponentsIcon,
+  CloseIcon,
 } from './widgets';
 export type {
   SapuToastItem,

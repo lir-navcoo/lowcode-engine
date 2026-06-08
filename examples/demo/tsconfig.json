@@ -24,7 +24,6 @@
       "@monbolc/lowcode-react-renderer":     ["../../packages/react-renderer/src/index.ts"],
       "@monbolc/lowcode-designer":           ["../../packages/designer/src/index.ts"],
       "@monbolc/lowcode-editor-skeleton":    ["../../packages/editor-skeleton/src/index.ts"],
-      "@monbolc/lowcode-editor-skeleton/widgets/icons": ["../../packages/editor-skeleton/src/widgets/icons.tsx"],
       "@monbolc/lowcode-workspace":          ["../../packages/workspace/src/index.ts"],
       "@monbolc/lowcode-shell":              ["../../packages/shell/src/index.ts"],
       "@monbolc/lowcode-engine":             ["../../packages/engine/src/index.ts"]

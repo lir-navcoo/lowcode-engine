@@ -24,7 +24,7 @@ import { BuiltinSimulatorHost, Project, Simulator } from '@monbolc/lowcode-desig
 import { SettingsPanel } from './settings-panel';
 import { Overlays } from './overlays';
 import { ComponentPalette } from './component-palette';
-import { OutlineIcon, ComponentsIcon } from './widgets/icons';
+import { OutlineIcon, ComponentsIcon } from './widgets';
 
 /** Built-in left views. The host can pass a `leftView` prop to
  *  control which one is active; the default `leftArea` icon strip

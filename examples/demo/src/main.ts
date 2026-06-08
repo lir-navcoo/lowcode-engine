@@ -34,12 +34,11 @@ import './styles.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Project } from '@monbolc/lowcode-designer';
-import { Skeleton } from '@monbolc/lowcode-editor-skeleton';
+import { Skeleton, OutlineIcon, ComponentsIcon } from '@monbolc/lowcode-editor-skeleton';
 import { Resource, Workspace } from '@monbolc/lowcode-workspace';
 import { SapuErrorBoundary, type ISapuEngine } from '@monbolc/lowcode-shell';
 import { init, createDefaultPreset } from '@monbolc/lowcode-engine';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
-import { OutlineIcon, ComponentsIcon } from '@monbolc/lowcode-editor-skeleton/widgets/icons';
 import {
   registerSetter,
   type SetterComponent,
