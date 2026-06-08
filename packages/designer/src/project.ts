@@ -12,6 +12,7 @@
  */
 
 import { Emitter } from '@monbolc/lowcode-utils';
+import { ActiveTracker } from './active-tracker';
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
 import { DocumentModel, type DocumentEvents } from './document';
@@ -27,12 +28,15 @@ export interface ProjectEvents extends Record<string, unknown>, DocumentEvents, 
   clipboardChanged: Record<string, never>;
   /** A new project was loaded. */
   loaded: Record<string, never>;
+  /** The active node (single-focus concept, ali-faithful) changed. */
+  activeNodeChanged: { id: string | null };
 }
 
 export class Project {
   readonly events = new Emitter<ProjectEvents>();
   readonly document: DocumentModel;
   readonly dragon: Dragon;
+  readonly activeTracker = new ActiveTracker();
   private _selectedIds: string[] = [];
   private _detectingId: string | null = null;
   private _clipboard: import('./commands').ClipboardPayload | null = null;
@@ -41,6 +45,33 @@ export class Project {
     this.document = new DocumentModel(root);
     this.dragon = new Dragon();
     this.wireDocument();
+    this.wireActiveTracker();
+  }
+
+  /**
+   * The id of the currently active node, or null. Ali-faithful
+   * short-hand for `activeTracker.activeNodeId`. Plugins that
+   * just want "the one node the next command will act on" can
+   * read this without reaching into `activeTracker`.
+   */
+  get activeNodeId(): string | null {
+    return this.activeTracker.activeNodeId;
+  }
+
+  /**
+   * Set the active node. Pass null to clear. Ali-faithful
+   * short-hand for `activeTracker.set(id)`. Validates the id
+   * exists in the document so plugins can pass a stale id
+   * without crashing.
+   */
+  setActiveNode(id: string | null): void {
+    this.activeTracker.set(id, (candidate) => !!this.document.getNode(candidate));
+  }
+
+  private wireActiveTracker(): void {
+    this.activeTracker.events.on('activeNodeChanged', ({ id }) => {
+      this.events.emit('activeNodeChanged', { id });
+    });
   }
 
   private wireDocument(): void {
@@ -63,6 +94,10 @@ export class Project {
     this._selectedIds = [];
     this._detectingId = null;
     this._clipboard = null;
+    // P23: the active node is document-scoped — clear it on
+    // load. Don't re-emit the event (the activeTracker would
+    // emit it; we let it flow through normally).
+    this.activeTracker.set(null);
     this.events.emit('loaded', {});
   }
 

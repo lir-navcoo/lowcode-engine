@@ -31,6 +31,9 @@ export type { SimulatorHostOptions } from './simulator-host';
 export { DragResizeEngine, computeResize } from './drag-resize';
 export type { ResizeAnchor, DragResizeEngineOptions } from './drag-resize';
 
+export { ActiveTracker } from './active-tracker';
+export type { ActiveTrackerEvents } from './active-tracker';
+
 export {
   InsertCommand,
   RemoveCommand,
