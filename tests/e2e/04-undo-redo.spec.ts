@@ -330,3 +330,115 @@ test('Ctrl+Z inside an input does NOT undo (gated on tagName)', async ({ page })
     console.warn('[P14] no input on page — input-gate test is a no-op');
   }
 });
+
+/**
+ * P16: engine.commands.execute('document.insert', ...) lands a
+ * new node, undo removes it, redo re-inserts. Complements the
+ * P13 remove-only lock so both half of the CRUD pair have a
+ * browser-test assertion. The seed has 4 root children
+ * (Header, Body, Div, Text); we insert a Button at the end
+ * → 5 children, undo → 4, redo → 5.
+ */
+test('P12 document.insert + undo + redo round-trips a new node (P16 e2e lock)', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(
+    () => (window as unknown as { __sapu_engine__?: unknown }).__sapu_engine__ !== undefined,
+  );
+
+  // Drive the full insert / undo / redo sequence in a single
+  // page.evaluate so we share one document reference.
+  const result = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __sapu_engine__?: {
+        commands: {
+          has: (n: string) => boolean;
+          execute: (n: string, a: unknown) => Promise<unknown>;
+          undo: () => Promise<void>;
+          redo: () => Promise<void>;
+          canUndo: () => boolean;
+          canRedo: () => boolean;
+        };
+        getProject: () => {
+          document: {
+            root: { key?: string };
+            getNode: (id: string) => { children: Array<{ id: string; componentName: string }> } | undefined;
+          };
+        };
+        registerPlugin: (p: { name: string; init: (ctx: unknown) => void }) => boolean;
+      };
+    };
+    const eng = w.__sapu_engine__;
+    if (!eng) return null;
+    const project = eng.getProject();
+    const rootId = project.document.root.key as string;
+    const children = (): Array<{ id: string; componentName: string }> =>
+      project.document.getNode(rootId)!.children;
+
+    const trace: Array<{ step: string; count: number; canUndo: boolean; canRedo: boolean }> = [];
+    trace.push({ step: 'init', count: children().length, canUndo: false, canRedo: false });
+
+    // Defensive re-register (same vite-dev-server quirk lock
+    // as P13).
+    let commandsHas = eng.commands.has('document.insert');
+    if (!commandsHas) {
+      const mod = await import('/@fs/Users/lirui/Documents/lowcode-engine/sapu-lowcode-engine/packages/engine/src/default-plugins.ts');
+      const docPlugin = (mod as { createDefaultPlugins: () => Array<{ name: string; init: (ctx: unknown) => void }> }).createDefaultPlugins().find((p) => p.name === '@sapu/builtin-document-commands');
+      if (docPlugin) eng.registerPlugin(docPlugin);
+      commandsHas = eng.commands.has('document.insert');
+    }
+    if (!commandsHas) {
+      return { initialCount: children().length, trace, commandsHas };
+    }
+
+    await eng.commands.execute('document.insert', {
+      schema: { componentName: 'Button' },
+      parentId: null,
+      index: children().length,
+    });
+    trace.push({ step: 'execute', count: children().length, canUndo: eng.commands.canUndo(), canRedo: eng.commands.canRedo() });
+
+    await eng.commands.undo();
+    trace.push({ step: 'undo', count: children().length, canUndo: eng.commands.canUndo(), canRedo: eng.commands.canRedo() });
+
+    await eng.commands.redo();
+    trace.push({ step: 'redo', count: children().length, canUndo: eng.commands.canUndo(), canRedo: eng.commands.canRedo() });
+
+    return { initialCount: children().length, trace, commandsHas };
+  });
+
+  expect(result).not.toBeNull();
+  expect(result!.commandsHas).toBe(true);
+  // The initial count depends on whether earlier tests in this
+  // file left state behind. We assert the ABSOLUTE deltas
+  // relative to the initial count captured inside the page
+  // (so cross-test state is irrelevant — the assertion is
+  // pure relative).
+  const initial = (result as { initialCount: number; trace: Array<{ step: string; count: number; canUndo: boolean; canRedo: boolean }> }).initialCount;
+  const trace = (result as { trace: Array<{ step: string; count: number; canUndo: boolean; canRedo: boolean }> }).trace;
+  // Each step: assert the EXACT delta from the previous step
+  // (init → +1 on execute, -1 on undo, +1 on redo). We
+  // compare count to the previous count instead of an
+  // absolute value, so cross-test pollution can't break the
+  // assertion.
+  expect(trace.length).toBe(4);
+  expect(trace[0]!.step).toBe('init');
+  expect(trace[0]!.canUndo).toBe(false);
+  expect(trace[0]!.canRedo).toBe(false);
+  expect(trace[1]!.step).toBe('execute');
+  expect(trace[1]!.count).toBe(trace[0]!.count + 1);
+  expect(trace[1]!.canUndo).toBe(true);
+  expect(trace[1]!.canRedo).toBe(false);
+  expect(trace[2]!.step).toBe('undo');
+  expect(trace[2]!.count).toBe(trace[0]!.count);
+  expect(trace[2]!.canUndo).toBe(false);
+  expect(trace[2]!.canRedo).toBe(true);
+  expect(trace[3]!.step).toBe('redo');
+  expect(trace[3]!.count).toBe(trace[0]!.count + 1);
+  expect(trace[3]!.canUndo).toBe(true);
+  expect(trace[3]!.canRedo).toBe(false);
+  // Also assert the exact initial count for diagnostic value:
+  // the seed has 4 children but the demo's #add-footer button
+  // (used by an earlier test) may have added one. We don't
+  // pin the absolute number, just that initial > 0.
+  expect(initial).toBeGreaterThan(0);
+});
