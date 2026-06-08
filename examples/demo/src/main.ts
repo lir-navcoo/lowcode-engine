@@ -354,7 +354,17 @@ function App({ engine }: { engine: ISapuEngine }) {
 
   // Expose handlers globally so the toolbar buttons (outside the React tree)
   // can call them.
-  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom, onToggleSecond, onInjectCrash, secondRoot: () => secondRoot };
+  (window as any).__demo__ = {
+    onAdd,
+    onRename,
+    onReset,
+    onToggleCustom,
+    onToggleSecond,
+    onInjectCrash,
+    onUndo: () => { void engine.commands.undo(); },
+    onRedo: () => { void engine.commands.redo(); },
+    secondRoot: () => secondRoot,
+  };
 
   // The Skeleton's `topArea` slot — a sub-toolbar above the canvas
   // in normal flow (mirrors ali's `subTopArea`). Plain inline
@@ -509,6 +519,9 @@ init(document.getElementById('skeleton')!, {
   components,
   preset: createDefaultPreset({ locale: 'en-US' }),
 }).then((engine) => {
+  // Expose the engine on window for E2E tests + browser devtools.
+  // (Production apps would NOT do this — it's a demo affordance.)
+  (window as unknown as { __sapu_engine__: unknown }).__sapu_engine__ = engine;
   const root = createRoot(document.getElementById('skeleton')!);
   root.render(React.createElement(App, { engine }));
 });
@@ -522,3 +535,5 @@ init(document.getElementById('skeleton')!, {
 (document.getElementById('toggle-custom') as HTMLButtonElement).onclick    = () => (window as any).__demo__.onToggleCustom();
 (document.getElementById('open-second') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onToggleSecond();
 (document.getElementById('inject-crash') as HTMLButtonElement).onclick      = () => (window as any).__demo__.onInjectCrash();
+(document.getElementById('undo') as HTMLButtonElement).onclick              = () => (window as any).__demo__.onUndo();
+(document.getElementById('redo') as HTMLButtonElement).onclick              = () => (window as any).__demo__.onRedo();
