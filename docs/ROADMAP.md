@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 566 unit + 11 e2e tests passing, ali-mirror Phase A + B done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 593 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 566 unit tests + 1 skip / 54 files, all passing in ~3.2s.
+`yarn test` ✅ 593 unit tests + 1 skip / 55 files, all passing in ~3.3s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -191,6 +191,22 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
 - **Tests (+56; 510 → 566)**: `utils-misc-invariant.test.ts` (10), `offset-observer-detecting.test.ts` (15), `clipboard-scroller.test.ts` (11), `b4-misc.test.ts` (20).
 - **Bug fixes during verify** (documented in commit `427351d`): clickable lock-walk starts at self; `makeRelativePath` `numGoUp` formula; `resolveAbsoluatePath` going-up heuristic; `normalize` dropping `./` prefix; `removeVersion` simpler regex; test fix for `generateComponentName('a/b/index.ts')` → 'B' (was 'A'; the leaf-dir convention is correct).
 - **Why P2.2b closed**: Phase B is the foundation Phase C (drag+viewport integration) and Phase D (simulator + bem-tools) depend on. Without these helpers, the bem-tool files in Phase D would have to invent their own `getClosestNode`, DOM clipboard, hover tracker, and rect observer. Shipping Phase B first lets Phase D focus on React + BaseUI translation.
+
+### P2.2c — Ali-mirror Phase C.X computeRect gap — **DONE 2026-06-09 (316 LoC + 27 tests, 566 → 593)**
+
+- **Where**: `packages/designer/src/{simulator-host,document,dom,index}.ts` + `tests/compute-component-instance-rect.test.ts`
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C of the ali-mirror plan)
+- **Resolution**: closes the SINGLE user-visible gap ali has but sapu didn't — multi-instance DOM rect union math. The slim sapu version operates on real DOM Elements via the new `InstanceLike` type; the rect-union algorithm is a verbatim port of `host.ts:969-1030` (the ali-faithful expansion loop + `computed: true` flag).
+  - **`dom.ts`** — `InstanceLike = Element | { dom?; element? }`; `instanceToElement(instance)` slim unwrap; `findDOMNodes(instance, selector?)` ali-faithful with `getMatched` helper for selector narrowing (self-match → descendant-match → null).
+  - **`simulator-host.ts`** — `IPublicTypeComponentInstance` + `IPublicTypeRect` slim types; `_instancesMap: Map<nodeId, instances[]>`; `setInstance(nodeId, instances | null)`, `getComponentInstances(node)`, `findDOMNodes` (re-export), `computeComponentInstanceRect(instance, selector?)` (verbatim union algorithm — pop elements + their `getClientRects()` from a stack, expand `{x, y, r, b}` box per rect, set `computed: true` on any expansion), `clearInstances()`; constructor auto-wires `project.document.setHost(this)`.
+  - **`document.ts`** — `IDocumentModelHost` minimal host contract (2 methods); `setHost(host | null)`, `computeRect(node, selector?)` + `getNodeInstancesRect(node, selector?)` convenience wrappers. Phase B's `OffsetObserver.rectProvider` can now point at `() => document.computeRect(node)` and the math Just Works.
+  - **`index.ts`** — barrel exports for the new types + helpers.
+- **Tests** (+27): `compute-component-instance-rect.test.ts` covers findDOMNodes 8 cases (Element/.dom/.element/selector/descendant/null paths), instanceToElement 5 cases, computeComponentInstanceRect 6 cases (single rect / multi-rect union / skip-zero / setInstance null / defensive copy / selector narrowing), DocumentModel.computeRect 5 cases (basic / alias / no-host / no-instances / mock-host / auto-wire), OffsetObserver integration 1 case.
+- **Bug fixes during verify** (documented in commit `5be940e`):
+  - TS DOM lib doesn't expose `getClientRects` on `Text` (only `Element`). Guarded with `instanceof Element`; Text rects are subsumed by parent Element rects, so skipping is a safe no-op for the union. Ali's port casts to `any`; sapu keeps type safety.
+  - Test was confused about per-instance vs per-node-instance-list: `computeComponentInstanceRect` is per-INSTANCE (one element's multiple client rects, e.g. multi-line inline span), not per-node-instance-list. Rewrote the disjoint-rect test to multi-rect-on-one-element.
+- **Why P2.2c closed**: the only ali-faithful gap was this — multi-instance rect union. Without it, Phase D's bem-tool files (border-selecting, border-resizing) and the OffsetObserver consumers would have to invent their own rect math. With it, the rest of Phase C (dragon sensor array union, viewport scale/scroll) and Phase D can focus on React + BaseUI translation.
+- **What's still pending in Phase C**: `dragon.ts` HTML5 DnD branch + sensor array union + `fixEvent` cross-frame (no-op for no-iframe) + `chooseSensor` + `multiInstanceUnionRect`; `viewport.ts` `setScroll` + `toGlobalPoint/fromGlobalPoint` + Observable-lite `scrollX/Y/scale`; `locate.ts` `isRowContainer/isChildInline/isVertical/isVerticalContainer`; `document.ts` `autorun/reaction` shims; OffsetObserver auto-creation helper on Project.
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 

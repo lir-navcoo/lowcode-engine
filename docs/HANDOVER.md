@@ -5,13 +5,13 @@
 ## TL;DR
 
 - **仓库**: https://github.com/lir-navcoo/lowcode-engine
-- **当前分支**: `main` @ `427351d` (干净，已推 origin)
+- **当前分支**: `main` @ `5be940e` (干净，已推 origin)
 - **下次发布**: **2.2.0**，代码 + 测试 + 构建全部就绪，**但 npm publish 阻塞**（见下）
-- **测试**: 566 unit passed + 1 skipped (vitest 2.1, happy-dom) + 11 e2e (Playwright 1.60)
+- **测试**: 593 unit passed + 1 skipped (vitest 2.1, happy-dom) + 11 e2e (Playwright 1.60)
 - **类型检查**: 0 errors (14 包 + demo)
 - **包版本**: 14 个 `@monbolc/*` 包全部 `2.2.0`，workspace 依赖 `^2.2.0`
 - **Post-v2.4 features** (代码已就绪, 都在 main 上): Dragon P1–P10 重构(ali-faithful) + P11 outline delete + P12 engine.commands + P14 键盘快捷键 + P15 plugin-authoring docs。详情见 `memory/sapu-lowcode-engine-status.md` 的 "Dragon refactor + P11–P18 follow-ups" 段。
-- **ali-mirror 计划**: Phase A (`d2bfb81`, Observable-lite + throttle) + Phase B (`427351d`, 8 utility files + 4 test files) 已完成。Phase C (drag + viewport 集成) + Phase D (simulator + bem-tools) 待办。详见 `~/.claude/plans/dynamic-marinating-rabbit.md` 和 `docs/ROADMAP.md`。
+- **ali-mirror 计划**: Phase A (`d2bfb81`, Observable-lite + throttle) + Phase B (`427351d`, 8 utility files + 4 test files) + Phase C.X (`5be940e`, computeRect + getNodeInstancesRect 缺口) 已完成。Phase C 剩余(dragon/viewport/locate/autorun shims) + Phase D (simulator + bem-tools) 待办。详见 `~/.claude/plans/dynamic-marinating-rabbit.md` 和 `docs/ROADMAP.md`。
 
 ## 仓库结构
 
