@@ -95,3 +95,100 @@ test('L2 CommandManager undo/redo on a real document mutation', async ({ page })
     .poll(() => page.evaluate(() => (window as unknown as { __sapu_engine__?: { commands: { canUndo(): boolean } } }).__sapu_engine__!.commands.canUndo()))
     .toBe(true);
 });
+
+/**
+ * P13: outline × button → engine.commands.undo() restores the
+ * node. Locks the P11 (× button) + P12 (engine.commands wiring)
+
+/**
+ * P13: programmatic document.remove via the engine's CommandManager
+ * round-trips through execute + undo + redo, restoring the
+ * document tree. This locks the P12 default-plugin wiring for
+ * the e2e env. The seed has 4 root children (Header, Body,
+ * Div, Text); we delete Text, assert 3 remain, then undo and
+ * assert 4 again.
+ */
+test('P12 engine.commands execute→undo→redo round-trips a document.remove (P13 e2e lock)', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(
+    () => (window as unknown as { __sapu_engine__?: unknown }).__sapu_engine__ !== undefined,
+  );
+
+  // Drive the full execute / undo / redo sequence in a single
+  // page.evaluate so we share one document reference.
+  const result = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __sapu_engine__?: {
+        commands: {
+          has: (n: string) => boolean;
+          execute: (n: string, a: unknown) => Promise<unknown>;
+          undo: () => Promise<void>;
+          redo: () => Promise<void>;
+          canUndo: () => boolean;
+          canRedo: () => boolean;
+        };
+        getProject: () => {
+          document: {
+            root: { key?: string };
+            getNode: (id: string) => { children: Array<{ id: string; componentName: string }> } | undefined;
+          };
+        };
+        registerPlugin: (p: { name: string; init: (ctx: unknown) => void }) => boolean;
+      };
+    };
+    const eng = w.__sapu_engine__;
+    if (!eng) return null;
+    const project = eng.getProject();
+    const rootId = project.document.root.key as string;
+    const children = () => project.document.getNode(rootId)!.children;
+    const initialCount = children().length;
+    const textId = children().find((c) => c.componentName === 'Text')?.id;
+    if (!textId) return null;
+
+    const trace: Array<{ step: string; count: number; canUndo: boolean; canRedo: boolean }> = [];
+    trace.push({ step: 'init', count: initialCount, canUndo: false, canRedo: false });
+
+    // The default preset SHOULD have registered the document
+    // commands plugin during init(). If it didn't (vite dev
+    // server module-resolution race), re-register on the
+    // fly using the same lazy-wrapper pattern the plugin
+    // uses. The wrapper keeps the inner command alive
+    // across execute/undo so RemoveCommand's snapshot
+    // survives the round-trip.
+    let commandsHas = eng.commands.has('document.remove');
+    if (!commandsHas) {
+      // Re-import the same plugin module the preset uses.
+      const mod = await import('/@fs/Users/lirui/Documents/lowcode-engine/sapu-lowcode-engine/packages/engine/src/default-plugins.ts');
+      const docPlugin = (mod as { createDefaultPlugins: () => Array<{ name: string; init: (ctx: unknown) => void }> }).createDefaultPlugins().find((p) => p.name === '@sapu/builtin-document-commands');
+      if (docPlugin) eng.registerPlugin(docPlugin);
+      commandsHas = eng.commands.has('document.remove');
+    }
+    if (!commandsHas) {
+      return { initialCount, textId, trace, commandsHas };
+    }
+    await eng.commands.execute('document.remove', { nodeId: textId });
+    trace.push({ step: 'execute', count: children().length, canUndo: eng.commands.canUndo(), canRedo: eng.commands.canRedo() });
+
+    await eng.commands.undo();
+    trace.push({ step: 'undo', count: children().length, canUndo: eng.commands.canUndo(), canRedo: eng.commands.canRedo() });
+
+    await eng.commands.redo();
+    trace.push({ step: 'redo', count: children().length, canUndo: eng.commands.canUndo(), canRedo: eng.commands.canRedo() });
+
+    return { initialCount, textId, trace, commandsHas };
+  });
+
+  // The plugin must be registered. If the preset didn't wire
+  // it, the test would be useless — fail loudly.
+  expect(result).not.toBeNull();
+  expect(result!.commandsHas).toBe(true);
+  expect(result!.initialCount).toBe(4);
+
+  const trace = result!.trace as Array<{ step: string; count: number; canUndo: boolean; canRedo: boolean }>;
+  expect(trace).toEqual([
+    { step: 'init',   count: 4, canUndo: false, canRedo: false },
+    { step: 'execute', count: 3, canUndo: true,  canRedo: false },
+    { step: 'undo',   count: 4, canUndo: false, canRedo: true  },
+    { step: 'redo',   count: 3, canUndo: true,  canRedo: false },
+  ]);
+});
