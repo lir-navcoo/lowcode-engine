@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-react-renderer",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Concrete React 19.2.7 implementation of the renderer-core adapter (L3)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,9 +23,9 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-renderer-core": "^2.1.4",
-    "@monbolc/lowcode-types": "^2.1.4",
-    "@monbolc/lowcode-utils": "^2.1.4"
+    "@monbolc/lowcode-renderer-core": "^2.1.5",
+    "@monbolc/lowcode-types": "^2.1.5",
+    "@monbolc/lowcode-utils": "^2.1.5"
   },
   "peerDependencies": {
     "react": "^19.2.0",

@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-editor-skeleton",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "3-pane editor layout (outline / canvas / settings) for SapuLowcodeEngine (L4)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -26,13 +26,13 @@
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
-    "@monbolc/lowcode-designer": "^2.1.4",
-    "@monbolc/lowcode-plugin-outline-pane": "^2.1.4",
-    "@monbolc/lowcode-plugin-setters": "^2.1.4",
-    "@monbolc/lowcode-react-renderer": "^2.1.4",
-    "@monbolc/lowcode-renderer-core": "^2.1.4",
-    "@monbolc/lowcode-types": "^2.1.4",
-    "@monbolc/lowcode-utils": "^2.1.4",
+    "@monbolc/lowcode-designer": "^2.1.5",
+    "@monbolc/lowcode-plugin-outline-pane": "^2.1.5",
+    "@monbolc/lowcode-plugin-setters": "^2.1.5",
+    "@monbolc/lowcode-react-renderer": "^2.1.5",
+    "@monbolc/lowcode-renderer-core": "^2.1.5",
+    "@monbolc/lowcode-types": "^2.1.5",
+    "@monbolc/lowcode-utils": "^2.1.5",
     "react-resizable-panels": "^2.1.7"
   },
   "peerDependencies": {
