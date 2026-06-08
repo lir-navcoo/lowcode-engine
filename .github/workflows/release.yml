@@ -128,6 +128,20 @@ jobs:
             npm publish --dry-run --access public 2>&1 | head -30 || true
             cd ../..
             echo ""
+            echo "--- direct PUT test (no actual publish, uses registry.npmjs.org sandbox via /-/package) ---"
+            echo "PUT to /-/whoami with token in different header styles:"
+            for header in "Authorization: Bearer $NODE_AUTH_TOKEN" "Authorization: token $NODE_AUTH_TOKEN"; do
+              echo "  using header: $header"
+              status=$(curl -sS -o /tmp/_resp.json -w "%{http_code}" -H "$header" https://registry.npmjs.org/-/whoami)
+              echo "  HTTP $status — body: $(cat /tmp/_resp.json)"
+            done
+            echo ""
+            echo "--- check token type via /-/npm/v1/tokens/self ---"
+            status=$(curl -sS -o /tmp/_token.json -w "%{http_code}" -H "Authorization: Bearer $NODE_AUTH_TOKEN" https://registry.npmjs.org/-/npm/v1/tokens/self)
+            echo "HTTP $status"
+            cat /tmp/_token.json | head -c 500
+            echo ""
+            echo ""
             echo "===== DRY RUN COMPLETE — no publish ====="
           else
             npx lerna publish from-package --yes
