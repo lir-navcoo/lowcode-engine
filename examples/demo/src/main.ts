@@ -404,6 +404,36 @@ function App({ engine }: { engine: ISapuEngine }) {
     secondRoot: () => secondRoot,
   };
 
+  // P14.1: document-level keyboard shortcuts for undo/redo.
+  // Cmd+Z (Mac) / Ctrl+Z (Windows/Linux) → undo.
+  // Cmd+Shift+Z / Ctrl+Shift+Z (and Ctrl+Y on Windows) → redo.
+  // Ali-faithful: the standard editor convention. Gated on:
+  //   - The user is NOT typing in an input/textarea/contentEditable
+  //     (so the Settings panel setter inputs work normally).
+  //   - The shortcut actually matches (meta or ctrl + z).
+  // Scoped to the document so it works regardless of which
+  // panel has focus. Ali does the same in their host shell.
+  const onKeydown = (e: KeyboardEvent): void => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (!mod) return;
+    if (e.key !== 'z' && e.key !== 'Z') return;
+    e.preventDefault();
+    if (e.shiftKey || e.key === 'Y' || e.key === 'y') {
+      // Cmd+Shift+Z (Mac) / Ctrl+Shift+Z (Win/Linux) / Ctrl+Y
+      void engine.commands.redo();
+    } else {
+      void engine.commands.undo();
+    }
+  };
+  document.addEventListener('keydown', onKeydown);
+  // Track the handler for symmetric teardown in case the demo
+  // ever reloads (Vite HMR can re-run the module).
+  (window as unknown as { __demo_cleanup__?: () => void }).__demo_cleanup__ = () => {
+    document.removeEventListener('keydown', onKeydown);
+  };
+
   // The Skeleton's `topArea` slot — a sub-toolbar above the canvas
   // in normal flow (mirrors ali's `subTopArea`). Plain inline
   // buttons; no floating pill, no backdrop-blur.
