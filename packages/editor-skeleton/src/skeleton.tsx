@@ -60,6 +60,14 @@ export interface SkeletonProps {
    */
   setterConfig?: Record<string, Record<string, string>>;
   /**
+   * Per-component default props seeded when a palette row is dropped
+   * on the canvas. Forwarded to `<ComponentPalette componentMeta={...}/>`.
+   * Format: `{ [componentName]: { [propName]: defaultValue } }`.
+   * Without this, dropped nodes start with `props: {}` and the
+   * settings panel shows "Props (0)".
+   */
+  componentMeta?: Record<string, Record<string, unknown>>;
+  /**
    * Content for the **top area** (a thin toolbar row that spans the
    * full editor width above the 3-pane layout). Mirrors ali's
    * `topArea` / `subTopArea` pattern. The host renders whatever
@@ -311,7 +319,7 @@ export function Skeleton(props: SkeletonProps) {
   const leftBody =
     leftView === 'outline'
       ? h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) })
-      : h()(ComponentPalette, { project: props.project, components: props.components });
+      : h()(ComponentPalette, { project: props.project, components: props.components, componentMeta: props.componentMeta });
 
   return h()('div', { className: CN.skel },
     h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: CN.skel },

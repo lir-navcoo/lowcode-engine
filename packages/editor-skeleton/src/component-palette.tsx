@@ -3,9 +3,16 @@
  *
  * A vertical list of the components a host has registered, displayed
  * in the left pane. Each row is a drag-source for the L3 `Dragon`:
- * on `pointerdown`, the row calls `dragon.boost({ componentName })`.
- * The actual drop target / insertion is handled by BuiltinSimulatorHost
- * (which is mounted by the parent Skeleton).
+ * on `pointerdown`, the row calls `dragon.boost({ componentName,
+ * initialProps })`. The actual drop target / insertion is handled
+ * by BuiltinSimulatorHost (which is mounted by the parent Skeleton).
+ *
+ * Hosts can pass a `componentMeta` map to seed the freshly-dropped
+ * node with default props (e.g. `Text → { text: 'Text' }`,
+ * `Div → { className: '' }`). Without those defaults, a boost
+ * creates a node with `props: {}` and the settings panel shows
+ * "Props (0)" — there's nothing for the user to edit until they
+ * manually add a key. The meta map is the documented escape hatch.
  *
  * For the L4 milestone the palette is purely visual — no drag
  * preview, no inline search. Just a list of tappable + draggable
@@ -23,6 +30,15 @@ export interface ComponentPaletteProps {
   project: Project;
   /** The component registry, keyed by componentName. */
   components: Record<string, unknown>;
+  /**
+   * Per-component default props seeded when a palette row is
+   * dropped on the canvas. Looked up by `componentName`. Undefined
+   * → empty `props: {}` (and the settings panel shows
+   * "Props (0)").
+   *
+   * Example: `{ Text: { text: 'Text' }, Div: { className: '' } }`.
+   */
+  componentMeta?: Record<string, Record<string, unknown>>;
 }
 
 interface PaletteItemProps {
@@ -65,7 +81,7 @@ function PaletteItem({ name, meta, dragon }: PaletteItemProps) {
   );
 }
 
-export function ComponentPalette({ project, components }: ComponentPaletteProps) {
+export function ComponentPalette({ project, components, componentMeta }: ComponentPaletteProps) {
   // Force a re-render while a boost drag is in progress so the
   // pressed-row visual state stays in sync.
   const [, force] = useState(0);
@@ -94,8 +110,15 @@ export function ComponentPalette({ project, components }: ComponentPaletteProps)
   return h()(
     'div',
     { className: 'flex flex-col gap-0.5 p-1' },
-    ...names.map((name) =>
-      h()(PaletteItem, { key: name, name, meta: { componentName: name }, dragon: project.dragon }),
-    ),
+    ...names.map((name) => {
+      // Build the BoostMeta with default props (if any) so the
+      // settings panel has stable keys to render setters for
+      // immediately after drop.
+      const defaults = componentMeta?.[name];
+      const meta: BoostMeta = defaults && Object.keys(defaults).length > 0
+        ? { componentName: name, initialProps: defaults as BoostMeta['initialProps'] }
+        : { componentName: name };
+      return h()(PaletteItem, { key: name, name, meta, dragon: project.dragon });
+    }),
   );
 }

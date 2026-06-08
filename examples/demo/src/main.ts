@@ -197,6 +197,30 @@ function App({ engine }: { engine: ISapuEngine }) {
     ? { Sidebar: { bg: 'HexColor' } }
     : {};
 
+  // Default props seeded when a palette row is dropped on the
+  // canvas. Without these, dragging a vanilla `Text` would land a
+  // node with `props: {}` and the settings panel would show
+  // "Props (0)" — the user couldn't edit anything until they
+  // somehow added a key. The meta map is the documented escape
+  // hatch: it tells ComponentPalette what the most common props
+  // for each component are.
+  //
+  // NOTE: keep `Text.text` as a string. The setter's `onChange`
+  // will overwrite the default with whatever the user types.
+  // For `Text` the demo also expects the initial value 'Text'
+  // to show up in the canvas as the rendered children (the
+  // `Text` component reads `p.text` and forwards it to a
+  // <span>); the string 'Text' is the visual marker.
+  const componentMeta: Record<string, Record<string, unknown>> = {
+    Header:  { className: 'header' },
+    Body:    { className: 'body' },
+    Sidebar: { className: 'sidebar', bg: '0xfff3c7' },
+    Main:    { className: 'main' },
+    Footer:  { className: 'footer' },
+    Div:     { className: 'div' },
+    Text:    { text: 'Text' },
+  };
+
   const onAdd = () => {
     setSchema((s) => ({
       ...s,
@@ -462,6 +486,7 @@ function App({ engine }: { engine: ISapuEngine }) {
           components,
           onPaneReady: (p: OutlinePane) => { paneRef.current = p; },
           setterConfig,
+          componentMeta,
           topArea,
           leftArea,
           leftView,

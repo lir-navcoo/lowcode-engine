@@ -9,6 +9,18 @@
  *
  * All four read from Project + Dragon state. They mount as
  * absolutely-positioned siblings of the canvas.
+ *
+ * The borders are positioned via `getBoundingClientRect()`. We
+ * can't read them inside a single useEffect and trust the result:
+ * when the user drags a node to a new parent, the Skeleton's
+ * document-change useEffect re-renders the simulator via
+ * `root.render(...)` (a *separate* React root) AFTER our
+ * useLayoutEffect has already run. Without a follow-up repaint
+ * the border would stick on the old coordinates. The fix is a
+ * `MutationObserver` on the canvas subtree: every time React
+ * mounts/unmounts/moves a node, we re-read the rect and re-paint.
+ * Observer callbacks are debounced into the next animation frame
+ * so a flurry of mutations collapses to one repaint.
  */
 
 import { useEffect, useState } from 'react';
@@ -163,46 +175,38 @@ function renderInsertion(canvas: HTMLElement, target: DropTarget | null): void {
 export function Overlays(props: OverlaysProps) {
   useRev(props.project);
 
-  // Re-render overlays on every state change.
+  // Build a single `repaint(canvas)` closure that's the one source
+  // of truth for "draw the borders + the drag-ghost + the
+  // insertion indicator based on current Project + Dragon state".
+  // Multiple effects call it: the useRev-driven re-render below
+  // for state changes, a MutationObserver for React's commit
+  // reordering the canvas children, and the scroll/resize effect
+  // at the bottom for window events.
+  //
+  // The MutationObserver path is the important one: when the user
+  // drags a node to a new parent, the Skeleton's document-change
+  // effect calls `root.render(...)` on the SEPARATE React root
+  // that mounts the simulator. That commit happens AFTER our
+  // useLayoutEffect runs (parent vs child effect order), so a
+  // single useEffect-based repaint would read the OLD bounding
+  // rect and leave the border stuck on the original spot. The
+  // observer fires once React has actually moved the DOM node,
+  // and the rAF debounce collapses the burst of mutations from
+  // one commit to a single repaint.
   useEffect(() => {
     const canvas = props.canvasContainer;
     if (!canvas) return;
 
-    // Borders: one per selected id
-    renderBorders(canvas, props.project.selectedIds);
+    let rafScheduled = false;
+    const scheduleRepaint = () => {
+      if (rafScheduled) return;
+      rafScheduled = true;
+      requestAnimationFrame(() => {
+        rafScheduled = false;
+        repaint();
+      });
+    };
 
-    // DragGhost + InsertionIndicator reflect Dragon state
-    const ds = props.project.dragon.state;
-    if (ds.draggingNodeId) {
-      const node = props.project.document.getNode(ds.draggingNodeId);
-      const label = node ? `↔ ${node.componentName}` : '↔ ?';
-      renderDragGhost(canvas, ds.x, ds.y, label);
-      renderInsertion(canvas, ds.dropTarget);
-    } else {
-      clearDragGhost(canvas);
-      renderInsertion(canvas, null);
-    }
-  });
-
-  // Reposition on scroll/resize. Selection borders are positioned via
-  // `getBoundingClientRect()`, so when the canvas scrolls or the
-  // window resizes the borders go stale and drift off the element.
-  // We listen on the scrollable ancestors + window resize and re-render.
-  useEffect(() => {
-    const canvas = props.canvasContainer;
-    if (!canvas) return;
-    // Walk up the tree and listen to all scrollable ancestors
-    // (typically canvasInner's parent = canvas pane).
-    const scrollables: Element[] = [];
-    let el: Element | null = canvas.parentElement;
-    while (el) {
-      const style = getComputedStyle(el);
-      if (style.overflowY === 'auto' || style.overflowY === 'scroll' ||
-          style.overflowX === 'auto' || style.overflowX === 'scroll') {
-        scrollables.push(el);
-      }
-      el = el.parentElement;
-    }
     const repaint = () => {
       renderBorders(canvas, props.project.selectedIds);
       const ds = props.project.dragon.state;
@@ -211,13 +215,59 @@ export function Overlays(props: OverlaysProps) {
         const label = node ? `↔ ${node.componentName}` : '↔ ?';
         renderDragGhost(canvas, ds.x, ds.y, label);
         renderInsertion(canvas, ds.dropTarget);
+      } else {
+        clearDragGhost(canvas);
+        renderInsertion(canvas, null);
       }
     };
-    scrollables.forEach((s) => s.addEventListener('scroll', repaint, { passive: true }));
-    window.addEventListener('resize', repaint);
+
+    // Run once on mount so the border appears before any
+    // mutation / scroll / drag event.
+    repaint();
+
+    // Watch the canvas subtree for any DOM mutation (child added /
+    // removed / moved / attribute changed). React's commit phase
+    // is what fires these; by the time the callback runs, the new
+    // tree is in place and `getBoundingClientRect()` returns the
+    // correct coordinates. The `subtree: true` option covers
+    // descendants of the canvas (the simulator's nested elements),
+    // so a re-order deep inside the tree still triggers a repaint.
+    // `attributes: true` catches `data-lce-id` mutations if any
+    // host re-tags nodes (rare, but cheap to track).
+    const observer = new MutationObserver(scheduleRepaint);
+    observer.observe(canvas, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-lce-id', 'style', 'class'],
+    });
+
+    // Scroll + resize: the canvas's overflow-auto parent scrolls
+    // the simulator up/down; the border's getBoundingClientRect
+    // result changes with scroll, so we re-paint on every
+    // scroll tick. Window resize moves both canvas and selected
+    // element together, but their relative offset is what the
+    // border uses — that doesn't change with resize, so resize
+    // alone isn't strictly necessary. We keep it for safety.
+    const scrollables: Element[] = [];
+    let el: Element | null = canvas.parentElement;
+    while (el) {
+      const style = getComputedStyle(el);
+      if (
+        style.overflowY === 'auto' || style.overflowY === 'scroll' ||
+        style.overflowX === 'auto' || style.overflowX === 'scroll'
+      ) {
+        scrollables.push(el);
+      }
+      el = el.parentElement;
+    }
+    scrollables.forEach((s) => s.addEventListener('scroll', scheduleRepaint, { passive: true }));
+    window.addEventListener('resize', scheduleRepaint);
+
     return () => {
-      scrollables.forEach((s) => s.removeEventListener('scroll', repaint));
-      window.removeEventListener('resize', repaint);
+      observer.disconnect();
+      scrollables.forEach((s) => s.removeEventListener('scroll', scheduleRepaint));
+      window.removeEventListener('resize', scheduleRepaint);
     };
   }, [props.canvasContainer, props.project]);
 
