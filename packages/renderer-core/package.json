@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-renderer-core",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Framework-agnostic renderer core with React-runtime adapter for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",

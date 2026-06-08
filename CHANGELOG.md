@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.1.6 (2026-06-08)
+
+
+### Bug Fixes
+
+* **release:** add `registry-url` to setup-node so NODE_AUTH_TOKEN reaches .npmrc — lerna publish was sending unauthenticated PUTs and getting E404 ([b23c688](https://github.com/lir-navcoo/lowcode-engine/commit/b23c688))
+
+
 ## 2.1.5 (2026-06-08)
 
 

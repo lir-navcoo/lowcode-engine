@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-setters",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Property setter components (BaseUI-based) for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",

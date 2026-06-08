@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-editor-core",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Core API: DI container + i18n + plugin registry for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",

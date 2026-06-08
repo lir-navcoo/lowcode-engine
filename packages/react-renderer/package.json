@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-react-renderer",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Concrete React 19.2.7 implementation of the renderer-core adapter (L3)",
   "license": "MIT",
   "main": "lib/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-workspace",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Workspace, EditorWindow, Resource for SapuLowcodeEngine (L5). Single-window — multi-doc is achieved by multi-mount, not by an in-tree tab bar.",
   "license": "MIT",
   "main": "lib/index.js",
