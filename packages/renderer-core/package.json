@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-renderer-core",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "description": "Framework-agnostic renderer core with React-runtime adapter for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -25,8 +25,8 @@
     "build:cjs": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.1.5",
-    "@monbolc/lowcode-utils": "^2.1.5"
+    "@monbolc/lowcode-types": "^2.2.0",
+    "@monbolc/lowcode-utils": "^2.2.0"
   },
   "peerDependencies": {
     "react": "^19.2.0",

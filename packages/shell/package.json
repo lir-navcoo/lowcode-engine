@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-shell",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "description": "SapuLowcodeEngine shell — the host-facing facade (L6). Sapu stance: no proxies, no deprecation layer. Plugins get a plain object with the engine + workspace + project references. ~790 lines vs upstream 5,155 (~85% smaller).",
   "license": "MIT",
   "main": "lib/index.js",
@@ -25,12 +25,12 @@
     "build:cjs": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@monbolc/lowcode-designer": "^2.1.5",
-    "@monbolc/lowcode-editor-skeleton": "^2.1.5",
-    "@monbolc/lowcode-plugin-setters": "^2.1.5",
-    "@monbolc/lowcode-types": "^2.1.5",
-    "@monbolc/lowcode-utils": "^2.1.5",
-    "@monbolc/lowcode-workspace": "^2.1.5"
+    "@monbolc/lowcode-designer": "^2.2.0",
+    "@monbolc/lowcode-editor-skeleton": "^2.2.0",
+    "@monbolc/lowcode-plugin-setters": "^2.2.0",
+    "@monbolc/lowcode-types": "^2.2.0",
+    "@monbolc/lowcode-utils": "^2.2.0",
+    "@monbolc/lowcode-workspace": "^2.2.0"
   },
   "peerDependencies": {
     "@base-ui-components/react": "^1.0.0",

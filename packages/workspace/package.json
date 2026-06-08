@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-workspace",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "description": "Workspace, EditorWindow, Resource for SapuLowcodeEngine (L5). Single-window — multi-doc is achieved by multi-mount, not by an in-tree tab bar.",
   "license": "MIT",
   "main": "lib/index.js",
@@ -25,9 +25,9 @@
     "build:cjs": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@monbolc/lowcode-designer": "^2.1.5",
-    "@monbolc/lowcode-types": "^2.1.5",
-    "@monbolc/lowcode-utils": "^2.1.5"
+    "@monbolc/lowcode-designer": "^2.2.0",
+    "@monbolc/lowcode-types": "^2.2.0",
+    "@monbolc/lowcode-utils": "^2.2.0"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",

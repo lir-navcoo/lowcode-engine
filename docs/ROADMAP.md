@@ -2,26 +2,26 @@
 
 > Last refreshed: 2026-06-08. Update this file whenever a task is completed, blocked, or a new direction is decided.
 
-## Current state — L0–L6 done, P0 fully closed, 392 tests passing
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 392 tests passing
 
-13 packages published to `@monbolc`:
+14 packages published to `@monbolc`:
 
 | Layer | Package | Version | Status |
 |---|---|---|---|
-| L0 | `@monbolc/lowcode-types` | 2.1.4 | ✅ shipped |
-| L0 | `@monbolc/lowcode-ignitor` | 2.1.4 | ⚠️ **DEPRECATED** in 2.2.0; removed in 2.3.0 |
-| L1 | `@monbolc/lowcode-utils` | 2.1.4 | ✅ shipped |
-| L2 | `@monbolc/lowcode-editor-core` | 2.1.4 | ✅ shipped |
-| L2 | `@monbolc/lowcode-plugin-command` | 2.1.4 | ✅ shipped |
-| L2 | `@monbolc/lowcode-renderer-core` | 2.1.4 | ✅ shipped |
-| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.4 | ✅ shipped |
-| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.4 | ✅ shipped (BaseUI + Tailwind v4, 40 tests) |
-| L3 | `@monbolc/lowcode-react-renderer` | 2.1.4 | ✅ shipped |
-| L3 | `@monbolc/lowcode-designer` | 2.1.4 | ✅ shipped |
-| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.4 | ✅ shipped (BaseUI + Tailwind v4) |
-| L5 | `@monbolc/lowcode-workspace` | 2.1.4 | ✅ shipped (24 tests, ~280 lines) |
-| L6 | `@monbolc/lowcode-shell` | 2.1.4 | ✅ shipped (21 tests, ~530 lines) |
-| **L7** | **`@monbolc/lowcode-engine`** | **2.1.4** | **✅ shipped (18 tests, ~310 lines — init + default-preset + theme)** |
+| L0 | `@monbolc/lowcode-types` | 2.2.0 | ✅ shipped |
+| L0 | `@monbolc/lowcode-ignitor` | 2.2.0 | ⚠️ **DEPRECATED** in 2.2.0; removed in 2.3.0 |
+| L1 | `@monbolc/lowcode-utils` | 2.2.0 | ✅ shipped |
+| L2 | `@monbolc/lowcode-editor-core` | 2.2.0 | ✅ shipped |
+| L2 | `@monbolc/lowcode-plugin-command` | 2.2.0 | ✅ shipped |
+| L2 | `@monbolc/lowcode-renderer-core` | 2.2.0 | ✅ shipped |
+| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.2.0 | ✅ shipped |
+| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.2.0 | ✅ shipped (BaseUI + Tailwind v4, 49 tests) |
+| L3 | `@monbolc/lowcode-react-renderer` | 2.2.0 | ✅ shipped (P2.1: `setupReactRenderer` deprecated) |
+| L3 | `@monbolc/lowcode-designer` | 2.2.0 | ✅ shipped |
+| L4 | `@monbolc/lowcode-editor-skeleton` | 2.2.0 | ✅ shipped (BaseUI + Tailwind v4, 4 widgets) |
+| L5 | `@monbolc/lowcode-workspace` | 2.2.0 | ✅ shipped (24 tests, ~280 lines) |
+| L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (21 tests, ~530 lines) |
+| **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (18 tests, ~310 lines — init + default-preset + theme)** |
 
 `yarn test` ✅ 392 tests + 1 skip / 41 files, all passing in ~3.2s.
 
@@ -52,7 +52,7 @@
 ### P0.3 — Commit the v2.0.2 types package — **DONE 2026-06-07**
 
 - **Where**: `packages/types/package.json` + `packages/types/src/index.ts` + downstream consumers
-- **Resolution**: the 2.0.2 changes (new fields `conditionGroup`, `loopArgs` on `IPublicTypeNodeSchema`; `variable` variant on `IPublicTypeNodeData`; `i18n`/`meta` on `IPublicTypeRootSchema`; `keywords`/`isPage`/`isBlock`/`isContainer`/`isLowCode`/`docUrl`/`screenshot`/`tags`/`behaviors` on `IPublicTypeComponentSchema`; etc.) are committed. The package is now at version **2.1.6** (post several L0–L7 release bumps); all downstream packages consume the same published set.
+- **Resolution**: the 2.0.2 changes (new fields `conditionGroup`, `loopArgs` on `IPublicTypeNodeSchema`; `variable` variant on `IPublicTypeNodeData`; `i18n`/`meta` on `IPublicTypeRootSchema`; `keywords`/`isPage`/`isBlock`/`isContainer`/`isLowCode`/`docUrl`/`screenshot`/`tags`/`behaviors` on `IPublicTypeComponentSchema`; etc.) are committed. The package is now at version **2.2.0** (post several L0–L7 release bumps); all downstream packages consume the same published set.
 - **Why P0 closed**: working tree is clean, git history reflects what 2.0.2+ actually contains, downstream consumers all pass typecheck against the published types.
 
 ### P0.4 — `editor-skeleton` hand-rolled CSS → Tailwind v4 (one-time full migration) — **DONE 2026-06-08**
@@ -153,11 +153,13 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
 
 ## P2 — incremental improvements
 
-### P2.1 — Drop `setupReactRenderer` from `react-renderer` public API, fold into `ignitor`
+### P2.1 — Deprecate `setupReactRenderer` (2.2.0), remove in 3.0.0
 
 - **Where**: `packages/react-renderer/src/index.ts` exports `setupReactRenderer`
-- **Current state**: a one-shot `installReactRuntime + adapter.setRenderers` convenience
-- **Better**: when the L7 `engine` package exists, this becomes the first thing `init()` does
+- **Current state** (pre-2.2.0): a one-shot `installReactRuntime + adapter.setRenderers` convenience
+- **2.2.0 change**: `setupReactRenderer` is still exported (so L7 `init()` and the package's own `render.test.ts` keep working with no import-path churn) but JSDoc'd `@internal` and the package doc lists it as "deprecated in 2.2.0". The barrel comment names it as internal.
+- **3.0.0 plan**: drop the export. L7 `init()` will inline the two calls (`installReactRuntime()` + `adapter.setRenderers(createReactRenderers())`). The latter needs `createReactRenderers` to become a public export; the L3 + L7 import path will switch to a subpath export `@monbolc/lowcode-react-renderer/internal` so the public surface stays clean.
+- **Why now**: the L7 composition root does this for every host. Promoting it to a separate public step added a footgun (two ways to boot the runtime) without a corresponding payoff.
 
 ### P2.2 — L3 designer needs more commands
 

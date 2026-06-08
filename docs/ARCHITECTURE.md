@@ -14,9 +14,9 @@ Sapu is organized as a strict (mostly) bottom-up dependency stack. Each layer ca
 | **L2.5** | Setters (BaseUI, in progress) | `@monbolc/lowcode-plugin-setters` | ⚠️ types only, setters return vdom-shaped objects |
 | **L3** | React integration + design model | `@monbolc/lowcode-react-renderer`, `@monbolc/lowcode-designer` | ⚠️ designer uses adapter; only react-renderer imports React |
 | **L4** | Skeleton UI (3-pane editor) | `@monbolc/lowcode-editor-skeleton` | ❌ React + `react-resizable-panels` |
-| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` (2.1.4, 24 tests) | ✅ (data only — no UI; multi-doc = multi-mount of L4) |
-| **L6** | **Shell (host-facing facade)** | **`@monbolc/lowcode-shell` (2.1.4, 21 tests, ~530 LoC)** | **⚠️ class is React-free; only `SapuErrorBoundary` uses React** |
-| **L7** | **Engine (composition root)** | **`@monbolc/lowcode-engine` (2.1.4, 18 tests, ~310 LoC)** | **✅ pure composition; no new logic — wires L0–L6 into one `init()` call** |
+| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` (2.2.0, 24 tests) | ✅ (data only — no UI; multi-doc = multi-mount of L4) |
+| **L6** | **Shell (host-facing facade)** | **`@monbolc/lowcode-shell` (2.2.0, 21 tests, ~530 LoC)** | **⚠️ class is React-free; only `SapuErrorBoundary` uses React** |
+| **L7** | **Engine (composition root)** | **`@monbolc/lowcode-engine` (2.2.0, 18 tests, ~310 LoC)** | **✅ pure composition; no new logic — wires L0–L6 into one `init()` call** |
 
 \* `plugin-outline-pane` is technically L2-shaped code (depends only on editor-core + renderer-core) but ships a `react-arborist`-backed view. It uses the adapter for `createElement`, not direct React imports.
 

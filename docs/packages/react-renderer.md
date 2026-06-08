@@ -15,7 +15,7 @@ This is the package that "knows" about React. Every other L3+ package uses the `
 - `isReactRuntimeInstalled()` — returns the `_installed` boolean
 - `uninstallReactRuntime()` — resets `_installed = false` and calls `adapter.initRuntime()` to put the stub back
 - `createReactRoot(container)` — helper for imperative rendering
-- `setupReactRenderer()` — one-shot bootstrap: `installReactRuntime` + `adapter.setRenderers(createReactRenderers())`
+- `setupReactRenderer()` — `@internal` / **deprecated in 2.2.0** (will be removed in 3.0.0). One-shot bootstrap that wraps `installReactRuntime` + `adapter.setRenderers(createReactRenderers())`. L7 `init()` calls it for you. Direct callers should prefer the two explicit steps so each is visible.
 
 ### Classes
 - `ReactRenderer` — wraps `IRendererProps`; uses `adapter.pickRenderer(schema)` to pick the right concrete renderer; on `render()` instantiates the renderer class and calls `render()`

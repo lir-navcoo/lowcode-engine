@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-engine` (L7)
 
-> **Version**: 2.1.4 · **18 tests / 2 files** · **~310 LoC** (vs upstream `engine` package ~1,330 — **~77% smaller**)
+> **Version**: 2.2.0 · **18 tests / 2 files** · **~310 LoC** (vs upstream `engine` package ~1,330 — **~77% smaller**)
 >
 > The composition root. The ONE package a host installs to get a working visual editor. Sapu stance: **one `init()` call, not a chain of `register` calls**.
 

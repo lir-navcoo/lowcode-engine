@@ -34,20 +34,20 @@ That's the whole API surface for a basic integration. Everything else (custom se
 
 | Layer | Package | Version | Description |
 |---|---|---|---|
-| L0 | `@monbolc/lowcode-types` | 2.1.6 | 核心类型 / Core type system |
-| L0 | `@monbolc/lowcode-ignitor` | 2.1.6 | ⚠️ **DEPRECATED** — use `@monbolc/lowcode-engine` instead |
-| L1 | `@monbolc/lowcode-utils` | 2.1.6 | 纯函数工具 / Pure utility functions |
-| L2 | `@monbolc/lowcode-editor-core` | 2.1.6 | DI 容器 + i18n + plugin manager |
-| L2 | `@monbolc/lowcode-plugin-command` | 2.1.6 | 命令模式 + undo/redo |
-| L2 | `@monbolc/lowcode-renderer-core` | 2.1.6 | 框架无关渲染抽象 |
-| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.6 | 大纲树（react-arborist） |
-| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.6 | BaseUI setters 仓库 |
-| L3 | `@monbolc/lowcode-react-renderer` | 2.1.6 | React 19.2.7 运行时注入 |
-| L3 | `@monbolc/lowcode-designer` | 2.1.6 | DocumentModel + Project + Dragon |
-| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.6 | 3-pane 编辑器 UI |
-| L5 | `@monbolc/lowcode-workspace` | 2.1.6 | Resource / EditorWindow / Workspace |
-| L6 | `@monbolc/lowcode-shell` | 2.1.6 | SapuEngine + ErrorBoundary + i18n + bus |
-| **L7** | **`@monbolc/lowcode-engine`** | **2.1.6** | **组合根 / Composition root** — `init()` lives here |
+| L0 | `@monbolc/lowcode-types` | 2.2.0 | 核心类型 / Core type system |
+| L0 | `@monbolc/lowcode-ignitor` | 2.2.0 | ⚠️ **DEPRECATED** — use `@monbolc/lowcode-engine` instead |
+| L1 | `@monbolc/lowcode-utils` | 2.2.0 | 纯函数工具 / Pure utility functions |
+| L2 | `@monbolc/lowcode-editor-core` | 2.2.0 | DI 容器 + i18n + plugin manager |
+| L2 | `@monbolc/lowcode-plugin-command` | 2.2.0 | 命令模式 + undo/redo |
+| L2 | `@monbolc/lowcode-renderer-core` | 2.2.0 | 框架无关渲染抽象 |
+| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.2.0 | 大纲树（react-arborist） |
+| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.2.0 | BaseUI setters 仓库 |
+| L3 | `@monbolc/lowcode-react-renderer` | 2.2.0 | React 19.2.7 运行时注入 |
+| L3 | `@monbolc/lowcode-designer` | 2.2.0 | DocumentModel + Project + Dragon |
+| L4 | `@monbolc/lowcode-editor-skeleton` | 2.2.0 | 3-pane 编辑器 UI |
+| L5 | `@monbolc/lowcode-workspace` | 2.2.0 | Resource / EditorWindow / Workspace |
+| L6 | `@monbolc/lowcode-shell` | 2.2.0 | SapuEngine + ErrorBoundary + i18n + bus |
+| **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **组合根 / Composition root** — `init()` lives here |
 
 ## Development
 
@@ -102,9 +102,9 @@ All design + per-package docs live in [`docs/`](docs/):
 ## Publish
 
 ```bash
-yarn pub:patch     # 修复版本 (2.1.4 → 2.1.5)
-yarn pub:minor     # 次版本 (2.1.4 → 2.2.0)
-yarn pub:major     # 主版本 (2.1.4 → 3.0.0)
+yarn pub:patch     # 修复版本 (2.2.0 → 2.2.1)
+yarn pub:minor     # 次版本 (2.2.0 → 2.3.0)
+yarn pub:major     # 主版本 (2.2.0 → 3.0.0)
 ```
 
 > ⚠️ The npm publish token in `.npmrc` is **COMPROMISED**. The user must rotate it before any publish. See memory note for details.

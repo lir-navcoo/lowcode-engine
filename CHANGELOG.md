@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.2.0 (2026-06-08)
+
+### Features
+
+* **P2.3:** L4 widget 体系接入 — leftArea/topArea slots, registry, BaseUI `react-resizable-panels` 三栏布局 ([b4b9d27](https://github.com/lir-navcoo/lowcode-engine/commit/b4b9d27))
+* **P1.3:** settings-panel 接入 plugin-setters (BaseUI controlled) ([8285c36](https://github.com/lir-navcoo/lowcode-engine/commit/8285c36))
+* **L7.9:** 顶层 README 改写 + 14 包版本号统一到 2.2.0
+
+### Code Health
+
+* **P2.1:** `setupReactRenderer` 标记 `@internal` / deprecated (2.2.0), 计划 3.0.0 移除 — L7 `init()` 已隐式调用, 直接用户应改用 `installReactRuntime` + `setRenderers` 两步
+* **cleanup:** 移除 `editor-skeleton` `overlays.tsx` 中的 `useRev` 死代码, 改为精确的 `useEffect` + `emitter.on/off` 订阅 (project + dragon events 全部列出, 避免无差别 repaint)
+* **outline-pane:** rename 入口收敛到 title 后的 ✎ 按钮 — title span 改为只读, 移除 dblclick/click 触发 (`outline-pane` tests 同步更新)
+* **deps:** 所有 workspace 依赖从 `^2.1.5` 升到 `^2.2.0`
+
 ## 2.1.6 (2026-06-08)
 
 

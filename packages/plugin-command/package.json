@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-plugin-command",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "description": "Command pattern + undo/redo history for SapuLowcodeEngine (L2)",
   "license": "MIT",
   "main": "lib/index.js",
@@ -25,8 +25,8 @@
     "build:cjs": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.1.5",
-    "@monbolc/lowcode-utils": "^2.1.5"
+    "@monbolc/lowcode-types": "^2.2.0",
+    "@monbolc/lowcode-utils": "^2.2.0"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",

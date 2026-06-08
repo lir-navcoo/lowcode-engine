@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-ignitor",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "description": "[DEPRECATED] in 2.2.0 — Use @monbolc/lowcode-engine instead. Bootstrap dev entry (L0). Will be removed in 2.3.0.",
   "license": "MIT",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
     "clean": "rimraf lib es"
   },
   "dependencies": {
-    "@monbolc/lowcode-types": "^2.1.5"
+    "@monbolc/lowcode-types": "^2.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

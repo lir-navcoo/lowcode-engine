@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-workspace` (L5)
 
-> **Version**: 2.1.2 · **React-free** · **24 tests / 3 files** · **~280 lines** (vs upstream 1,298)
+> **Version**: 2.2.0 · **React-free** · **24 tests / 3 files** · **~280 lines** (vs upstream 1,298)
 >
 > Single-window stance: **multi-document is multi-mount of `<Skeleton>`**, not an in-tree tab bar. Locked 2026-06-07.
 
