@@ -28,6 +28,7 @@ export default defineConfig({
       '@monbolc/lowcode-editor-core': new URL('./packages/editor-core/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-renderer-core': new URL('./packages/renderer-core/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-plugin-outline-pane': new URL('./packages/plugin-outline-pane/src/index.ts', import.meta.url).pathname,
+      '@monbolc/lowcode-plugin-setters': new URL('./packages/plugin-setters/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-react-renderer': new URL('./packages/react-renderer/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-designer': new URL('./packages/designer/src/index.ts', import.meta.url).pathname,
       '@monbolc/lowcode-editor-skeleton': new URL('./packages/editor-skeleton/src/index.ts', import.meta.url).pathname,
