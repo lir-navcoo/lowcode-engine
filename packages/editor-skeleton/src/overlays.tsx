@@ -1,13 +1,16 @@
 /**
  * @monbolc/lowcode-editor-skeleton — UI Overlays
  *
- * Four visual feedback components for the design-mode canvas:
- *   - Border:     1px outline around the selected node(s)
- *   - Hover:      subtle blue tint on the hovered node
- *   - DragGhost:  ghost element that follows the cursor during drag
- *   - InsertionIndicator:  horizontal line showing where a drop will land
+ * Five visual feedback components for the design-mode canvas:
+ *   - Border:             1px outline around the selected node(s)
+ *   - Hover:              subtle blue tint on the hovered node
+ *   - DragGhost:          ghost element that follows the cursor during drag
+ *   - InsertionIndicator: horizontal line showing where a drop will land
+ *   - ResizeHandles:      4 corner + 4 edge handles for the (first)
+ *                         selected node (visual only in v2.3; drag
+ *                         wiring ships in v2.4)
  *
- * All four read from Project + Dragon state. They mount as
+ * All five read from Project + Dragon state. They mount as
  * absolutely-positioned siblings of the canvas.
  *
  * The borders are positioned via `getBoundingClientRect()`. We
@@ -108,31 +111,114 @@ function clearDragGhost(canvas: HTMLElement): void {
   canvas.querySelectorAll('.sapu-drag-ghost').forEach((n) => n.remove());
 }
 
-/** InsertionIndicator: 2px blue line at the computed drop position. */
+/** InsertionIndicator: 2px blue line at the computed drop position.
+ *
+ * v2.3: real child-rect math instead of the v2.2 `index / total`
+ * ratio. We look up the parent's DIRECT children, sort by their
+ * DOM order (matches the schema's children order because the
+ * renderer preserves order), and place the line at the midpoint
+ * between the child at `target.index - 1` and the child at
+ * `target.index` — or at the parent's top edge for index 0, or
+ * at the parent's bottom edge for index === count.
+ */
 function renderInsertion(canvas: HTMLElement, target: DropTarget | null): void {
   canvas.querySelectorAll('.sapu-insertion-indicator').forEach((n) => n.remove());
   if (!target) return;
-  // Resolve the parent element to find the absolute y for the index.
+  // Resolve the parent element.
   const parent = target.parentId
     ? canvas.querySelector(tagSelector(target.parentId)) as HTMLElement | null
     : canvas; // root
   if (!parent) return;
   const parentR = parent.getBoundingClientRect();
   const canvasR = canvas.getBoundingClientRect();
-  // Approximate child positions. Children of the parent that are direct
-  // descendants in the DOM. For a simplified version we use the parent's
-  // vertical position scaled by index/count.
-  const children = parent.querySelectorAll(':scope > *');
-  const total = Math.max(children.length, 1);
-  const ratio = total === 0 ? 0 : target.index / total;
-  const y = parentR.top - canvasR.top + parentR.height * ratio;
+  // Direct children that carry `data-lce-id` are the simulator's
+  // own nodes; foreign children (e.g. wrapper divs from the host)
+  // are ignored so the indicator only lands on real lce nodes.
+  const allChildren = Array.from(parent.querySelectorAll(':scope > [data-lce-id]'));
+  // Sort by DOM order (querySelectorAll already returns in order,
+  // but be defensive in case a host uses a different insertion
+  // path). `compareDocumentPosition` is the canonical DOM-order
+  // comparator.
+  allChildren.sort((a, b) => {
+    const pos = a.compareDocumentPosition(b);
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+    return 0;
+  });
+
+  // Compute the line's y. Three cases:
+  //   (1) index 0     → parent top edge
+  //   (2) index === n → parent bottom edge
+  //   (3) otherwise   → midpoint between child[index-1] and child[index]
+  let y: number;
+  if (allChildren.length === 0) {
+    y = parentR.top - canvasR.top + parentR.height / 2;
+  } else if (target.index <= 0) {
+    y = parentR.top - canvasR.top;
+  } else if (target.index >= allChildren.length) {
+    y = parentR.bottom - canvasR.top;
+  } else {
+    const prev = allChildren[target.index - 1]!.getBoundingClientRect();
+    const next = allChildren[target.index]!.getBoundingClientRect();
+    y = (prev.bottom + next.top) / 2 - canvasR.top;
+  }
+
   const line = document.createElement('div');
   line.className = 'sapu-insertion-indicator absolute h-0.5 bg-blue-500 pointer-events-none';
   line.style.left = `${parentR.left - canvasR.left}px`;
   line.style.top = `${y - 1}px`;
   line.style.width = `${parentR.width}px`;
   line.style.zIndex = '9996';
+  line.setAttribute('data-lce-index', String(target.index));
+  line.setAttribute('data-lce-parent', target.parentId ?? 'root');
   canvas.appendChild(line);
+}
+
+/** ResizeHandle: 4 corner + 4 edge handles for the (first) selected
+ *  node. Visual only in v2.3 — the drag wiring ships in a follow-up
+ *  (the resize engine is in `designer/drag-resize.ts`, planned for
+ *  v2.4). For now they prove the boundary is readable; the user
+ *  can already resize by editing props in the Settings panel.
+ */
+function renderResizeHandles(canvas: HTMLElement, selectedIds: string[]): void {
+  canvas.querySelectorAll('.sapu-resize-handle').forEach((n) => n.remove());
+  if (selectedIds.length === 0) return;
+  // Only show handles for the first selected node. Multi-select
+  // resize is a v2.4 feature.
+  const id = selectedIds[0]!;
+  const el = canvas.querySelector(tagSelector(id)) as HTMLElement | null;
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const canvasR = canvas.getBoundingClientRect();
+  const left = r.left - canvasR.left;
+  const top = r.top - canvasR.top;
+  const right = left + r.width;
+  const bottom = top + r.height;
+  const cx = left + r.width / 2;
+  const cy = top + r.height / 2;
+  // 8 anchor points: 4 corners + 4 edge midpoints.
+  const anchors: { name: string; x: number; y: number }[] = [
+    { name: 'nw', x: left,   y: top },
+    { name: 'n',  x: cx,     y: top },
+    { name: 'ne', x: right,  y: top },
+    { name: 'e',  x: right,  y: cy },
+    { name: 'se', x: right,  y: bottom },
+    { name: 's',  x: cx,     y: bottom },
+    { name: 'sw', x: left,   y: bottom },
+    { name: 'w',  x: left,   y: cy },
+  ];
+  for (const a of anchors) {
+    const handle = document.createElement('div');
+    handle.className =
+      'sapu-resize-handle absolute w-2 h-2 bg-white border border-blue-500 pointer-events-auto ' +
+      'hover:bg-blue-100 data-[anchor=se]:cursor-se-resize';
+    handle.style.left = `${a.x - 4}px`;
+    handle.style.top = `${a.y - 4}px`;
+    handle.style.zIndex = '9998';
+    handle.setAttribute('data-lce-handle', a.name);
+    handle.setAttribute('data-lce-target', id);
+    canvas.appendChild(handle);
+  }
 }
 
 /**
@@ -182,11 +268,21 @@ export function Overlays(props: OverlaysProps) {
 
     const repaint = () => {
       renderBorders(canvas, props.project.selectedIds);
+      renderResizeHandles(canvas, props.project.selectedIds);
       const ds = props.project.dragon.state;
+      // Two drag modes share the same overlay:
+      //   - move (draggingNodeId set)    → ghost shows `↔ ComponentName`
+      //   - boost (boost set)           → ghost shows `+ ComponentName`
+      // The v2.3 instrumented path fires `startBoost` immediately
+      // on `boost(meta, x, y)` and `start` on `start(id, x, y)`,
+      // so this branch is hit for palette drops too.
       if (ds.draggingNodeId) {
         const node = props.project.document.getNode(ds.draggingNodeId);
         const label = node ? `↔ ${node.componentName}` : '↔ ?';
         renderDragGhost(canvas, ds.x, ds.y, label);
+        renderInsertion(canvas, ds.dropTarget);
+      } else if (ds.boost) {
+        renderDragGhost(canvas, ds.x, ds.y, `+ ${ds.boost.componentName}`);
         renderInsertion(canvas, ds.dropTarget);
       } else {
         clearDragGhost(canvas);
@@ -249,11 +345,22 @@ export function Overlays(props: OverlaysProps) {
     // would be wasted work.
     const ev = props.project.events;
     const dEv = props.project.dragon.events;
+    // The Dragon emits 7 events; subscribe to ALL of them so the
+    // overlay repaints on both move-mode AND boost-mode transitions.
+    // The previous version of this file subscribed to a non-existent
+    // `'end'` event (a holdover from a v1 API), which meant drag-end
+    // repaints never fired — the ghost and insertion indicator would
+    // stick around after a drop. P6.1 fixes that.
     const eventNames = [
       'selectionChanged', 'nodeMoved', 'nodeAdded', 'nodeRemoved',
     ] as const;
     const dragonEventNames = [
-      'start', 'move', 'end', 'drop', 'cancel',
+      // move-mode
+      'start', 'move', 'drop', 'cancel',
+      // boost-mode (palette → canvas)
+      'startBoost', 'dropBoost', 'cancelBoost',
+      // new instrumented API (v2.3)
+      'dragstart', 'drag', 'dragend',
     ] as const;
     eventNames.forEach((n) => ev.on(n, scheduleRepaint));
     dragonEventNames.forEach((n) => dEv.on(n, scheduleRepaint));

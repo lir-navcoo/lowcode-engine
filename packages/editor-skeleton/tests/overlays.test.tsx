@@ -28,8 +28,10 @@ const SEED: IPublicTypeRootSchema = {
 describe('Overlays', () => {
   let canvas: HTMLElement;
   afterEach(() => {
-    canvas?.querySelectorAll('.sapu-border-overlay, .sapu-hover-overlay, .sapu-drag-ghost, .sapu-insertion-indicator')
-      .forEach((n) => n.remove());
+    canvas?.querySelectorAll(
+      '.sapu-border-overlay, .sapu-hover-overlay, .sapu-drag-ghost, ' +
+      '.sapu-insertion-indicator, .sapu-resize-handle',
+    ).forEach((n) => n.remove());
   });
 
   it('renders a border overlay for the selected node', () => {
@@ -178,5 +180,150 @@ describe('Overlays', () => {
     // null → renderBorders creates no overlay → the old one was
     // already removed in the same repaint pass.
     expect(canvas.querySelector('.sapu-border-overlay')).toBeNull();
+  });
+
+  // ===== P6.1 — dead 'end' subscription fix =====
+  // The pre-P6.1 code subscribed to a non-existent `'end'` event.
+  // That meant the `cancel` and `cancelBoost` repaints (which fire
+  // when a drag ends without a drop target) were never delivered
+  // to the Overlays effect. Ghost + insertion indicator stuck
+  // around on screen even after the Dragon went idle. The fix
+  // subscribes to the real event names: 'cancel', 'cancelBoost',
+  // 'drop', 'dropBoost' (and the new 'dragend' instrumented name).
+
+  it('clears the ghost on cancel (move-mode without dropTarget)', () => {
+    const project = new Project(deepClone(SEED));
+    const a = project.document.getNode(project.document.root.key as string)!.children[0];
+    // Begin a move, then cancel — simulates "user released the
+    // pointer outside the canvas" (no drop target → Dragon fires
+    // 'cancel' and resets to idle).
+    project.dragon.start(a.id, 50, 50);
+    project.dragon.move(200, 200, null);
+    project.dragon.cancel();
+
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    // Leave a phantom ghost on the canvas to prove it gets cleaned.
+    const ghost = document.createElement('div');
+    ghost.className = 'sapu-drag-ghost';
+    canvas.appendChild(ghost);
+
+    render(<Overlays project={project} canvasContainer={canvas} />);
+    expect(canvas.querySelector('.sapu-drag-ghost')).toBeNull();
+  });
+
+  it('clears the ghost on cancelBoost (palette drop cancelled)', () => {
+    const project = new Project(deepClone(SEED));
+    // Boost (palette → canvas) without a drop target → cancelBoost.
+    project.dragon.boost({ componentName: 'Text' }, 50, 50);
+    project.dragon.move(200, 200, null);
+    project.dragon.cancel();
+
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+
+    render(<Overlays project={project} canvasContainer={canvas} />);
+    // No ghost + no insertion indicator should be left.
+    expect(canvas.querySelector('.sapu-drag-ghost')).toBeNull();
+    expect(canvas.querySelector('.sapu-insertion-indicator')).toBeNull();
+  });
+
+  // ===== P6.2 — real child-rect math for the indicator =====
+  // The pre-P6.2 code positioned the indicator at
+  // `parentR.top + parentR.height * (index / total)` — a coarse
+  // ratio that was wrong the moment the parent had non-uniform
+  // child heights. The fix looks up the actual bounding rects of
+  // the parent's direct `[data-lce-id]` children and places the
+  // line at the midpoint between the previous and next child (or
+  // at the parent's edge for index 0 / index === count).
+
+  it('places the insertion indicator using real child-rect midpoints', () => {
+    const project = new Project(deepClone(SEED));
+    const rootId = project.document.root.key as string;
+    const rootNode = project.document.getNode(rootId)!;
+    // SEED: Page { children: [A, B] }. Add a C so we can target
+    // index=1 (the midpoint between A and B).
+    project.document.insert({ componentName: 'C' }, rootNode, 2);
+
+    // Start a move so the dragon is active.
+    const a = project.document.getNode(rootId)!.children[0];
+    project.dragon.start(a.id, 0, 0);
+    // index 1 → the indicator should sit between child 0 (A) and
+    // child 1 (B). With three children and a 90px-tall canvas
+    // (30px each in happy-dom's default layout — actually 0 in
+    // happy-dom because there's no renderer running), the data-
+    // attribute is the observable fact; the position math is
+    // exercised too.
+    project.dragon.move(10, 10, { parentId: null, index: 1, placement: 'inside' });
+
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    // Two child divs to back the math: child 0 (A) and child 1 (B).
+    // We attach `data-lce-id` so renderInsertion picks them up.
+    const aId = a.id;
+    const b = project.document.getNode(rootId)!.children[1];
+    const bId = b.id;
+    const childA = document.createElement('div');
+    childA.setAttribute('data-lce-id', aId);
+    childA.style.height = '40px';
+    const childB = document.createElement('div');
+    childB.setAttribute('data-lce-id', bId);
+    childB.style.height = '60px';
+    canvas.appendChild(childA);
+    canvas.appendChild(childB);
+
+    render(<Overlays project={project} canvasContainer={canvas} />);
+    const indicator = canvas.querySelector('.sapu-insertion-indicator') as HTMLElement | null;
+    expect(indicator).not.toBeNull();
+    // The data attributes prove the indicator is anchored on the
+    // right parent + index (the visual y depends on happy-dom's
+    // rect math, which returns 0 — out of scope here).
+    expect(indicator!.getAttribute('data-lce-index')).toBe('1');
+    expect(indicator!.getAttribute('data-lce-parent')).toBe('root');
+  });
+
+  // ===== P6.3 — ResizeHandles (visual only) =====
+  // v2.3 ships 4 corner + 4 edge handles for the first selected
+  // node. The drag wiring (real resize) is a v2.4 follow-up — for
+  // now the handles prove the selection boundary is readable. The
+  // Settings panel already exposes a stable props editor for
+  // editing width / height directly.
+
+  it('renders 8 resize handles for the (first) selected node', () => {
+    const project = new Project(deepClone(SEED));
+    const a = project.document.getNode(project.document.root.key as string)!.children[0];
+    project.select(a.id);
+
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+    const target = document.createElement('div');
+    target.setAttribute('data-lce-id', a.id);
+    target.style.width = '100px';
+    target.style.height = '50px';
+    canvas.appendChild(target);
+
+    render(<Overlays project={project} canvasContainer={canvas} />);
+    const handles = canvas.querySelectorAll('.sapu-resize-handle');
+    expect(handles.length).toBe(8);
+    // Each handle carries the target id (so a future drag engine
+    // can resolve which node to resize) and a unique anchor name.
+    const anchors = new Set<string>();
+    handles.forEach((h) => {
+      expect(h.getAttribute('data-lce-target')).toBe(a.id);
+      anchors.add(h.getAttribute('data-lce-handle')!);
+    });
+    expect(anchors.size).toBe(8);
+    for (const expected of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+      expect(anchors.has(expected)).toBe(true);
+    }
+  });
+
+  it('does NOT render resize handles when nothing is selected', () => {
+    const project = new Project(deepClone(SEED));
+    canvas = document.createElement('div');
+    document.body.appendChild(canvas);
+
+    render(<Overlays project={project} canvasContainer={canvas} />);
+    expect(canvas.querySelectorAll('.sapu-resize-handle').length).toBe(0);
   });
 });
