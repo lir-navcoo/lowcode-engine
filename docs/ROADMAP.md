@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 644 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 652 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA done
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 644 unit tests + 1 skip / 57 files, all passing in ~3.4s.
+`yarn test` ✅ 652 unit tests + 1 skip / 58 files, all passing in ~3.5s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -236,6 +236,20 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
   - happy-dom's `getComputedStyle` does NOT return inline-set values reliably. The ali-faithful impl uses `Window.getComputedStyle(el).getPropertyValue(name)`. Test helper builds a fake `Window` per element with a controlled `getComputedStyle`, then either passes it as the `win?` arg (for isRowContainer/isChildInline) OR patches `document.defaultView.getComputedStyle` (for isVerticalContainer/isVertical which call `getWindow(el).getComputedStyle(el)` internally).
   - Test stub's `dict` keys are camelCase (`flexDirection`) but the impl queries kebab-case (`flex-direction`). Added kebab→camel conversion in the stub.
 - **Why P2.2e closed**: dropping into a `flex-direction: row` container without these helpers puts the new item "above" the row instead of "to the left of" — wrong visual UX. With them, the drop algorithm can pick the right insert axis. Also a building block for the Phase D bem-tool files (any tool that overlays a container needs to know if it's a row or column).
+
+### P2.2f — Ali-mirror Phase C.AA OffsetObserver auto-subscribe — **DONE 2026-06-09 (50 LoC + 8 tests, 644 → 652)**
+
+- **Where**: `packages/designer/src/designer/offset-observer.ts` (+50 LoC) + `tests/offset-observer-subscribe.test.ts` (NEW, 8 tests)
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C, last "polling vs reactive" gap in the OffsetObserver)
+- **Resolution**: closes the gap that the Phase B port documented but never wired — the `OffsetObserver` was designed to re-fire on viewport changes (scroll, scale, scrolling-state transitions), but until this commit it only re-computed on construction + `requestIdleCallback`. Consumers that wanted re-fires had to wire their own `autorun`. The Phase C.Y Viewport Observables are the natural subscription target; this commit wires the OffsetObserver to auto-subscribe to the OPTIONAL `IViewportLite.*Obs` accessors.
+  - **`IViewportLite`**: +4 optional accessors (`scaleObs?`, `scrollXObs?`, `scrollYObs?`, `scrollingObs?`). Slim consumers (test mocks, plain-object viewports) leave them out; the OffsetObserver degrades gracefully to "compute once at construction" — no breakage for existing call sites.
+  - **`OffsetObserver`**: `_subscribeViewport()` attaches change listeners to whichever `*Obs` are present; `_detachViewportSubs()` symmetric teardown in `purge()`. Constructor calls `_subscribeViewport()` AFTER the initial compute so the listener doesn't double-fire on construction.
+  - **Subscription handler**: root mode emits `change` directly (root observers don't use the rectProvider; skipping `_compute` avoids a double-emit when the defaultRect provider returns non-zero values). Non-root mode runs `_compute()` (which has a no-op gate) + emits `change` (so viewport-driven scale changes propagate even when the rect didn't change).
+- **Tests** (+8): `offset-observer-subscribe.test.ts` covers scale change, scrollX, scrollY, scrolling transition, slim viewport (no `*Obs`) doesn't auto-subscribe, root observer auto-subscribes, `purge()` detaches, no viewport doesn't auto-subscribe.
+- **Bug fixes during verify** (documented in commit `4dcd75b`):
+  - The subscription handler initially called `_compute()` then `events.emit('change', ...)`. For root mode, `_compute()` ALSO emits (because the defaultRect provider returns non-zero values on the first call → the rect-change gate fires). Root mode thus double-emitted on each viewport change. Fix: root mode emits directly without `_compute` (root geometry is viewport-derived; the rect path is irrelevant).
+  - Tests initially tried to attach the listener BEFORE the constructor ran, but the OffsetObserver emits synchronously during construction. Restructured the test helper to attach the listener after construction and assert on the DELTA (re-fires from the subscription path) rather than the absolute event count.
+- **Why P2.2f closed**: the Phase D bem-tool files (border-selecting, border-detecting, border-resizing) all need to react to viewport scroll / scale changes to re-position their overlays. With auto-subscribe, the bem-tool files just create OffsetObservers and the re-positioning happens automatically. Without it, each bem-tool file would have to wire its own `autorun(() => viewport.scaleObs.on('change', recompute))` boilerplate.
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
