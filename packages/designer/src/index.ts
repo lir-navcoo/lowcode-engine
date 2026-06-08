@@ -15,7 +15,7 @@
  */
 
 export { DocumentModel } from './document';
-export type { DocumentEvents, IDocumentModel } from './document';
+export type { DocumentEvents, IDocumentModel, IDocumentModelHost } from './document';
 
 export { Node } from './node';
 

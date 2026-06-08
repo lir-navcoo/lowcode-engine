@@ -11,7 +11,7 @@
  * settings-pane) plug into.
  */
 
-import { Emitter } from '@monbolc/lowcode-utils';
+import { Emitter, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
 import { ActiveTracker } from './active-tracker';
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
@@ -39,6 +39,59 @@ export class Project {
   readonly activeTracker = new ActiveTracker();
   private _selectedIds: string[] = [];
   private _detectingId: string | null = null;
+
+  // ---------------------------------------------------------------------------
+  // Phase C.AB: ali-faithful `autorun` / `reaction` shims
+  // ---------------------------------------------------------------------------
+  //
+  // Ali-faithful port of
+  // `alibaba/lowcode-engine/packages/designer/src/designer/designer.ts:650`
+  // (`autorun`) and the `reaction` helper. Ali's IDesigner exposes
+  // both so plugins can react to MULTIPLE observables at once
+  // (re-run when ANY tracked value changes) — not just the
+  // discrete-event `project.events` Emitter.
+  //
+  // Sapu's stance: no MobX, no proxy. We delegate to the Phase A
+  // `Observable-lite` helpers (same API shape as MobX's autorun
+  // / reaction). Plugins written against ali's
+  // `IDesigner.autorun(fn)` / `IDesigner.reaction(track, effect)`
+  // pattern work in sapu with zero changes.
+  //
+  // Why these are at the Project level (not DocumentModel):
+  // ali-faithful IDesigner.autorun lets a plugin react to ANY
+  // observable in the project — document observables, dragon
+  // observables, viewport observables, plugin-defined observables.
+  // Hiding the shim behind DocumentModel would scope it to the
+  // document's own observables (which is also useful, see
+  // `DocumentModel.autorun` below).
+
+  /**
+   * Ali-faithful `autorun`. Run `effect()` immediately and every
+   * time any `Observable` it read (via `.get()`) changes.
+   * Returns a disposer that unsubscribes the re-run.
+   *
+   * Ali-faithful: same signature as MobX's `autorun(effect)`.
+   * Sapu implementation delegates to the Phase A
+   * `Observable-lite` helper (no MobX).
+   */
+  autorun(effect: () => void): () => void {
+    return _autorun(effect);
+  }
+
+  /**
+   * Ali-faithful `reaction(track, effect)`. Run `track()` to read
+   * the values to watch; re-run `effect(next, prev)` whenever the
+   * tracked values change. The first run does NOT fire `effect`
+   * (MobX-aligned: only subsequent transitions fire).
+   *
+   * Ali-faithful: same signature as MobX's
+   * `reaction<T extends readonly unknown[]>(track, effect)`.
+   * Sapu implementation delegates to the Phase A
+   * `Observable-lite` helper.
+   */
+  reaction<T extends readonly unknown[]>(track: () => T, effect: (next: T, prev: T) => void): () => void {
+    return _reaction(track, effect);
+  }
   private _clipboard: import('./commands').ClipboardPayload | null = null;
 
   constructor(root: IPublicTypeRootSchema) {

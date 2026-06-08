@@ -10,7 +10,7 @@
  * the methods below.
  */
 
-import { Emitter, uid } from '@monbolc/lowcode-utils';
+import { Emitter, uid, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
 import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@monbolc/lowcode-types';
 
 import { Node } from './node';
@@ -238,6 +238,36 @@ export class DocumentModel implements IDocumentModel {
    *  `null` to clear. */
   setHost(host: IDocumentModelHost | null): void {
     this._host = host;
+  }
+
+  // ---- Phase C.AB ali-mirror: `autorun` / `reaction` shims ----
+  //
+  // Ali-faithful mirror of the document-level `autorun` / `reaction`
+  // shims ali ships on `IDocumentModel`. Plugins that read
+  // document-scoped observables (`document.nodes.size`,
+  // `document.root`, etc.) can call these to react to changes
+  // without writing boilerplate `events.on('nodeAdded', ...)`
+  // wiring. The Project-level shims cover the broader case
+  // (multiple observable types); the document-level shims
+  // exist for symmetry with ali's API and to make `document.X`
+  // the one-stop shop for document consumers.
+
+  /**
+   * Ali-faithful `autorun`. Delegates to the Phase A
+   * `Observable-lite` helper. Re-runs `effect` on any tracked
+   * `Observable` change. Returns a disposer.
+   */
+  autorun(effect: () => void): () => void {
+    return _autorun(effect);
+  }
+
+  /**
+   * Ali-faithful `reaction(track, effect)`. Delegates to the
+   * Phase A `Observable-lite` helper. The first run does NOT
+   * fire `effect` (MobX-aligned).
+   */
+  reaction<T extends readonly unknown[]>(track: () => T, effect: (next: T, prev: T) => void): () => void {
+    return _reaction(track, effect);
   }
 
   /**
