@@ -1,0 +1,68 @@
+# SapuLowcodeEngine CI
+#
+# Runs on every push to main and on every PR targeting main.
+# Five checks across a 3-version Node matrix:
+#   1. yarn install --frozen-lockfile
+#   2. yarn build          (CJS output for all 14 packages)
+#   3. yarn test           (vitest, 363 tests expected)
+#   4. yarn typecheck      (per-package tsc, requires build to populate lib/)
+#   5. yarn demo:build     (Vite production build — proves the public
+#                           surface area is consumable from a host app)
+#
+# Lint is intentionally excluded: the `yarn lint` script exists but has
+# never been run in CI; first run will surface ~100 pre-existing warnings
+# that would drown the signal. Lint cleanup is a separate workstream.
+#
+# Node matrix covers 20.x (the engines.node lower bound), 22.x (current
+# active LTS), and 24.x (current). Yarn 1.x emits DEP0169 url.parse
+# warnings under Node 24 — those are stderr noise, not test failures.
+#
+# Cache: actions/setup-node's built-in `cache: yarn` derives a key from
+# the yarn.lock hash; cold install ~170s, warm install ~30s.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs on the same ref — saves CI minutes when a PR
+# gets force-pushed or new commits land before the previous run finishes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: build · test · typecheck · demo:build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20.x', '22.x', '24.x']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Demo production build
+        run: yarn demo:build

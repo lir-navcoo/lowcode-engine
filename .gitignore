@@ -12,6 +12,8 @@ packages/*/lib/
 packages/*/es/
 packages/*/dist/
 packages/*/build/
+examples/demo/dist/
+examples/demo/.vite/
 
 # prevent stray .js/.d.ts in src/ (caused by cross-package tsc with wrong rootDir)
 packages/*/src/**/*.js
