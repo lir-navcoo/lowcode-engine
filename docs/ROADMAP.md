@@ -32,7 +32,7 @@
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
 
-`examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof + "Inject crash" button for L6.7 error pipeline proof.
+`examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof + "Inject crash" button for L6.7 error pipeline proof. **Phase C.Y demo polish** (commit `5b3f2b1`): bottom StatusBar (engine + designer version / schema preset / node count / selection / theme / locale, all live via useState + useEffect subscriptions to project.events + onThemeChange), topArea light/dark theme toggle (calls L7 setTheme + onThemeChange), zh-CN / en-US locale toggle (calls engine.i18n.setLocale + registers 10 demo i18n keys at mount), 4-preset schema picker (Home / Form / Cards / Empty — each exercises a different facet of the engine: Cards has 3 Sidebar instances to demo the Phase C.X multi-instance rect union).
 
 `examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof.
 
