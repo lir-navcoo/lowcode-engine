@@ -1,0 +1,93 @@
+# SapuLowcodeEngine release workflow
+#
+# Triggered by pushing a semver tag (v*.*.*) — the canonical release
+# signal — and via `workflow_dispatch` for manual re-runs.
+#
+# Auth: the NPM_TOKEN GitHub secret. Generate at
+# https://www.npmjs.com/settings/<user>/tokens as type **Automation**
+# (not Publish — Automation skips 2FA which lerna can't satisfy in CI).
+# The token value is never written to any file in this repo; it's
+# referenced via `${{ secrets.NPM_TOKEN }}` and passed to npm through
+# the NODE_AUTH_TOKEN env var (the standard actions/setup-node pattern).
+#
+# Publish model: `lerna publish from-package --yes`. Lerna is in fixed
+# mode (lerna.json has no `version` field bumps — versions come from
+# each package's package.json), so `from-package` reads the versions
+# already in the working tree and publishes whatever's there. The
+# canonical flow is: developer bumps the 14 package.json versions
+# locally + commits + tags + pushes the tag. CI does NOT bump
+# versions — that's a human decision.
+#
+# Re-running on the same tag is a safe no-op: lerna sees the version
+# is already on the registry and skips it.
+#
+# Concurrency: NO cancel-in-progress. A partially-published release
+# (some packages at 2.1.5, others still at 2.1.4) is worse than a
+# slow one. Releases must run to completion.
+#
+# The dry_run input on workflow_dispatch runs `lerna publish
+# from-package --yes --no-publish` — useful to verify tag → publish
+# mapping before actually pushing to npm.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (lerna --no-publish, does not actually publish)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: lerna publish from-package
+    runs-on: ubuntu-latest
+    permissions:
+      # Needed for lerna to push per-package tags back to the repo
+      # (only happens on the very first publish of a version; for
+      # re-runs on the same tag this is a no-op).
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Tags are needed: lerna reads per-package version tags to
+          # decide which packages are "new" relative to the registry.
+          fetch-depth: 0
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "DRY RUN — lerna will not publish"
+            npx lerna publish from-package --yes --no-publish
+          else
+            npx lerna publish from-package --yes
+          fi
