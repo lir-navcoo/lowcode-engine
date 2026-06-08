@@ -30,6 +30,8 @@ export default defineConfig({
       '@monbolc/lowcode-designer':           path.join(packagesDir, 'designer/src/index.ts'),
       '@monbolc/lowcode-editor-skeleton':    path.join(packagesDir, 'editor-skeleton/src/index.ts'),
       '@monbolc/lowcode-workspace':          path.join(packagesDir, 'workspace/src/index.ts'),
+      '@monbolc/lowcode-shell':              path.join(packagesDir, 'shell/src/index.ts'),
+      '@monbolc/lowcode-engine':             path.join(packagesDir, 'engine/src/index.ts'),
     },
   },
   server: {

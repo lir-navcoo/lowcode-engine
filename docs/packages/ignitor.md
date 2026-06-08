@@ -1,52 +1,54 @@
-# `@monbolc/lowcode-ignitor` (L0)
+# `@monbolc/lowcode-ignitor` (L0) — **DEPRECATED 2026-06-08**
 
-> **Version**: 2.0.0 · **React-free** · **0 test files** · **Placeholder only**
+> ⚠️ **DEPRECATED** in v2.2.0-rc. Use `@monbolc/lowcode-engine` (L7) instead. The `ignitor` package is kept as a shim that prints a deprecation warning and falls through to the L0 banner. Will be **removed in 2.3.0**.
 
-## Purpose
+## Migration
 
-The bootstrap entry point. Currently a placeholder that injects a "L0 bootstrap ready" banner into the container. The real composition root will live in the future `@monbolc/lowcode-engine` (L7) package.
+```ts
+// ❌ Old (still works, but warns)
+import { bootstrap } from '@monbolc/lowcode-ignitor';
+await bootstrap({ container: '#app', schema, components });
 
-## Public exports
+// ✅ New
+import { init } from '@monbolc/lowcode-engine';
+const engine = await init('#app', { schema, components });
+```
+
+`@monbolc/lowcode-engine` is a strict superset: same async signature, same `container` semantics, same `schema` + `components` options, plus the full L6 surface (`SapuEngine`, plugin registry, event bus, i18n, ErrorBoundary).
+
+## Purpose (historical)
+
+The bootstrap entry point. Was a placeholder that injected a "L0 bootstrap ready" banner into the container, originally scoped to be replaced by L7 once it shipped. **L7 shipped 2026-06-08**; this package is now a deprecation shim only.
+
+## Public exports (frozen)
 
 ```ts
 async function bootstrap(options: IPublicEngineOptions): Promise<IIgnitorContext>;
 interface IIgnitorContext {
   container: HTMLElement;
-  engine?: IPublicApiEngine;   // future: real engine instance
-  hooks?: { /* future: hot-reload hooks */ };
+  engine?: IPublicApiEngine;   // never assigned in the shim
+  hooks?: { /* never assigned in the shim */ };
 }
 
 // Type re-exports
 type { IPublicApiEngine, IPublicEngineOptions };
 ```
 
-## Implementation patterns
-
-- Plain `async function`; uses `innerHTML` to inject a centered "SapuLowcodeEngine — L0 bootstrap ready" banner
-- String-or-`HTMLElement` resolution: `typeof options.container === 'string' ? document.querySelector : options.container`
-- Includes a `scripts/dev.js` placeholder that `console.log`s a banner (so `yarn workspace @monbolc/lowcode-ignitor start` works)
+`bootstrap()` is preserved for backward compatibility. On first call it prints `[lowcode-ignitor] DEPRECATED in 2.2.0. Use \`import { init } from "@monbolc/lowcode-engine"\` instead. The ignitor package will be removed in 2.3.0.` to `console.warn`. Subsequent calls in the same session are silent.
 
 ## Build
 
 - Only `build` script (no `build:es`) — ships CJS only
 - Output: `lib/index.js` (and `module: lib/index.js`)
-- Standalone `tsconfig.json` (NOT extending root) to keep `lib/` flat — root `paths` would otherwise force tsc to follow the workspace symlink to `packages/types/src/` and produce nested `lib/ignitor/`, `lib/types/` output
 
 ## Test coverage
 
-- **0 tests** — no `tests/` directory. Coverage gap. (See [../ROADMAP.md](../ROADMAP.md) P1.2.)
-
-## External deps
-
-- `@monbolc/lowcode-types` (workspace)
-- `@types/node` (dev)
-
-## Notes
-
-- L0 placeholder; deliberately a no-op so the package shape is committed and L7+ can wire into it
-- This is the equivalent of `ali-lowcode-engine/packages/ignitor/` (which is **also** a placeholder/scaffold, not a published package — it's the demo launcher that bundles `engine` + `react-simulator-renderer` into UMD scripts)
+- **6 tests** in `packages/ignitor/tests/bootstrap.test.ts` — pin the shim's behavior (banner present, container resolution, missing-container error, theme option, default export).
 
 ## See also
 
-- [../ROADMAP.md](../ROADMAP.md) — L7 plan that will replace this
-- [../COMPARISON-WITH-ALI.md](../COMPARISON-WITH-ALI.md) — what `ali/ignitor/` does differently (UMD demo launcher)
+- [`engine.md`](./engine.md) — the replacement
+- [`shell.md`](./shell.md) — the L6 facade that `init()` returns
+- [`../ROADMAP.md`](../ROADMAP.md) — L7.6 deprecation entry
+- [`../COMPARISON-WITH-ALI.md`](../COMPARISON-WITH-ALI.md) — what `ali/ignitor/` does differently (UMD demo launcher)
+

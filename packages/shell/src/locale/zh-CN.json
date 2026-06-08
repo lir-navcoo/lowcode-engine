@@ -1,0 +1,14 @@
+{
+  "app.title": "SapuLowcodeEngine 引擎",
+  "app.tagline": "可视化搭建页面。",
+  "pane.outline": "大纲",
+  "pane.settings": "属性设置",
+  "pane.components": "组件库",
+  "toast.pluginRegistered": "插件 \"{name}\" 已注册。",
+  "toast.pluginError": "插件 \"{name}\" 初始化失败：{message}",
+  "toast.schemaLoadFailed": "加载 schema 失败：{message}",
+  "toast.saveSuccess": "保存成功。",
+  "error.boundary.title": "出错了。",
+  "error.boundary.hint": "编辑器出现异常，请查看控制台获取详情。",
+  "error.boundary.retry": "重新加载"
+}

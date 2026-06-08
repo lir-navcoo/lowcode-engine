@@ -14,6 +14,9 @@
 import type { Project } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
 
+import type { EngineEventBus } from './events';
+import type { ShellI18n } from './i18n';
+
 /**
  * The surface a plugin is handed at registration time. Sapu's
  * stance: the context IS the engine surface — plugins call real
@@ -31,6 +34,10 @@ export interface IPluginContext {
   project: Project;
   /** The L5 workspace (may be undefined for single-doc hosts). */
   workspace?: Workspace;
+  /** The engine event bus — typed payloads per `EngineEvents`. */
+  events: EngineEventBus;
+  /** The engine's i18n instance (the same `engine.i18n` reference). */
+  i18n: ShellI18n;
   /** Register another plugin from inside this one. */
   registerPlugin(plugin: IPlugin): void;
   /** Unregister a previously-registered plugin by name. */

@@ -1,0 +1,62 @@
+{
+  "app.title": {
+    "default": "SapuLowcodeEngine",
+    "en-US": "SapuLowcodeEngine",
+    "zh-CN": "SapuLowcodeEngine 引擎"
+  },
+  "app.tagline": {
+    "default": "Build pages visually.",
+    "en-US": "Build pages visually.",
+    "zh-CN": "可视化搭建页面。"
+  },
+  "pane.outline": {
+    "default": "Outline",
+    "en-US": "Outline",
+    "zh-CN": "大纲"
+  },
+  "pane.settings": {
+    "default": "Settings",
+    "en-US": "Settings",
+    "zh-CN": "属性设置"
+  },
+  "pane.components": {
+    "default": "Components",
+    "en-US": "Components",
+    "zh-CN": "组件库"
+  },
+  "toast.pluginRegistered": {
+    "default": "Plugin \"{name}\" registered.",
+    "en-US": "Plugin \"{name}\" registered.",
+    "zh-CN": "插件 \"{name}\" 已注册。"
+  },
+  "toast.pluginError": {
+    "default": "Plugin \"{name}\" failed: {message}",
+    "en-US": "Plugin \"{name}\" failed: {message}",
+    "zh-CN": "插件 \"{name}\" 初始化失败：{message}"
+  },
+  "toast.schemaLoadFailed": {
+    "default": "Failed to load schema: {message}",
+    "en-US": "Failed to load schema: {message}",
+    "zh-CN": "加载 schema 失败：{message}"
+  },
+  "toast.saveSuccess": {
+    "default": "Saved.",
+    "en-US": "Saved.",
+    "zh-CN": "保存成功。"
+  },
+  "error.boundary.title": {
+    "default": "Something went wrong.",
+    "en-US": "Something went wrong.",
+    "zh-CN": "出错了。"
+  },
+  "error.boundary.hint": {
+    "default": "The editor crashed. Check the console for details.",
+    "en-US": "The editor crashed. Check the console for details.",
+    "zh-CN": "编辑器出现异常，请查看控制台获取详情。"
+  },
+  "error.boundary.retry": {
+    "default": "Reload",
+    "en-US": "Reload",
+    "zh-CN": "重新加载"
+  }
+}

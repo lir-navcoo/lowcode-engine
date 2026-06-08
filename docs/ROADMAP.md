@@ -1,29 +1,33 @@
 # Roadmap
 
-> Last refreshed: 2026-06-07. Update this file whenever a task is completed, blocked, or a new direction is decided.
+> Last refreshed: 2026-06-08. Update this file whenever a task is completed, blocked, or a new direction is decided.
 
-## Current state — L0–L5 done, 291 tests passing
+## Current state — L0–L6 done, 345 tests passing
 
-12 packages published to `@monbolc`:
+13 packages published to `@monbolc`:
 
 | Layer | Package | Version | Status |
 |---|---|---|---|
-| L0 | `@monbolc/lowcode-types` | 2.1.2 | ✅ shipped |
-| L0 | `@monbolc/lowcode-ignitor` | 2.1.2 | ✅ placeholder, 6 smoke tests |
-| L1 | `@monbolc/lowcode-utils` | 2.1.2 | ✅ shipped |
-| L2 | `@monbolc/lowcode-editor-core` | 2.1.2 | ✅ shipped |
-| L2 | `@monbolc/lowcode-plugin-command` | 2.1.2 | ✅ shipped |
-| L2 | `@monbolc/lowcode-renderer-core` | 2.1.2 | ✅ shipped |
-| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.2 | ✅ shipped |
-| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.2 | ✅ shipped (BaseUI + Tailwind v4, 40 tests) |
-| L3 | `@monbolc/lowcode-react-renderer` | 2.1.2 | ✅ shipped |
-| L3 | `@monbolc/lowcode-designer` | 2.1.2 | ✅ shipped |
-| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.2 | ✅ shipped (BaseUI + Tailwind v4) |
-| **L5** | **`@monbolc/lowcode-workspace`** | **2.1.2** | **✅ shipped (24 tests, ~280 lines)** |
+| L0 | `@monbolc/lowcode-types` | 2.1.4 | ✅ shipped |
+| L0 | `@monbolc/lowcode-ignitor` | 2.1.4 | ⚠️ **DEPRECATED** in 2.2.0; removed in 2.3.0 |
+| L1 | `@monbolc/lowcode-utils` | 2.1.4 | ✅ shipped |
+| L2 | `@monbolc/lowcode-editor-core` | 2.1.4 | ✅ shipped |
+| L2 | `@monbolc/lowcode-plugin-command` | 2.1.4 | ✅ shipped |
+| L2 | `@monbolc/lowcode-renderer-core` | 2.1.4 | ✅ shipped |
+| L2 | `@monbolc/lowcode-plugin-outline-pane` | 2.1.4 | ✅ shipped |
+| L2.5 | `@monbolc/lowcode-plugin-setters` | 2.1.4 | ✅ shipped (BaseUI + Tailwind v4, 40 tests) |
+| L3 | `@monbolc/lowcode-react-renderer` | 2.1.4 | ✅ shipped |
+| L3 | `@monbolc/lowcode-designer` | 2.1.4 | ✅ shipped |
+| L4 | `@monbolc/lowcode-editor-skeleton` | 2.1.4 | ✅ shipped (BaseUI + Tailwind v4) |
+| L5 | `@monbolc/lowcode-workspace` | 2.1.4 | ✅ shipped (24 tests, ~280 lines) |
+| L6 | `@monbolc/lowcode-shell` | 2.1.4 | ✅ shipped (21 tests, ~530 lines) |
+| **L7** | **`@monbolc/lowcode-engine`** | **2.1.4** | **✅ shipped (18 tests, ~310 lines — init + default-preset + theme)** |
 
-`yarn test` ✅ 291 tests + 1 skip / 33 files, all passing in ~2.2s.
+`yarn test` ✅ 363 tests + 1 skip / 40 files, all passing in ~2.5s.
 
-`yarn typecheck` ✅ 0 errors across all 12 packages + demo.
+`yarn typecheck` ✅ 0 errors across all 13 packages + demo.
+
+`examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof + "Inject crash" button for L6.7 error pipeline proof.
 
 `examples/demo/` ✅ Vite + React 19 + Tailwind v4, single Skeleton (default) + "Open second doc" button for L5 multi-mount proof.
 
@@ -323,16 +327,16 @@ L5.1–L5.6 (6 P-tasks) all completed in one session:
 
 Total: ~790 lines, vs upstream 5,155. **~85% smaller.** The dropped bulk: 28-component `IPublicApiCommonUI` (no replacement, host uses its own UI), 11 deprecated proxies (no deprecation layer), `setAsInstance`/`current` machinery (sapu passes the real class).
 
-#### L6 — concrete P-tasks (not yet started, after L5)
+#### L6 — concrete P-tasks (✅ all done 2026-06-08)
 
-- **L6.1** — Package skeleton: `packages/shell/` `package.json` (deps: L2 designer + L4 skeleton + L5 workspace + L2.5 plugin-setters; peer: react ^19.2), `tsconfig.json`, vitest alias, `build:css` for the Tailwind file. **No new third-party deps.**
-- **L6.2** — Events: define `EngineEventName` union + payload interfaces; `EventEmitter` wrapper that enforces payload types at subscribe time (compile-time only — runtime is the existing L1 emitter).
-- **L6.3** — `SapuEngine` class + 4 unit tests (`mount` creates the Skeleton, `destroy` tears it down, `getProject()` returns the project, `registerPlugin(p)` calls `p.init(context)` synchronously and fires `pluginRegistered`).
-- **L6.4** — `IPlugin` / `IPluginContext` types + `definePlugin` helper + 2 unit tests (helper is identity, context shape matches `SapuEngine`).
-- **L6.5** — i18n dictionary + `engine.t(key, vars?)` + 2 unit tests (zh-CN default, en-US fallback, `{name}` substitution).
-- **L6.6** — `ErrorBoundary` component + 2 unit tests (catches render error, renders fallback, fires `pluginError` event).
-- **L6.7** — Demo extension: wrap the existing demo's `App` in `ErrorBoundary`, add an "Inject crash" button that calls `engine.registerPlugin({ name: 'crash', init: () => { throw new Error(...) } })` to prove the boundary works.
-- **L6.8** — Docs: `docs/packages/shell.md` (new), `docs/COMPARISON-WITH-ALI.md` (mapping table), `docs/ARCHITECTURE.md` (add L6 row), `docs/ROADMAP.md` (move L6.x from P3 to in-progress once started).
+- **L6.1** ✅ — Package skeleton: `packages/shell/` `package.json` (deps: L2 designer + L4 skeleton + L5 workspace + L2.5 plugin-setters; peer: react ^19.2), `tsconfig.json`, vitest alias, `build:css` for the Tailwind file. **0 new third-party deps.**
+- **L6.2** ✅ — Events: `EngineEventName` union + `EngineEvents` payload map + `EngineEventBus` class wrapping the L1 `Emitter<EngineEvents>` with compile-time payload checks.
+- **L6.3** ✅ — `SapuEngine` class + 4 unit tests in `packages/shell/tests/sapu-engine.test.ts` (getProject-throws-before-mount, mount-creates-Project-and-fires-engineReady, registerPlugin-init-context-shape, init-throws-fires-pluginError-and-unregisters).
+- **L6.4** ✅ — `IPlugin` / `IPluginContext` types + `definePlugin` helper + 6 unit tests in `packages/shell/tests/plugin.test.ts` (identity, context shape, duplicate name, invalid name, destroy+engineDestroyed, unregister+plugin.destroy).
+- **L6.5** ✅ — `ShellI18n` + 12-message `locale/en-US.json` + 12-message `locale/zh-CN.json` (shorthand form) + `locale/index.ts` exporting `registerDefaultMessages` + 6 unit tests in `packages/shell/tests/i18n.test.ts` (current-locale string, setLocale flip, `{name}` substitution, missing-key-fallback, shorthand register, missing-var-no-crash).
+- **L6.6** ✅ — `SapuErrorBoundary` (React 19 `componentDidCatch`) + `DefaultErrorFallback` (plain `<div role="alert">` with Tailwind, no BaseUI portal) + 5 unit tests in `packages/shell/tests/error-boundary.test.tsx` (renders children, fallback on throw, custom fallback, pluginError event, DefaultErrorFallback render).
+- **L6.7** ✅ — Demo extension: `examples/demo/src/main.ts` now uses `SapuEngine.mount()` to own the Project, wraps `<Skeleton>` in `<SapuErrorBoundary engine={engine}>`, exposes an "Inject crash" button in both the HTML toolbar and the `topArea` slot. A counter banner appears below the toolbar showing how many `pluginError` events have fired.
+- **L6.8** ✅ — Docs: `docs/packages/shell.md` (new) covers all L6.2-L6.6 classes + usage + Sapu-vs-ali comparison. `docs/ROADMAP.md` and `docs/ARCHITECTURE.md` updated with the L6 row.
 
 **Permission gate for L6**: when L6.1 starts, **confirm** any new third-party dep (sapu stance: expect 0 new deps; React 19 ErrorBoundary and existing event emitter cover everything).
 
@@ -358,17 +362,17 @@ Total: ~790 lines, vs upstream 5,155. **~85% smaller.** The dropped bulk: 28-com
 
 Total: ~450 lines, vs upstream 1,330. **~66% smaller.** The dropped bulk: monkey-patch React renderer (sapu uses React 19 + BaseUI, no patch needed), `BuiltinSimulatorHost` initialization (~200 lines upstream, replaced by `Project` construction), `LowCodePluginManager` (sapu reuses L2 editor-core's plugin manager).
 
-#### L7 — concrete P-tasks (not yet started, after L6)
+#### L7 — concrete P-tasks (✅ L7.1–L7.8 done 2026-06-08, L7.9 in progress)
 
-- **L7.1** — Package skeleton: `packages/engine/` `package.json` (deps: ALL L2–L6 + react 19.2 peer; **this is the meta package**), `tsconfig.json`, vitest alias, build script.
-- **L7.2** — `init(container, options)` + 3 unit tests (mounts Skeleton, returns engine, fires `engineReady` event on `mount`).
-- **L7.3** — Default plugins: `outlinePanePlugin`, `settingsPanelPlugin`, `settersPlugin` + 3 unit tests (each `init` is idempotent, doesn't double-register, can be unregistered).
-- **L7.4** — `createDefaultPreset()` + 2 unit tests (preset is the union of 3 plugins + theme + i18n, consumer can override any field).
-- **L7.5** — `setTheme(name)` + 2 unit tests (sets `data-theme` on `document.documentElement`, fires `themeChanged` event).
-- **L7.6** — Delete `@monbolc/lowcode-ignitor` (its job is now in L7), update `docs/packages/ignitor.md` → archived note pointing to engine, update `examples/demo/` to import from `@monbolc/lowcode-engine`, update `vitest.config.ts` alias.
-- **L7.7** — Demo extension: replace the demo's manual wiring (`new Project`, `new Skeleton`, register setters) with a single `init(div, { schema, components, preset: createDefaultPreset() })` call. Visual diff: the demo should look identical.
-- **L7.8** — Docs: `docs/packages/engine.md` (new), `docs/COMPARISON-WITH-ALI.md` (engine mapping), `docs/ARCHITECTURE.md` (add L7 row + the meta-package nature), `docs/ROADMAP.md` (move L7 from P3 to in-progress, note ignitor deletion).
-- **L7.9** — README + landing: top-level `README.md` rewrite to direct users to `yarn add @monbolc/lowcode-engine` and show the 5-line starter.
+- **L7.1** ✅ — Package skeleton: `packages/engine/` `package.json` (deps: ALL L2–L6 + react 19.2 peer; **this is the meta package**), `tsconfig.json` + `tsconfig.esm.json`, vitest alias, build script.
+- **L7.2** ✅ — `init(container, options)` + 7 unit tests in `packages/engine/tests/init.test.ts` (returns engine with mounted Project, throws on missing selector, throws on null container, engineReady available, destroy tears down, detectLocale for non-English, detectLocale for English).
+- **L7.3** ✅ — Default plugins: `outlinePanePlugin`, `settingsPanelPlugin`, `settersPlugin` (in `packages/engine/src/default-plugins.ts`) + 2 unit tests in `packages/engine/tests/preset.test.ts` (3-unique-plugins, idempotent init).
+- **L7.4** ✅ — `createDefaultPreset(overrides?)` + 3 unit tests in `packages/engine/tests/preset.test.ts` (default shape, override merges all fields, partial override keeps the rest).
+- **L7.5** ✅ — `setTheme(name)` + 6 unit tests in `packages/engine/tests/preset.test.ts` (initial light, setTheme updates data attribute, setTheme notifies, same-name no-op, unsubscribe, throw on unknown name).
+- **L7.6** ✅ — Ignitor deprecation shim. `bootstrap()` still works but prints a once-per-session `console.warn` pointing to `@monbolc/lowcode-engine`. `package.json` description updated with DEPRECATED prefix. `README.md` added to the package. `docs/packages/ignitor.md` rewritten with migration guide. Package deletion scheduled for 2.3.0.
+- **L7.7** ✅ — Demo rewrite: `examples/demo/src/main.ts` now imports `init, createDefaultPreset` from `@monbolc/lowcode-engine`. The `setupReactRenderer()` call is gone (init() does it). `<App>` now takes `{engine}` as a prop. The "Inject crash" button (L6.7) and "Open second doc" button (L5) still work.
+- **L7.8** ✅ — Docs: `docs/packages/engine.md` (new, ~150 lines) covers the full L7 API + preset system + Sapu-vs-ali comparison. `docs/packages/ignitor.md` updated with DEPRECATED banner + migration guide. `docs/ARCHITECTURE.md` + `docs/ROADMAP.md` + `docs/COMPARISON-WITH-ALI.md` updated to reflect L7 done.
+- **L7.9** — Top-level `README.md` rewrite to direct users to `yarn add @monbolc/lowcode-engine` and show the 5-line starter. (In progress as of 2026-06-08.)
 
 **Permission gate for L7**: when L7.1 starts, **confirm** any new third-party dep (sapu stance: expect 0 new deps; the package is purely composition).
 

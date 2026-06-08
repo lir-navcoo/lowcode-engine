@@ -1,0 +1,70 @@
+{
+  "name": "@monbolc/lowcode-engine",
+  "version": "2.1.4",
+  "description": "SapuLowcodeEngine composition root (L7). The single package a host installs. ~450 lines vs upstream ~6,000 (~92% smaller).",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "es"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:es": "tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es",
+    "clean": "rimraf lib es"
+  },
+  "dependencies": {
+    "@monbolc/lowcode-designer": "^2.1.4",
+    "@monbolc/lowcode-editor-skeleton": "^2.1.4",
+    "@monbolc/lowcode-plugin-outline-pane": "^2.1.4",
+    "@monbolc/lowcode-plugin-setters": "^2.1.4",
+    "@monbolc/lowcode-react-renderer": "^2.1.4",
+    "@monbolc/lowcode-shell": "^2.1.4",
+    "@monbolc/lowcode-types": "^2.1.4",
+    "@monbolc/lowcode-utils": "^2.1.4",
+    "@monbolc/lowcode-workspace": "^2.1.4"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@base-ui-components/react": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "@base-ui-components/react": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
+    "directory": "packages/engine"
+  },
+  "keywords": [
+    "lowcode",
+    "engine",
+    "composition-root",
+    "facade"
+  ],
+  "gitHead": "f2df4cee4b702fc980b0efaadf0b5a7b385c5af0"
+}

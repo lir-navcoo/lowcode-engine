@@ -1,6 +1,6 @@
 # SapuLowcodeEngine Documentation
 
-> **From-scratch rewrite** of `alibaba/lowcode-engine` v1.3.2 under the `@monbolc` npm scope. 11 packages, L0–L4 complete, 211 tests passing, zero `@alilc`/`@alifd`/`@supu` references in source.
+> **From-scratch rewrite** of `alibaba/lowcode-engine` v1.3.2 under the `@monbolc` npm scope. 14 packages, L0–L7 complete, 363 tests passing, zero `@alilc`/`@alifd`/`@supu` references in source.
 
 ## Index
 
@@ -8,18 +8,21 @@
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | L0–L7 layering, dependency graph, design principles, the React injection boundary |
 | [COMPARISON-WITH-ALI.md](COMPARISON-WITH-ALI.md) | sapu package ↔ `alibaba/lowcode-engine` package mapping, API differences, scope slimming |
-| [ROADMAP.md](ROADMAP.md) | Current state (L0–L4 done), P0/P1 polish, L5+ plan |
+| [ROADMAP.md](ROADMAP.md) | Current state (L0–L7 done), per-layer status, deferred work |
 | [packages/types.md](packages/types.md) | L0 — core type system |
-| [packages/ignitor.md](packages/ignitor.md) | L0 — bootstrap entry placeholder |
+| [packages/ignitor.md](packages/ignitor.md) | L0 — **DEPRECATED**; use `@monbolc/lowcode-engine` instead |
 | [packages/utils.md](packages/utils.md) | L1 — pure utility functions |
 | [packages/editor-core.md](packages/editor-core.md) | L2 — DI container, i18n, plugin manager |
 | [packages/plugin-command.md](packages/plugin-command.md) | L2 — command pattern + undo/redo |
 | [packages/renderer-core.md](packages/renderer-core.md) | L2 — framework-agnostic renderer abstraction |
 | [packages/plugin-outline-pane.md](packages/plugin-outline-pane.md) | L2 — outline tree (uses `react-arborist`) |
-| [packages/plugin-setters.md](packages/plugin-setters.md) | L2.5 — BaseUI setter registry (in progress) |
+| [packages/plugin-setters.md](packages/plugin-setters.md) | L2.5 — BaseUI setter registry |
 | [packages/react-renderer.md](packages/react-renderer.md) | L3 — React 19.2.7 runtime injection |
 | [packages/designer.md](packages/designer.md) | L3 — DocumentModel, Project, Dragon, commands |
 | [packages/editor-skeleton.md](packages/editor-skeleton.md) | L4 — 3-pane editor UI (uses `react-resizable-panels`) |
+| [packages/workspace.md](packages/workspace.md) | L5 — `Resource`, `EditorWindow`, `Workspace` (single-window stance) |
+| [packages/shell.md](packages/shell.md) | L6 — `SapuEngine`, `SapuErrorBoundary`, `ShellI18n`, `EngineEventBus` |
+| [packages/engine.md](packages/engine.md) | L7 — `init(container, options)`, `createDefaultPreset`, `setTheme` |
 
 ## What this docs/ folder is for
 
@@ -35,6 +38,7 @@ This folder is the **primary source of truth for sapu-lowcode-engine**. Memory f
 - **React version**: 19.2.7 (peerDependency, optional; only L3+)
 - **TypeScript**: 5.4
 - **Build**: `tsc -p tsconfig.json` (CJS) + `tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es` (ESM with `.js` extensions)
-- **Test**: `yarn test` (vitest 2.1, happy-dom, @testing-library/react 16)
-- **Typecheck**: `yarn typecheck` (currently has 2 error clusters — see [ROADMAP.md](ROADMAP.md))
+- **Test**: `yarn test` (vitest 2.1, happy-dom, @testing-library/react 16) — **363 tests / 40 files, 0 failures**
+- **Typecheck**: `yarn typecheck` — **0 errors** across all 14 packages + demo
 - **Reference upstream** (for context, not active development): `../ali-lowcode-engine/`
+

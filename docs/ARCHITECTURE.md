@@ -14,9 +14,9 @@ Sapu is organized as a strict (mostly) bottom-up dependency stack. Each layer ca
 | **L2.5** | Setters (BaseUI, in progress) | `@monbolc/lowcode-plugin-setters` | ⚠️ types only, setters return vdom-shaped objects |
 | **L3** | React integration + design model | `@monbolc/lowcode-react-renderer`, `@monbolc/lowcode-designer` | ⚠️ designer uses adapter; only react-renderer imports React |
 | **L4** | Skeleton UI (3-pane editor) | `@monbolc/lowcode-editor-skeleton` | ❌ React + `react-resizable-panels` |
-| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` (2.1.2, 24 tests) | ✅ (data only — no UI; multi-doc = multi-mount of L4) |
-| L6 | (planned) Shell | — | — |
-| L7 | (planned) Engine (composition root) | — | — |
+| **L5** | Workspace (single-window) | `@monbolc/lowcode-workspace` (2.1.4, 24 tests) | ✅ (data only — no UI; multi-doc = multi-mount of L4) |
+| **L6** | **Shell (host-facing facade)** | **`@monbolc/lowcode-shell` (2.1.4, 21 tests, ~530 LoC)** | **⚠️ class is React-free; only `SapuErrorBoundary` uses React** |
+| **L7** | **Engine (composition root)** | **`@monbolc/lowcode-engine` (2.1.4, 18 tests, ~310 LoC)** | **✅ pure composition; no new logic — wires L0–L6 into one `init()` call** |
 
 \* `plugin-outline-pane` is technically L2-shaped code (depends only on editor-core + renderer-core) but ships a `react-arborist`-backed view. It uses the adapter for `createElement`, not direct React imports.
 
@@ -53,7 +53,9 @@ Reverse-direction inbound (who imports whom):
 - `designer` ← 2 (editor-skeleton, **workspace**)
 - `plugin-setters` ← 1 (editor-skeleton) — wired in P1.3
 - `workspace` ← 0 (host apps import directly, e.g. the demo)
-- `ignitor` ← 0 (still a placeholder; L7 will fold it)
+- `ignitor` ← 0 (deprecated 2026-06-08; folded into L7 `engine`)
+- `shell` ← 2 (the demo + `engine` itself) — `SapuEngine` + `SapuErrorBoundary` are the L6 surface a host wires up.
+- `engine` ← 1 (the demo) — the L7 composition root; re-exports L6 + adds `init()`.
 
 ## React injection boundary
 
@@ -148,9 +150,9 @@ Test pipeline (`yarn test` at root):
 
 ## What's NOT here yet
 
-- **L5 (workspace)** — multi-window / multi-view support. The upstream has it; sapu is single-view.
-- **L6 (shell)** — the `IPublicApi*` / `IPublicModel*` facade layer. Sapu exposes classes directly (e.g. `Project`, `DocumentModel`); no facades.
-- **L7 (engine)** — the composition root. `@monbolc/lowcode-ignitor` is a placeholder; the real `init()` will live in a new `engine` package.
+- **L5 (workspace)** — single-window, data-only. The upstream has a `Workbench` tab UI; sapu treats multi-doc as multi-mount of `<Skeleton>`.
+- **L6 (shell)** — ✅ done 2026-06-08. Sapu stance: no `IPublicApi*` / `IPublicModel*` facade layer. Hosts import the real classes (`SapuEngine`, `SapuErrorBoundary`, `ShellI18n`, `EngineEventBus`).
+- **L7 (engine)** — ✅ done 2026-06-08. Composition root + `init(container, options)`. `@monbolc/lowcode-ignitor` is folded in as a deprecation shim; deletion in 2.3.0.
 - **`@alilc/lowcode-engine-ext`** — upstream's external setter provider. Sapu ships its own setters in `plugin-setters` instead.
 - **UMD bundles** — upstream has `build.umd.json` for `engine`, `react-renderer`, `react-simulator-renderer`. Sapu ships only CJS+ESM.
 - **No `socket.io-client` / `fetch-jsonp` / `whatwg-fetch`** — upstream's `renderer-core` polyfills `fetch` for older browsers; sapu uses native `fetch`.

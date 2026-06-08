@@ -1,28 +1,43 @@
 /**
  * Hello Sapu — Vite demo entry
  *
- * Wires up the real L4 `Skeleton` + L3 `Designer` + L2 `OutlinePane` +
- * L2.5 `plugin-setters` against a hand-rolled component registry.
+ * Wires up the L7 `init()` composition root against a hand-rolled
+ * component registry, then renders the L4 Skeleton inside a
+ * SapuErrorBoundary. The L7 init() takes care of:
+ *   - installing the React runtime into renderer-core
+ *   - creating the SapuEngine + Project
+ *   - registering the default preset plugins (outline-pane,
+ *     settings-panel, setters)
+ *   - returning the live engine for the host to use
+ *
+ * The host (this file) is still responsible for rendering the
+ * React tree, including the `<SapuErrorBoundary>` + `<Skeleton>`
+ * composition. The engine's `getProject()` is the source of truth
+ * for the document; the host reads it via React state.
  *
  * Run via `yarn demo` at the repo root, then open http://localhost:5173.
  *
  * What this demo proves:
- *   - L0–L4 stack composes: bootstrap React, build a Project, mount
- *     a Skeleton, render through the simulator.
- *   - L2.5 setters are wired into the L4 settings panel (right pane).
+ *   - L0–L7 stack composes: one `init()` call returns a live engine.
+ *   - L2.5 setters (registered by the default preset) are wired into
+ *     the L4 settings panel (right pane).
  *   - A host can register a CUSTOM setter and have the L4 panel use
  *     it for a specific (component, prop) — see the
  *     "Use custom setter" toggle in the toolbar and the `HexColor`
  *     setter defined below.
+ *   - L6.7 error pipeline: the "Inject crash" button proves a
+ *     throwing plugin gets caught, fires `pluginError`, and the
+ *     editor keeps running.
  */
 import './styles.css';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { setupReactRenderer } from '@monbolc/lowcode-react-renderer';
 import { Project } from '@monbolc/lowcode-designer';
 import { Skeleton } from '@monbolc/lowcode-editor-skeleton';
 import { Resource, Workspace } from '@monbolc/lowcode-workspace';
+import { SapuErrorBoundary, type ISapuEngine } from '@monbolc/lowcode-shell';
+import { init, createDefaultPreset } from '@monbolc/lowcode-engine';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
 import {
   registerSetter,
@@ -31,8 +46,8 @@ import {
 } from '@monbolc/lowcode-plugin-setters';
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
-// 1. Install React 19.2.7 runtime.
-setupReactRenderer();
+// Note: setupReactRenderer() is no longer called here — the L7
+// `init()` below installs the React 19 runtime as its first step.
 
 // ---------------------------------------------------------------------------
 // 1a. `hexToCss` — normalize a hex color string into a CSS `background`
@@ -109,9 +124,12 @@ const initialSchema = {
 // ---------------------------------------------------------------------------
 // 5. The demo React app.
 // ---------------------------------------------------------------------------
-function App() {
+function App({ engine }: { engine: ISapuEngine }) {
   const [schema, setSchema] = useState<IPublicTypeRootSchema>(initialSchema as IPublicTypeRootSchema);
-  const [project] = useState(() => new Project(initialSchema as IPublicTypeRootSchema));
+  // The L7 init() returns a SapuEngine; we use `getProject()` as the
+  // single source of truth for the document. Same engine for the
+  // whole session — re-mounts would require a new init() call.
+  const project = engine.getProject();
   // The Skeleton owns the OutlinePane internally. We capture the
   // reference via `onPaneReady` so the toolbar buttons can call
   // pane-level actions (rename, expand, select) directly.
@@ -184,6 +202,25 @@ function App() {
   };
   const onToggleCustom = () => setCustomOn((v) => !v);
 
+  // L6.7 — Inject crash. Registers a plugin whose `init` throws.
+  // The engine catches the throw and fires `pluginError`; nothing
+  // else is affected. We also listen for `pluginError` and flash
+  // a one-line banner via a `pluginErrorCount` state so the user
+  // sees something happened without digging through console logs.
+  const [pluginErrorCount, setPluginErrorCount] = useState(0);
+  useEffect(() => {
+    const off = engine.events.on('pluginError', () => {
+      setPluginErrorCount((n) => n + 1);
+    });
+    return off;
+  }, [engine]);
+  const onInjectCrash = () => {
+    engine.registerPlugin({
+      name: `crash-${Date.now()}`,
+      init: () => { throw new Error('manual crash from demo inject button'); },
+    });
+  };
+
   // L5 demo: open a SECOND editing session in a sibling div. Each
   // <Skeleton> owns its own Project + Workspace. The two sessions
   // share the `components` registry (so the simulator can render
@@ -245,6 +282,31 @@ function App() {
         React.createElement(Skeleton as any, {
           project: project2,
           components,
+          // The second doc also gets a tiny left-area with a reset
+          // button, so it stays self-contained without sharing state
+          // with the first.
+          leftArea: () =>
+            React.createElement(
+              'button',
+              {
+                className:
+                  'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
+                  'rounded hover:bg-slate-100 text-sm',
+                onClick: () => {
+                  // Reset doc 2 to its own seed schema.
+                  project2.load({
+                    fileName: 'second.json',
+                    componentName: 'Page',
+                    children: [
+                      { componentName: 'Header', props: { className: 'header-2' } },
+                      { componentName: 'Main',   props: { className: 'main-2' } },
+                    ],
+                  });
+                },
+                title: 'Reset doc 2',
+              },
+              '↻',
+            ),
         }),
       );
       setSecondRoot(root2);
@@ -263,21 +325,152 @@ function App() {
 
   // Expose handlers globally so the toolbar buttons (outside the React tree)
   // can call them.
-  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom, onToggleSecond, secondRoot: () => secondRoot };
+  (window as any).__demo__ = { onAdd, onRename, onReset, onToggleCustom, onToggleSecond, onInjectCrash, secondRoot: () => secondRoot };
 
-  return React.createElement(Skeleton as any, {
-    project,
-    components,
-    onPaneReady: (p: OutlinePane) => { paneRef.current = p; },
-    setterConfig,
-  });
+  // The Skeleton's `topArea` slot — a sub-toolbar above the canvas
+  // in normal flow (mirrors ali's `subTopArea`). Plain inline
+  // buttons; no floating pill, no backdrop-blur.
+  const topArea = () =>
+    React.createElement(
+      'div',
+      { className: 'flex items-center gap-1.5' },
+      React.createElement(
+        'button',
+        {
+          className: 'px-2 py-0.5 border border-slate-300 rounded bg-white hover:bg-slate-50 text-[11px]',
+          onClick: onAdd,
+          title: 'Append a Footer node to the document',
+        },
+        '+ Footer',
+      ),
+      React.createElement(
+        'button',
+        {
+          className: 'px-2 py-0.5 border border-slate-300 rounded bg-white hover:bg-slate-50 text-[11px]',
+          onClick: onRename,
+          title: 'Rename the Body node in the outline',
+        },
+        'Body → App',
+      ),
+      React.createElement(
+        'button',
+        {
+          className: 'px-2 py-0.5 border border-slate-300 rounded bg-white hover:bg-slate-50 text-[11px]',
+          onClick: onReset,
+          title: 'Reset the document to the initial schema',
+        },
+        'Reset',
+      ),
+      React.createElement('div', { className: 'w-px h-4 bg-slate-200 mx-0.5' }),
+      React.createElement(
+        'button',
+        {
+          className:
+            'px-2 py-0.5 border rounded text-[11px] ' +
+            (customOn
+              ? 'border-blue-400 bg-blue-50 text-blue-700'
+              : 'border-slate-300 bg-white hover:bg-slate-50'),
+          onClick: onToggleCustom,
+          title: 'Register the HexColor setter for Sidebar.bg',
+        },
+        customOn ? 'HexColor: on' : 'HexColor: off',
+      ),
+      React.createElement('div', { className: 'w-px h-4 bg-slate-200 mx-0.5' }),
+      // L6.7 — Inject crash. Registers a plugin whose init() throws.
+      // SapuEngine catches the throw, fires `pluginError`, and
+      // unregisters the plugin so a re-registration can succeed.
+      // The console gets a stack trace; the editor itself keeps
+      // running.
+      React.createElement(
+        'button',
+        {
+          className: 'px-2 py-0.5 border border-rose-300 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 text-[11px]',
+          onClick: onInjectCrash,
+          title: 'Register a plugin whose init() throws — exercises the L6.3 error pipeline',
+        },
+        'Inject crash',
+      ),
+    );
+
+  // The Skeleton's `leftArea` slot — a thin icon strip to the LEFT
+  // of the outline panel. Ali's `leftArea` is the icon column.
+  // For the demo we just put a couple of icon buttons; their
+  // semantics are TBD but the slot itself is the proof.
+  const leftArea = () =>
+    React.createElement(
+      'div',
+      { className: 'flex flex-col items-center gap-1' },
+      React.createElement(
+        'button',
+        {
+          className:
+            'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
+            'rounded hover:bg-slate-100 text-sm',
+          onClick: onToggleSecond,
+          title: secondActive ? 'Close the second document' : 'Open a second document',
+        },
+        '⧉',
+      ),
+      React.createElement(
+        'button',
+        {
+          className:
+            'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
+            'rounded hover:bg-slate-100 text-sm',
+          onClick: onReset,
+          title: 'Reset the document',
+        },
+        '↻',
+      ),
+    );
+
+  return React.createElement(
+    'div',
+    { className: 'flex flex-col h-full' },
+    pluginErrorCount > 0
+      ? React.createElement(
+          'div',
+          {
+            'data-testid': 'plugin-error-banner',
+            className: 'bg-rose-50 border-b border-rose-200 px-3 py-1 text-[11px] text-rose-700 flex items-center gap-2',
+          },
+          `⚠ ${pluginErrorCount} plugin error${pluginErrorCount === 1 ? '' : 's'} since page load. See browser console for details.`,
+        )
+      : null,
+    React.createElement(
+      'div',
+      { className: 'flex-1 min-h-0' },
+      React.createElement(
+        SapuErrorBoundary as any,
+        { engine },
+        React.createElement(Skeleton as any, {
+          project,
+          components,
+          onPaneReady: (p: OutlinePane) => { paneRef.current = p; },
+          setterConfig,
+          topArea,
+          leftArea,
+        }),
+      ),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
 // 6. Mount.
 // ---------------------------------------------------------------------------
-const root = createRoot(document.getElementById('skeleton')!);
-root.render(React.createElement(App));
+// L7: one async `init()` call sets up the engine, registers the
+// default preset, mounts the project, and returns the live
+// SapuEngine. We then hand the engine to <App engine={...}/>
+// which renders the Skeleton against `engine.getProject()`.
+init(document.getElementById('skeleton')!, {
+  schema: initialSchema as IPublicTypeRootSchema,
+  components,
+  preset: createDefaultPreset({ locale: 'en-US' }),
+}).then((engine) => {
+  const root = createRoot(document.getElementById('skeleton')!);
+  root.render(React.createElement(App, { engine }));
+});
 
 // ---------------------------------------------------------------------------
 // 7. Toolbar wiring (vanilla DOM, no React).
@@ -287,3 +480,4 @@ root.render(React.createElement(App));
 (document.getElementById('reset') as HTMLButtonElement).onclick             = () => (window as any).__demo__.onReset();
 (document.getElementById('toggle-custom') as HTMLButtonElement).onclick    = () => (window as any).__demo__.onToggleCustom();
 (document.getElementById('open-second') as HTMLButtonElement).onclick       = () => (window as any).__demo__.onToggleSecond();
+(document.getElementById('inject-crash') as HTMLButtonElement).onclick      = () => (window as any).__demo__.onInjectCrash();
