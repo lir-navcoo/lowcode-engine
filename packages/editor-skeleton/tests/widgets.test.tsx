@@ -79,7 +79,7 @@ describe('SapuFloatingPanel (E: L4 widgets — Panel primitive)', () => {
     expect(screen.getByText('panel body')).toBeInTheDocument();
   });
 
-  it('fires onClose when ✕ is clicked (when provided)', () => {
+  it('fires onClose when the close button is clicked (when provided)', () => {
     const onClose = vi.fn();
     render(
       <SapuFloatingPanel title="X" onClose={onClose}>
@@ -90,7 +90,7 @@ describe('SapuFloatingPanel (E: L4 widgets — Panel primitive)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('does not render ✕ when onClose is omitted', () => {
+  it('does not render a close button when onClose is omitted', () => {
     render(<SapuFloatingPanel title="No close">body</SapuFloatingPanel>);
     expect(screen.queryByLabelText('Close panel')).toBeNull();
   });
@@ -129,11 +129,11 @@ describe('createToastManager + SapuToaster (E: L4 widgets — Toast)', () => {
     expect(screen.getByText('Reset done')).toBeInTheDocument();
   });
 
-  it('clicking the ✕ on a toast dismisses it', () => {
+  it('clicking the close button on a toast dismisses it', () => {
     const m = createToastManager();
     m.push({ title: 'Dismiss me' });
     render(<SapuToaster manager={m} />);
-    const buttons = screen.getAllByText('✕');
+    const buttons = screen.getAllByLabelText('Dismiss toast');
     fireEvent.click(buttons[0]);
     expect(m.items.length).toBe(0);
   });

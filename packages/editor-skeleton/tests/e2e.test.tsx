@@ -119,12 +119,12 @@ describe('E2E: L0–L4 stack', () => {
       <Skeleton
         project={project}
         components={components}
-        topArea={() => <button>↺ Undo</button>}
-        leftArea={() => <button>📦</button>}
+        topArea={() => <button>Undo</button>}
+        leftArea={() => <button>Custom</button>}
       />,
     );
-    expect(screen.getByText('↺ Undo')).toBeInTheDocument();
-    expect(screen.getByText('📦')).toBeInTheDocument();
+    expect(screen.getByText('Undo')).toBeInTheDocument();
+    expect(screen.getByText('Custom')).toBeInTheDocument();
   });
 
   it('omits slot content when topArea/leftArea are not provided (no crash)', () => {
@@ -132,8 +132,8 @@ describe('E2E: L0–L4 stack', () => {
     render(<Skeleton project={project} components={components} />);
     // No toolbar buttons rendered — the slot containers exist but are
     // empty. This is the default for hosts that don't need them.
-    expect(screen.queryByText('↺ Undo')).toBeNull();
-    expect(screen.queryByText('📦')).toBeNull();
+    expect(screen.queryByText('Undo')).toBeNull();
+    expect(screen.queryByText('Custom')).toBeNull();
     // The 3-pane headers still appear.
     expect(screen.getByText('Outline')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();

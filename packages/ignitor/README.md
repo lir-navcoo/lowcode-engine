@@ -1,15 +1,15 @@
 # `@monbolc/lowcode-ignitor` — **DEPRECATED**
 
-> ⚠️ **This package is deprecated as of 2026-06-08 (v2.2.0-rc).** The `bootstrap()` function still works but prints a deprecation warning to the console. The package will be **removed in 2.3.0**.
+> **[DEPRECATED] This package is deprecated as of 2026-06-08 (v2.2.0-rc).** The `bootstrap()` function still works but prints a deprecation warning to the console. The package will be **removed in 2.3.0**.
 
 ## Use `@monbolc/lowcode-engine` instead
 
 ```ts
-// ❌ Old way (still works, but warns)
+// Old way (still works, but warns)
 import { bootstrap } from '@monbolc/lowcode-ignitor';
 await bootstrap({ container: '#app', schema, components });
 
-// ✅ New way
+// New way
 import { init } from '@monbolc/lowcode-engine';
 const engine = await init('#app', { schema, components });
 ```

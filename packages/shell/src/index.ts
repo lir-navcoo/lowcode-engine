@@ -7,12 +7,12 @@
  * `registerPlugin` slot.
  *
  * Status (L6.2-L6.6 complete):
- *   - L6.1 ✅ Package skeleton + IPlugin/IPluginContext types
- *   - L6.2 ✅ EngineEventBus (typed wrapper over L1 Emitter)
- *   - L6.3 ✅ SapuEngine class
- *   - L6.4 ✅ definePlugin helper + plugin tests
- *   - L6.5 ✅ ShellI18n with {var} substitution
- *   - L6.6 ✅ SapuErrorBoundary (React 19 class)
+ *   - L6.1 [done] Package skeleton + IPlugin/IPluginContext types
+ *   - L6.2 [done] EngineEventBus (typed wrapper over L1 Emitter)
+ *   - L6.3 [done] SapuEngine class
+ *   - L6.4 [done] definePlugin helper + plugin tests
+ *   - L6.5 [done] ShellI18n with {var} substitution
+ *   - L6.6 [done] SapuErrorBoundary (React 19 class)
  *
  * L7 (in `@monbolc/lowcode-engine`) composes this with a default
  * preset and `init(container, options)`.

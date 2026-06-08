@@ -47,7 +47,7 @@ export function DefaultErrorFallback({ error }: { error: Error }): ReactNode {
       role="alert"
       className="flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 bg-rose-50 p-6 text-rose-900"
     >
-      <div className="text-base font-semibold">⚠ {error.message || 'Unexpected error'}</div>
+      <div className="text-base font-semibold">Error: {error.message || 'Unexpected error'}</div>
       <div className="max-w-md text-center text-sm text-rose-700">
         The editor crashed. Check the console for details.
       </div>

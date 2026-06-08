@@ -3,15 +3,15 @@
  *
  * Bootstrap entry for SapuLowcodeEngine development.
  *
- * ⚠️  DEPRECATED since 2026-06-08 (v2.2.0-rc). The L7
+ * [DEPRECATED] since 2026-06-08 (v2.2.0-rc). The L7
  * `@monbolc/lowcode-engine` package is the new home for the real
  * `init()` composition root. `bootstrap()` is kept as a shim that
  * prints a deprecation warning and falls through to a "SapuLowcodeEngine
  * not implemented" banner — same behavior as before L7.
  *
  * Migration:
- *   import { bootstrap } from '@monbolc/lowcode-ignitor';   // ❌ deprecated
- *   import { init }      from '@monbolc/lowcode-engine';    // ✅ new
+ *   import { bootstrap } from '@monbolc/lowcode-ignitor';   // deprecated
+ *   import { init }      from '@monbolc/lowcode-engine';    // new
  *
  * The `ignitor` package will be removed in 2.3.0.
  */
@@ -48,7 +48,7 @@ export interface IIgnitorContext {
 /**
  * Bootstrap the engine.
  *
- * ⚠️  DEPRECATED. See the file header for the migration path.
+ * [DEPRECATED] See the file header for the migration path.
  *
  * In the current L0 state, this just creates a placeholder div.
  * Once L7 (`engine`) ships, this will hand off to the real engine.

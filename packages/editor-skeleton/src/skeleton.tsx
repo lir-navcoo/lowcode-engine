@@ -236,6 +236,11 @@ export function Skeleton(props: SkeletonProps) {
   // the user can tell at a glance which panel is showing. Hosts that
   // want to drive the left area themselves (e.g. add extra icons)
   // pass their own `leftArea` prop and bypass this default.
+  //
+  // Labels are 3-letter abbreviations rather than emoji so they
+  // render identically across fonts/OSes without pulling in an
+  // emoji glyph fallback. Title attributes (the tooltip) carry
+  // the full word for accessibility.
   const renderDefaultLeftArea = (): unknown => {
     const btn = (v: LeftView, label: string, title: string): unknown =>
       h()('button', {
@@ -244,14 +249,14 @@ export function Skeleton(props: SkeletonProps) {
         title,
         'data-active': leftView === v ? 'true' : 'false',
         className:
-          'w-7 h-7 flex items-center justify-center rounded text-sm ' +
+          'w-7 h-7 flex items-center justify-center rounded text-[10px] font-mono ' +
           (leftView === v
             ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300'
             : 'text-slate-600 hover:bg-slate-100'),
       }, label);
     return h()('div', { className: 'flex flex-col items-center gap-1' },
-      btn('outline', '🌳', 'Outline view'),
-      btn('components', '🧩', 'Component palette'),
+      btn('outline', 'Out', 'Outline view'),
+      btn('components', 'Cmp', 'Component palette'),
     );
   };
 

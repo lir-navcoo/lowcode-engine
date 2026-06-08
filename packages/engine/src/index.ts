@@ -4,16 +4,16 @@
  * Sapu's L7 — the composition root. The ONE package a host
  * installs to get a working visual editor.
  *
- * Status (L7.1–L7.5 complete):
- *   - L7.1 ✅ Package skeleton + L0–L6 deps
- *   - L7.2 ✅ `init(container, options)` async entry point
- *   - L7.3 ✅ 3 default plugins (outline-pane, settings-panel, setters)
- *   - L7.4 ✅ `createDefaultPreset(overrides?)` factory
- *   - L7.5 ✅ `setTheme(name)` + `getTheme()` singleton
- *   - L7.6 ✅ ignitor deprecation shim (separate PR)
- *   - L7.7 ✅ demo uses `init()` as the entry point
- *   - L7.8 ✅ docs in `docs/packages/engine.md`
- *   - L7.9 ✅ top-level `README.md` rewrite
+ * Status (L7.1–L7.9 complete):
+ *   - L7.1 [done] Package skeleton + L0–L6 deps
+ *   - L7.2 [done] `init(container, options)` async entry point
+ *   - L7.3 [done] 3 default plugins (outline-pane, settings-panel, setters)
+ *   - L7.4 [done] `createDefaultPreset(overrides?)` factory
+ *   - L7.5 [done] `setTheme(name)` + `getTheme()` singleton
+ *   - L7.6 [done] ignitor deprecation shim (separate PR)
+ *   - L7.7 [done] demo uses `init()` as the entry point
+ *   - L7.8 [done] docs in `docs/packages/engine.md`
+ *   - L7.9 [done] top-level `README.md` rewrite
  *
  * Sapu stance: no UMD bundle (sapu ships CJS+ESM only), no
  * 28-component Fusion re-export, no plugin auto-registration from

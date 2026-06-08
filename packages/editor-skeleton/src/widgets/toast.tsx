@@ -16,6 +16,8 @@
 import { useEffect, useState } from 'react';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 
+import { CloseIcon } from './icons';
+
 const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
   adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
 
@@ -106,7 +108,7 @@ export function SapuToaster(props: SapuToasterProps) {
               'hover:bg-black/5',
             onClick: () => props.manager.dismiss(item.id),
           },
-          '✕',
+          h()(CloseIcon, {}),
         ),
       );
     }),

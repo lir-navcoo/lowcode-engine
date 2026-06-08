@@ -15,11 +15,13 @@
  * - Position: tracked in state. Defaults to the top-right of the
  *   parent container, offset by 16px.
  *
- * Tailwind v4 utilities for styling. No hand-rolled CSS.
+ * Styling: Tailwind v4 utilities. No hand-rolled CSS.
  */
 
 import { useState } from 'react';
 import { adapter } from '@monbolc/lowcode-renderer-core';
+
+import { CloseIcon } from './icons';
 
 const h = (): ((type: unknown, props?: unknown, ...children: unknown[]) => unknown) =>
   adapter.getRuntime().createElement as (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
@@ -110,7 +112,7 @@ export function SapuFloatingPanel(props: SapuFloatingPanelProps) {
                 'rounded hover:bg-slate-200',
               'aria-label': 'Close panel',
             },
-            '✕',
+            h()(CloseIcon, {}),
           )
         : null,
     ),

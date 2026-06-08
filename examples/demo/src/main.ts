@@ -94,16 +94,16 @@ const HexColor: SetterComponent = ({ value, onChange }: SetterProps) => {
 // 3. Component registry — what the canvas simulator renders.
 // ---------------------------------------------------------------------------
 const components: Record<string, React.FC<any>> = {
-  Header:  (p) => React.createElement('header',  { ...p, style: { ...p.style, padding: 12, background: '#dbeafe', borderRadius: 4, marginBottom: 8 } }, '🏠 Header'),
+  Header:  (p) => React.createElement('header',  { ...p, style: { ...p.style, padding: 12, background: '#dbeafe', borderRadius: 4, marginBottom: 8 } }, 'Header'),
   Body:    (p) => React.createElement('section', { ...p, style: { ...p.style, display: 'flex', gap: 8 } }, p.children),
   // `p.bg` may arrive in either CSS-hex form (`#fff3c7`) or
   // 0x-prefixed form (`0xfff3c7`, the HexColor setter's output).
   // CSS only understands the first; the converter preserves the
   // 0x format the setter produces so the canvas + the value
   // shown in the setter stay in sync.
-  Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: hexToCss(p.bg) ?? '#fef3c7', borderRadius: 4 } }, '📚 Sidebar'),
-  Main:    (p) => React.createElement('main',    { ...p, style: { ...p.style, flex: 1, padding: 12, background: '#dcfce7', borderRadius: 4 } }, '📄 Main'),
-  Footer:  (p) => React.createElement('footer',  { ...p, style: { ...p.style, padding: 12, background: '#fce7f3', borderRadius: 4, marginTop: 8 } }, '🦶 Footer'),
+  Sidebar: (p) => React.createElement('aside',   { ...p, style: { ...p.style, width: 200, padding: 12, background: hexToCss(p.bg) ?? '#fef3c7', borderRadius: 4 } }, 'Sidebar'),
+  Main:    (p) => React.createElement('main',    { ...p, style: { ...p.style, flex: 1, padding: 12, background: '#dcfce7', borderRadius: 4 } }, 'Main'),
+  Footer:  (p) => React.createElement('footer',  { ...p, style: { ...p.style, padding: 12, background: '#fce7f3', borderRadius: 4, marginTop: 8 } }, 'Footer'),
 };
 
 // ---------------------------------------------------------------------------
@@ -289,31 +289,12 @@ function App({ engine }: { engine: ISapuEngine }) {
         React.createElement(Skeleton as any, {
           project: project2,
           components,
-          // The second doc also gets a tiny left-area with a reset
-          // button, so it stays self-contained without sharing state
-          // with the first.
-          leftArea: () =>
-            React.createElement(
-              'button',
-              {
-                className:
-                  'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-                  'rounded hover:bg-slate-100 text-sm',
-                onClick: () => {
-                  // Reset doc 2 to its own seed schema.
-                  project2.load({
-                    fileName: 'second.json',
-                    componentName: 'Page',
-                    children: [
-                      { componentName: 'Header', props: { className: 'header-2' } },
-                      { componentName: 'Main',   props: { className: 'main-2' } },
-                    ],
-                  });
-                },
-                title: 'Reset doc 2',
-              },
-              '↻',
-            ),
+          // No custom leftArea: the second Skeleton falls back to
+          // the Skeleton's default leftArea (the Out/Cmp view
+          // switcher). The demo's previous "reset doc 2" button
+          // was an extra convenience that's been removed along
+          // with the other extras in the first Skeleton's leftArea
+          // — "close + reopen" is the supported way to reset.
         }),
       );
       setSecondRoot(root2);
@@ -403,8 +384,9 @@ function App({ engine }: { engine: ISapuEngine }) {
   // of the outline panel. Ali's `leftArea` is the icon column.
   // The demo uses CONTROLLED mode (`leftView` + `onLeftViewChange`
   // wired to <Skeleton>) so the user can flip between the Outline
-  // tree and the Component palette (drag-and-drop source). The
-  // ⧉ and ↻ buttons are demo-only (open second doc / reset).
+  // tree and the Component palette (drag-and-drop source).
+  // Labels are 3-letter abbreviations so they render the same
+  // across fonts/OSes; full word goes in the title tooltip.
   const leftArea = () =>
     React.createElement(
       'div',
@@ -414,47 +396,24 @@ function App({ engine }: { engine: ISapuEngine }) {
         {
           className:
             'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-            'rounded hover:bg-slate-100 text-sm ' +
+            'rounded hover:bg-slate-100 text-[10px] font-mono ' +
             (leftView === 'outline' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : ''),
           onClick: () => setLeftView('outline'),
           title: 'Outline view',
         },
-        '🌳',
+        'Out',
       ),
       React.createElement(
         'button',
         {
           className:
             'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-            'rounded hover:bg-slate-100 text-sm ' +
+            'rounded hover:bg-slate-100 text-[10px] font-mono ' +
             (leftView === 'components' ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : ''),
           onClick: () => setLeftView('components'),
           title: 'Component palette (drag to canvas)',
         },
-        '🧩',
-      ),
-      React.createElement('div', { className: 'w-5 h-px bg-slate-200 my-0.5' }),
-      React.createElement(
-        'button',
-        {
-          className:
-            'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-            'rounded hover:bg-slate-100 text-sm',
-          onClick: onToggleSecond,
-          title: secondActive ? 'Close the second document' : 'Open a second document',
-        },
-        '⧉',
-      ),
-      React.createElement(
-        'button',
-        {
-          className:
-            'w-7 h-7 flex items-center justify-center border border-slate-200 ' +
-            'rounded hover:bg-slate-100 text-sm',
-          onClick: onReset,
-          title: 'Reset the document',
-        },
-        '↻',
+        'Cmp',
       ),
     );
 
@@ -468,7 +427,7 @@ function App({ engine }: { engine: ISapuEngine }) {
             'data-testid': 'plugin-error-banner',
             className: 'bg-rose-50 border-b border-rose-200 px-3 py-1 text-[11px] text-rose-700 flex items-center gap-2',
           },
-          `⚠ ${pluginErrorCount} plugin error${pluginErrorCount === 1 ? '' : 's'} since page load. See browser console for details.`,
+          `Plugin errors: ${pluginErrorCount} since page load. See browser console for details.`,
         )
       : null,
     React.createElement(
