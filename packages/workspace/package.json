@@ -37,7 +37,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:monbolc/sapu-lowcode-engine.git",
+    "url": "git@github.com:lir-navcoo/lowcode-engine.git",
     "directory": "packages/workspace"
   },
   "keywords": [
