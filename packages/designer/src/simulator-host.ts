@@ -368,9 +368,17 @@ export class BuiltinSimulatorHost {
       this.pendingClick = null;
       return;
     }
-    // Selection always updates on pointerdown — even if the user
-    // turns out to be starting a drag.
-    this.project.select(hit.hitId);
+    // v2.3.1: do NOT call `project.select(...)` here. The legacy
+    // behavior was to select on pointerdown, but that meant a
+    // user dragging a node saw it get selected mid-drag (and the
+    // boost-from-palette path also "selected" whatever canvas
+    // node happened to be under the pointer as the drag started).
+    // Conventional UX (Figma / VS Code / Finder) defers the
+    // selection to pointerup — a click without movement selects;
+    // a click with movement becomes a drag, and the drag itself
+    // decides the post-drop selection (move = no change, boost
+    // = the freshly-inserted node). `handleUp` flushes the
+    // pendingClick when no drag started.
     this.pendingClick = { id: hit.hitId, x: e.clientX, y: e.clientY };
   }
 
@@ -397,9 +405,18 @@ export class BuiltinSimulatorHost {
   }
 
   private handleUp(_e: PointerEvent): void {
-    this.pendingClick = null;
     this.scroller.cancel();
-    if (!this.project.dragon.isDragging) return;
+    if (!this.project.dragon.isDragging) {
+      // No drag started — this was a plain click on a canvas
+      // node. Commit the deferred selection from `handleDown`.
+      // (A click on empty canvas leaves `pendingClick === null`
+      // and selection is preserved.)
+      if (this.pendingClick) {
+        this.project.select(this.pendingClick.id);
+      }
+      this.pendingClick = null;
+      return;
+    }
     const result = this.project.dragon.commit();
     if (!result) return;
     this.commitDrop(result);

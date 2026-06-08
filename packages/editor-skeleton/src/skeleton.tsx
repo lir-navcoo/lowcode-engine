@@ -19,6 +19,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { adapter } from '@monbolc/lowcode-renderer-core';
 import { OutlinePane, OutlineView } from '@monbolc/lowcode-plugin-outline-pane';
 import { Project } from '@monbolc/lowcode-designer';
+import type { IPublicModelDragon, IPublicTypeNodeLike } from '@monbolc/lowcode-types';
 
 import { SettingsPanel } from './settings-panel';
 import { ComponentPalette } from './component-palette';
@@ -66,6 +67,14 @@ export interface SkeletonProps {
    * settings panel shows "Props (0)".
    */
   componentMeta?: Record<string, Record<string, unknown>>;
+  /**
+   * v2.3: the public Dragon facade from the host's engine. When
+   * provided, the ComponentPalette uses `dragon.from(rowEl, ...)`
+   * (the ali-faithful P7 path) instead of the manual
+   * `onPointerDown` → `dragon.boost(...)` path. Optional —
+   * omitting it keeps the v2.2 manual path for back-compat.
+   */
+  dragon?: IPublicModelDragon<IPublicTypeNodeLike>;
   /**
    * Content for the **top area** (a thin toolbar row that spans the
    * full editor width above the 3-pane layout). Mirrors ali's
@@ -237,7 +246,7 @@ export function Skeleton(props: SkeletonProps) {
   const leftBody =
     leftView === 'outline'
       ? h()(OutlineView, { pane, onRowClick: (id: string) => onOutlineSelect(id) })
-      : h()(ComponentPalette, { project: props.project, components: props.components, componentMeta: props.componentMeta });
+      : h()(ComponentPalette, { project: props.project, components: props.components, componentMeta: props.componentMeta, dragon: props.dragon });
 
   return h()('div', { className: CN.skel },
     h()(PanelGroup, { direction: 'horizontal', autoSaveId: 'sapu-skel', className: CN.skel },

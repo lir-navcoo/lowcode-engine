@@ -261,10 +261,41 @@ describe('BuiltinSimulatorHost pointer interactions', () => {
     }
   });
 
-  it('pointerdown on a tagged node selects it', () => {
-    // y=90 → inside body's rect.
+  it('pointerdown + pointerup on a tagged node (no movement) selects it', () => {
+    // v2.3.1: selection is DEFERRED to pointerup. A click without
+    // movement past the drag threshold is a "select"; a click with
+    // movement becomes a drag and the drag decides post-drop
+    // selection (move = no change, boost = the inserted node).
     (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    // pointerdown alone: selection is still the initial empty set.
+    expect(project.selectedIds).toEqual([]);
+    // pointerup without movement past threshold commits the
+    // deferred select.
+    (host as unknown as { handleUp: (e: PointerEvent) => void }).handleUp(new PointerEvent('pointerup'));
     expect(project.selectedIds).toEqual([bodyId]);
+  });
+
+  it('pointerdown on a tagged node that turns into a drag does NOT select', () => {
+    // The user clicks Body and drags it. The pointerdown alone
+    // does not select (deferred to pointerup); the subsequent
+    // pointermove past the threshold promotes to a drag and
+    // `pendingClick` is cleared. The deferred select is dropped
+    // because a drag started.
+    //
+    // We intentionally DON'T call `handleUp` here: the test
+    // fixture's drop target resolves to "drop Body inside itself"
+    // (a self-move), which would recurse in `unindexSubtree`. The
+    // point of this test is the deferred-select behaviour, not
+    // the commit path — that's covered by the other move tests.
+    (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
+    // pointerdown alone: selection is still the initial empty set.
+    expect(project.selectedIds).toEqual([]);
+    // Move past the 4px threshold — promotes to a drag, clears
+    // pendingClick, fires `dragon.start`.
+    (host as unknown as { handleMove: (e: PointerEvent) => void }).handleMove(new PointerEvent('pointermove', { clientX: 70, clientY: 90 }));
+    expect(project.dragon.isDragging).toBe(true);
+    // The deferred select was dropped — selection is still empty.
+    expect(project.selectedIds).toEqual([]);
   });
 
   it('pointerdown on an empty canvas does not change selection', () => {
@@ -288,10 +319,11 @@ describe('BuiltinSimulatorHost pointer interactions', () => {
     expect(project.dragon.state.draggingNodeId).toBe(bodyId);
   });
 
-  it('pointerup without movement keeps selection and does not mutate the document', () => {
+  it('pointerup without movement selects the clicked node and does not mutate the document', () => {
     (host as unknown as { handleDown: (e: PointerEvent) => void }).handleDown(new PointerEvent('pointerdown', { clientX: 50, clientY: 90, button: 0 }));
     (host as unknown as { handleUp: (e: PointerEvent) => void }).handleUp(new PointerEvent('pointerup'));
-    // Selection still set to body (set by pointerdown).
+    // v2.3.1: selection is deferred to pointerup. With no movement
+    // past the drag threshold, handleUp flushes the pending select.
     expect(project.selectedIds).toEqual([bodyId]);
     // Document unchanged.
     const rootChildren = project.document.root.children ?? [];

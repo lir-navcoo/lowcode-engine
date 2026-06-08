@@ -38,6 +38,7 @@ import { Skeleton, OutlineIcon, ComponentsIcon } from '@monbolc/lowcode-editor-s
 import { Resource, Workspace } from '@monbolc/lowcode-workspace';
 import { SapuErrorBoundary, type ISapuEngine } from '@monbolc/lowcode-shell';
 import { init, createDefaultPreset } from '@monbolc/lowcode-engine';
+import type { IPublicTypeDragObject, IPublicTypeNodeLike } from '@monbolc/lowcode-types';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
 import {
   registerSetter,
@@ -256,6 +257,43 @@ function App({ engine }: { engine: ISapuEngine }) {
   // a one-line banner via a `pluginErrorCount` state so the user
   // sees something happened without digging through console logs.
   const [pluginErrorCount, setPluginErrorCount] = useState(0);
+
+  // Dragon activity log (P5 PublicDragon facade proof). Each
+  // entry is `{ts, kind, payload, copy?}`; we keep the most
+  // recent 8 and render them in the top-right corner so the
+  // user can SEE the new facade dispatching events when they
+  // drag a palette row onto the canvas.
+  type Activity =
+    | { ts: number; kind: 'dragstart'; dragObject: IPublicTypeDragObject<IPublicTypeNodeLike>; copy: boolean }
+    | { ts: number; kind: 'drag'; x: number; y: number; dragObject: IPublicTypeDragObject<IPublicTypeNodeLike>; copy: boolean }
+    | { ts: number; kind: 'dragend'; dragObject: IPublicTypeDragObject<IPublicTypeNodeLike>; copy: boolean; cancelled: boolean };
+  const [activity, setActivity] = useState<Activity[]>([]);
+  const [dragonState, setDragonState] = useState({ dragging: false, boosting: false, sensors: 0 });
+  useEffect(() => {
+    const off1 = engine.dragon.onDragstart((e) => {
+      setActivity((a) => [...a.slice(-7), { ts: Date.now(), kind: 'dragstart', dragObject: e.dragObject, copy: e.copy }]);
+    });
+    const off2 = engine.dragon.onDrag((e) => {
+      setActivity((a) => [...a.slice(-7), { ts: Date.now(), kind: 'drag', x: e.locateEvent.clientX, y: e.locateEvent.clientY, dragObject: e.dragObject, copy: e.copy }]);
+    });
+    const off3 = engine.dragon.onDragend((e) => {
+      setActivity((a) => [...a.slice(-7), { ts: Date.now(), kind: 'dragend', dragObject: e.dragObject, copy: e.copy, cancelled: e.cancelled }]);
+    });
+    return () => { off1(); off2(); off3(); };
+  }, [engine]);
+  // Poll the public Dragon's state 5× per second. The wrapper
+  // doesn't expose a "stateChanged" event (ali doesn't either);
+  // a cheap 200ms poll is the documented escape hatch.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDragonState({
+        dragging: engine.dragon.dragging,
+        boosting: engine.dragon.boosting,
+        sensors: engine.dragon.sensors.length,
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, [engine]);
   useEffect(() => {
     const off = engine.events.on('pluginError', () => {
       setPluginErrorCount((n) => n + 1);
@@ -487,7 +525,7 @@ function App({ engine }: { engine: ISapuEngine }) {
       : null,
     React.createElement(
       'div',
-      { className: 'flex-1 min-h-0' },
+      { className: 'flex-1 min-h-0 relative' },
       React.createElement(
         SapuErrorBoundary as any,
         { engine },
@@ -501,10 +539,68 @@ function App({ engine }: { engine: ISapuEngine }) {
           leftArea,
           leftView,
           onLeftViewChange: setLeftView,
+          // v2.3: pass the public Dragon facade so ComponentPalette
+          // uses `dragon.from(rowEl, ...)` instead of the manual
+          // `onPointerDown` path. The activity panel below the
+          // Skeleton will then show the dragstart/drag/dragend
+          // events as the user drags a palette row.
+          dragon: engine.dragon,
         }),
+      ),
+      // P5 PublicDragon facade proof: a fixed bottom-right panel
+      // showing live Dragon state + the last 8 events. When the
+      // user drags a palette row onto the canvas, `dragstart →
+      // drag* → dragend` entries stream in here, proving the
+      // facade is wired end-to-end. Monospace, no animations, no
+      // icons — minimal UI noise.
+      React.createElement(
+        'div',
+        {
+          'data-testid': 'dragon-activity-panel',
+          className:
+            'absolute bottom-2 right-2 w-72 max-h-56 overflow-auto ' +
+            'bg-slate-900/95 text-slate-100 text-[10px] font-mono ' +
+            'rounded shadow-lg border border-slate-700 p-2 z-[10000]',
+        },
+        React.createElement(
+          'div',
+          { className: 'flex items-center justify-between mb-1' },
+          React.createElement('span', { className: 'font-semibold text-amber-300' }, 'engine.dragon'),
+          React.createElement(
+            'span',
+            { className: 'text-slate-400', 'data-testid': 'dragon-state' },
+            `dragging=${dragonState.dragging ? '1' : '0'} boosting=${dragonState.boosting ? '1' : '0'} sensors=${dragonState.sensors}`,
+          ),
+        ),
+        activity.length === 0
+          ? React.createElement('div', { className: 'text-slate-500 italic' }, 'drag a palette row → events stream here')
+          : activity.map((a, i) => {
+              const obj = describeDragObject(a.dragObject);
+              const copyTag = a.kind === 'dragstart' || a.kind === 'drag' || a.kind === 'dragend'
+                ? (a.copy ? ' COPY' : '')
+                : '';
+              const cancelledTag = a.kind === 'dragend' && a.cancelled ? ' cancelled' : '';
+              const xyTag = a.kind === 'drag' ? ` @(${a.x},${a.y})` : '';
+              const kind = a.kind === 'dragstart' ? '▶ start' : a.kind === 'drag' ? '  drag' : '◼ end  ';
+              return React.createElement(
+                'div',
+                { key: i, 'data-testid': 'dragon-event', className: 'leading-tight' },
+                `${kind}${xyTag} ${obj}${copyTag}${cancelledTag}`,
+              );
+            }),
       ),
     ),
   );
+}
+
+/** Compact one-liner for an `IPublicTypeDragObject`. Used in the
+ *  activity panel so the user can SEE what kind of drag just
+ *  fired (palette item → '+Footer' vs canvas node → '↔Sidebar'
+ *  vs opaque → 'Any?'). */
+function describeDragObject(obj: IPublicTypeDragObject<IPublicTypeNodeLike>): string {
+  if (obj.type === 'Node') return obj.nodes.length === 0 ? '∅' : `↔ ${obj.nodes[0]?.componentName ?? '?'}`;
+  if (obj.type === 'NodeData') return `+ ${obj.data.componentName}`;
+  return 'Any?';
 }
 
 // ---------------------------------------------------------------------------
