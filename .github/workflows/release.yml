@@ -123,6 +123,11 @@ jobs:
               [ -f "$p" ] && echo "  ✓ $p" || echo "  ✗ $p MISSING"
             done
             echo ""
+            echo "--- direct npm publish test (smallest pkg, --dry-run, captures what npm itself says) ---"
+            cd packages/types
+            npm publish --dry-run --access public 2>&1 | head -30 || true
+            cd ../..
+            echo ""
             echo "===== DRY RUN COMPLETE — no publish ====="
           else
             npx lerna publish from-package --yes
