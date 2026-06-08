@@ -18,3 +18,57 @@
    In Tailwind v4 the @source directive replaces the old
    `content: [...]` from tailwind.config.js. */
 @source "../../../packages/*/src/**/*.{ts,tsx,js,jsx}";
+
+/* ----------------------------------------------------------------------------
+   Dark theme support
+   ----------------------------------------------------------------------------
+   The L7 `setTheme('dark')` flips `<html data-theme="dark">`. The
+   Skeleton's own elements use Tailwind utilities, which we leave
+   light by default (the Skeleton's CSS doesn't ship dark: variants
+   yet — that's a follow-up to this demo's i18n + theme work). The
+   demo's chrome (header, status bar, dragon activity panel) flips
+   below. The transition is instant; the demo doesn't try to animate
+   the color flip (we want the switch to feel like a "mode change",
+   not a transition). */
+
+html[data-theme="dark"] body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+html[data-theme="dark"] .demo-header {
+  background: #0f172a;
+  border-bottom-color: #1e293b;
+}
+html[data-theme="dark"] .demo-header h1 {
+  color: #f1f5f9;
+}
+html[data-theme="dark"] .demo-header button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+html[data-theme="dark"] .demo-header button:hover {
+  background: #334155;
+}
+html[data-theme="dark"] .demo-statusbar {
+  background: #0f172a;
+  border-top-color: #1e293b;
+  color: #94a3b8;
+}
+html[data-theme="dark"] .demo-statusbar .sb-key {
+  color: #64748b;
+}
+html[data-theme="dark"] .demo-statusbar .sb-value {
+  color: #cbd5e1;
+}
+html[data-theme="dark"] .demo-statusbar .sb-sep {
+  background: #1e293b;
+}
+/* The dragon activity panel was tuned for the slate-900 dark
+   surface — it's already dark; just bump the border in dark mode
+   so it doesn't visually melt into the new dark background. */
+html[data-theme="dark"] [data-testid="dragon-activity-panel"] {
+  border-color: #334155;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.4);
+}
+

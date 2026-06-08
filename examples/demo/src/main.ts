@@ -33,11 +33,12 @@ import './styles.css';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { createPortal } from 'react-dom';
 import { Project } from '@monbolc/lowcode-designer';
 import { Skeleton, OutlineIcon, ComponentsIcon } from '@monbolc/lowcode-editor-skeleton';
 import { Resource, Workspace } from '@monbolc/lowcode-workspace';
-import { SapuErrorBoundary, type ISapuEngine } from '@monbolc/lowcode-shell';
-import { init, createDefaultPreset } from '@monbolc/lowcode-engine';
+import { SapuErrorBoundary, type ISapuEngine, type I18nMessage } from '@monbolc/lowcode-shell';
+import { init, createDefaultPreset, setTheme, getTheme, onThemeChange } from '@monbolc/lowcode-engine';
 import type { IPublicTypeDragObject, IPublicTypeNodeLike } from '@monbolc/lowcode-types';
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
 import {
@@ -46,6 +47,15 @@ import {
   type SetterProps,
 } from '@monbolc/lowcode-plugin-setters';
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
+
+// Engine + designer package version constants for the StatusBar.
+// The `@monbolc/lowcode-engine` and `@monbolc/lowcode-designer`
+// packages both pin to `2.2.0`; the StatusBar surfaces them so
+// the user can see which build the demo is running. Relative
+// paths (not the `@monbolc/*` aliases) so the Vite alias for
+// `<pkg>/src/index.ts` doesn't intercept the json import.
+import ENGINE_PKG from '../../../packages/engine/package.json';
+import DESIGNER_PKG from '../../../packages/designer/package.json';
 
 // Note: setupReactRenderer() is no longer called here — the L7
 // `init()` below installs the React 19 runtime as its first step.
@@ -116,9 +126,23 @@ const components: Record<string, React.FC<any>> = {
 };
 
 // ---------------------------------------------------------------------------
-// 4. Initial schema.
+// 4. Initial schema + preset schemas (the "Schema" picker in the
+//    topArea lets the user swap between these without reloading).
+//    Each preset is a real `IPublicTypeRootSchema` — same shape as
+//    a saved JSON file would be — and exercises different facets of
+//    the engine:
+//      - `home`   — default 4-pane layout (Header / Body / Footer / etc.)
+//      - `form`   — Form container with Input + Text, exercises the
+//                   `text: string` → `<Input>` setter wiring
+//      - `cards`  — 3 nested Divs with distinct background colors,
+//                   exercises per-instance rect math on multi-instance
+//                   components
+//      - `empty`  — bare Header only, lets the user start from scratch
+//                   with the palette
 // ---------------------------------------------------------------------------
-const initialSchema = {
+type PresetId = 'home' | 'form' | 'cards' | 'empty';
+
+const homeSchema = {
   fileName: 'home.json',
   componentName: 'Page',
   children: [
@@ -127,14 +151,99 @@ const initialSchema = {
       { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xfff3c7' } },
       { componentName: 'Main',    props: { className: 'main'    } },
     ] },
-    // A generic `Div` container (so the user can see what an empty
-    // container looks like, and drag child components into it) and
-    // a `Text` showing the `text` prop wired through to the DOM.
-    // Both also appear in the Component palette, so they're
-    // drag-and-drop targets as well.
     { componentName: 'Div',  props: { className: 'div-demo' } },
     { componentName: 'Text', props: { text: 'Hello from Text' } },
   ],
+} as const;
+
+const formSchema = {
+  fileName: 'form.json',
+  componentName: 'Page',
+  children: [
+    { componentName: 'Header', props: { className: 'header' } },
+    { componentName: 'Body', props: { className: 'body' }, children: [
+      { componentName: 'Text', props: { text: 'Sign up' } },
+      { componentName: 'Text', props: { text: 'Name' } },
+      { componentName: 'Text', props: { text: 'Email' } },
+      { componentName: 'Text', props: { text: 'Submit' } },
+    ] },
+  ],
+} as const;
+
+const cardsSchema = {
+  fileName: 'cards.json',
+  componentName: 'Page',
+  children: [
+    { componentName: 'Header', props: { className: 'header' } },
+    { componentName: 'Body', props: { className: 'body' }, children: [
+      { componentName: 'Main', props: { className: 'main' } },
+      { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xfde68a' } },
+      { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xbbf7d0' } },
+      { componentName: 'Sidebar', props: { className: 'sidebar', bg: '0xbfdbfe' } },
+    ] },
+  ],
+} as const;
+
+const emptySchema = {
+  fileName: 'empty.json',
+  componentName: 'Page',
+  children: [
+    { componentName: 'Header', props: { className: 'header' } },
+  ],
+} as const;
+
+const SCHEMA_PRESETS: Record<PresetId, IPublicTypeRootSchema> = {
+  home: homeSchema as unknown as IPublicTypeRootSchema,
+  form: formSchema as unknown as IPublicTypeRootSchema,
+  cards: cardsSchema as unknown as IPublicTypeRootSchema,
+  empty: emptySchema as unknown as IPublicTypeRootSchema,
+};
+
+const PRESET_LABELS: Record<PresetId, string> = {
+  home: 'Home (default)',
+  form: 'Form (text inputs)',
+  cards: 'Cards (multi-instance)',
+  empty: 'Empty (palette playground)',
+};
+
+// `initialSchema` is what the demo loads on first paint. We keep
+// `homeSchema` (the default) as the initial; the picker lets the
+// user switch to the others without reloading the page.
+const initialSchema = SCHEMA_PRESETS.home;
+
+// ---------------------------------------------------------------------------
+// 4a. Demo i18n messages — register a small set of keys so the
+//     StatusBar can call `engine.t('status.project')` etc. and the
+//     locale switcher in the topArea can flip them visibly. The keys
+//     are scoped under `status.*` (StatusBar labels) and `button.*`
+//     (topArea buttons). Production apps register their own keys
+//     per feature; this is the demo's minimum surface.
+// ---------------------------------------------------------------------------
+const DEMO_I18N: Record<string, Record<string, string>> = {
+  en: {
+    'status.project': 'Project',
+    'status.schema': 'Schema',
+    'status.nodes': 'Nodes',
+    'status.selection': 'Selection',
+    'status.theme': 'Theme',
+    'status.locale': 'Locale',
+    'status.engine': 'Engine',
+    'button.theme': 'Theme',
+    'button.locale': 'Locale',
+    'button.schema': 'Schema',
+  },
+  'zh-CN': {
+    'status.project': '项目',
+    'status.schema': 'Schema',
+    'status.nodes': '节点数',
+    'status.selection': '选中',
+    'status.theme': '主题',
+    'status.locale': '语言',
+    'status.engine': '引擎',
+    'button.theme': '主题',
+    'button.locale': '语言',
+    'button.schema': 'Schema',
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -162,6 +271,85 @@ function App({ engine }: { engine: ISapuEngine }) {
   // leftArea slot can flip the state. Without this, the user has
   // no way to switch between Outline and Component palette.
   const [leftView, setLeftView] = useState<'outline' | 'components'>('outline');
+
+  // Phase C.Y demo polish: live theme + locale + selection counts
+  // for the StatusBar. The initial theme is the L7 singleton
+  // (set by `init()` from the L7 preset's `theme` field); the
+  // initial locale matches what `detectLocale()` picked.
+  const [theme, setThemeState] = useState<'light' | 'dark'>(getTheme());
+  // The locale is sourced from the engine's ShellI18n. The
+  // `detectLocale()` is internal to L7; we just read the current
+  // value at mount and trust subsequent `setLocale` calls.
+  const [locale, setLocaleState] = useState<string>(engine.i18n.locale);
+  // Live selection count (StatusBar reflects `n selected`). Starts
+  // at 0; the first `selectionChanged` event updates it.
+  const [selectionCount, setSelectionCount] = useState<number>(0);
+  // Live total node count (just the document node map size).
+  const [nodeCount, setNodeCount] = useState<number>(project.document.nodes.size);
+  // The currently-loaded preset (drives the schema picker).
+  const [activePreset, setActivePreset] = useState<PresetId>('home');
+
+  // Register the demo i18n messages ONCE at mount. The keys
+  // use the `I18nMessage` shape: `{ default, 'en-US'?, 'zh-CN'? }`.
+  // `engine.i18n.register()` accepts string OR I18nMessage values;
+  // we always pass the structured form so the locale switcher
+  // has a visible effect.
+  useEffect(() => {
+    const flattened: Record<string, I18nMessage> = {};
+    for (const [key, valByLocale] of Object.entries(DEMO_I18N)) {
+      flattened[key] = {
+        default: valByLocale.en ?? key,
+        ...(valByLocale['en-US'] ? { 'en-US': valByLocale['en-US'] } : {}),
+        ...(valByLocale['zh-CN'] ? { 'zh-CN': valByLocale['zh-CN'] } : {}),
+      };
+    }
+    engine.i18n.register(flattened);
+  }, [engine]);
+
+  // Subscribe to theme changes (L7's setTheme fires
+  // `onThemeChange(from, to)`). The hook keeps the React state
+  // in sync so the StatusBar's `theme` label flips immediately
+  // and the toggle button in topArea shows the right state.
+  useEffect(() => {
+    return onThemeChange((_from, to) => setThemeState(to));
+  }, []);
+
+  // Subscribe to selection + node-count changes on the project.
+  // The Project re-emits `selectionChanged` whenever the
+  // selection is mutated; we keep a live count for the StatusBar.
+  // Document changes (`nodeAdded` / `nodeRemoved` / `rootChanged`)
+  // drive the node count.
+  useEffect(() => {
+    const off1 = project.events.on('selectionChanged', (e) => {
+      setSelectionCount(e.ids.length);
+    });
+    const off2 = project.events.on('nodeAdded', () => {
+      setNodeCount(project.document.nodes.size);
+    });
+    const off3 = project.events.on('nodeRemoved', () => {
+      setNodeCount(project.document.nodes.size);
+    });
+    const off4 = project.events.on('rootChanged', () => {
+      setNodeCount(project.document.nodes.size);
+    });
+    return () => { off1(); off2(); off3(); off4(); };
+  }, [project]);
+
+  // Theme / locale toggle handlers.
+  const onToggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+    // The `onThemeChange` subscription above will update local state.
+  };
+  const onToggleLocale = () => {
+    const next: 'en-US' | 'zh-CN' = locale === 'zh-CN' ? 'en-US' : 'zh-CN';
+    engine.i18n.setLocale(next);
+    setLocaleState(next);
+  };
+  const onPickSchema = (e: { target: { value: string } }) => {
+    const id = e.target.value as PresetId;
+    setActivePreset(id);
+    setSchema(SCHEMA_PRESETS[id]);
+  };
 
   // Push schema into the project AFTER render, never during it.
   useEffect(() => {
@@ -418,10 +606,18 @@ function App({ engine }: { engine: ISapuEngine }) {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
+    // Windows/Linux redo convention: Ctrl+Y (in addition to Ctrl+Shift+Z).
+    // Check this BEFORE the Z filter so the typecheck sees the
+    // comparison is reachable.
+    if (e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      void engine.commands.redo();
+      return;
+    }
     if (e.key !== 'z' && e.key !== 'Z') return;
     e.preventDefault();
-    if (e.shiftKey || e.key === 'Y' || e.key === 'y') {
-      // Cmd+Shift+Z (Mac) / Ctrl+Shift+Z (Win/Linux) / Ctrl+Y
+    if (e.shiftKey) {
+      // Cmd+Shift+Z (Mac) / Ctrl+Shift+Z (Win/Linux)
       void engine.commands.redo();
     } else {
       void engine.commands.undo();
@@ -481,6 +677,49 @@ function App({ engine }: { engine: ISapuEngine }) {
           title: 'Register the HexColor setter for Sidebar.bg',
         },
         customOn ? 'HexColor: on' : 'HexColor: off',
+      ),
+      React.createElement('div', { className: 'w-px h-4 bg-slate-200 mx-0.5' }),
+      // Phase C.Y demo polish: theme + locale + schema preset
+      // switchers. Wire into L7's setTheme / engine.i18n.setLocale
+      // / project.load respectively. The StatusBar at the bottom
+      // reflects the live values via onThemeChange + event
+      // subscriptions declared in App().
+      React.createElement(
+        'button',
+        {
+          'data-testid': 'theme-toggle',
+          className:
+            'px-2 py-0.5 border rounded text-[11px] ' +
+            (theme === 'dark'
+              ? 'border-slate-500 bg-slate-700 text-slate-100'
+              : 'border-slate-300 bg-white hover:bg-slate-50'),
+          onClick: onToggleTheme,
+          title: "L7 setTheme: flip <html data-theme> between 'light' and 'dark'",
+        },
+        `Theme: ${theme}`,
+      ),
+      React.createElement(
+        'button',
+        {
+          'data-testid': 'locale-toggle',
+          className: 'px-2 py-0.5 border border-slate-300 rounded bg-white hover:bg-slate-50 text-[11px]',
+          onClick: onToggleLocale,
+          title: "L6.5 ShellI18n.setLocale: flip between en-US and zh-CN (re-renders StatusBar labels)",
+        },
+        `Locale: ${locale}`,
+      ),
+      React.createElement(
+        'select',
+        {
+          'data-testid': 'schema-picker',
+          value: activePreset,
+          onChange: onPickSchema,
+          title: 'Pick a preset schema. Calls project.load() to swap the document.',
+          className: 'px-1.5 py-0.5 border border-slate-300 rounded bg-white text-[11px]',
+        },
+        (Object.keys(SCHEMA_PRESETS) as PresetId[]).map((id) =>
+          React.createElement('option', { key: id, value: id }, PRESET_LABELS[id]),
+        ),
       ),
       React.createElement('div', { className: 'w-px h-4 bg-slate-200 mx-0.5' }),
       // L6.7 — Inject crash. Registers a plugin whose init() throws.
@@ -625,6 +864,89 @@ function App({ engine }: { engine: ISapuEngine }) {
               );
             }),
       ),
+      // Phase C.Y demo polish: StatusBar. A 24px-tall chrome
+      // bar that lives at the bottom of the Skeleton row. Shows
+      // live engine state — version, schema, node count,
+      // selection count, theme, locale. The values flip in
+      // response to user actions (schema picker, theme toggle,
+      // locale toggle, click an outline row to change the
+      // selection, undo/redo to change the command stack).
+      //
+      // Render target is the `#statusbar` <div> in index.html,
+      // NOT a child of the App's flex column. We use
+      // createPortal so the StatusBar can sit at the page level
+      // (after the Skeleton row, below it) without breaking the
+      // flex-1 layout the Skeleton needs to fill its row. The
+      // demo's chrome (header + skeleton row + statusbar) is the
+      // flex column defined in index.html's `.demo-shell`.
+      createPortal(StatusBar({
+        engine,
+        designerVersion: (DESIGNER_PKG as { version: string }).version,
+        engineVersion: (ENGINE_PKG as { version: string }).version,
+        theme,
+        locale,
+        nodeCount,
+        selectionCount,
+        preset: activePreset,
+      }), document.getElementById('statusbar')!),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// StatusBar — bottom-of-page chrome showing live engine state.
+// Renders into a DOM portal (the `#statusbar` div in index.html)
+// so it can sit OUTSIDE the Skeleton's flex container. i18n
+// labels via `engine.t('status.*')` — flip the locale toggle in
+// the topArea to see them change.
+// ---------------------------------------------------------------------------
+function StatusBar(props: {
+  engine: ISapuEngine;
+  engineVersion: string;
+  designerVersion: string;
+  theme: 'light' | 'dark';
+  locale: string;
+  nodeCount: number;
+  selectionCount: number;
+  preset: PresetId;
+}): React.ReactElement {
+  const t = (key: string): string => props.engine.t(key);
+  return React.createElement(
+    'div',
+    { 'data-testid': 'statusbar-root', className: 'flex items-center gap-3 w-full' },
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `${t('status.engine')} `),
+      React.createElement('span', { className: 'sb-value' }, `v${props.engineVersion}`),
+    ),
+    React.createElement('span', { className: 'sb-sep' }),
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `designer `),
+      React.createElement('span', { className: 'sb-value' }, `v${props.designerVersion}`),
+    ),
+    React.createElement('span', { className: 'sb-sep' }),
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `${t('status.schema')} `),
+      React.createElement('span', { className: 'sb-value' }, `${props.preset}.json`),
+    ),
+    React.createElement('span', { className: 'sb-sep' }),
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `${t('status.nodes')} `),
+      React.createElement('span', { className: 'sb-value', 'data-testid': 'statusbar-nodes' }, String(props.nodeCount)),
+    ),
+    React.createElement('span', { className: 'sb-sep' }),
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `${t('status.selection')} `),
+      React.createElement('span', { className: 'sb-value', 'data-testid': 'statusbar-selection' }, String(props.selectionCount)),
+    ),
+    React.createElement('span', { className: 'sb-sep' }),
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `${t('status.theme')} `),
+      React.createElement('span', { className: 'sb-value', 'data-testid': 'statusbar-theme' }, props.theme),
+    ),
+    React.createElement('span', { className: 'sb-sep' }),
+    React.createElement('span', null,
+      React.createElement('span', { className: 'sb-key' }, `${t('status.locale')} `),
+      React.createElement('span', { className: 'sb-value', 'data-testid': 'statusbar-locale' }, props.locale),
     ),
   );
 }
