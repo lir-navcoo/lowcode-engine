@@ -208,4 +208,47 @@ describe('ComponentPalette', () => {
     expect(captured!.componentName).toBe('Button');
     expect(project.dragon.isBoosting).toBe(true);
   });
+
+  // ===== P7.1 — facade wiring (the P5 cutover) =====
+  // When the host passes a `dragon: PublicDragon` facade to
+  // <ComponentPalette>, the rows should stop using the legacy
+  // `onPointerDown` path and instead let the facade install its
+  // own `mousedown` listener (via `dragon.from(rowEl, ...)`).
+  // Observable side effect: the row's title suffix changes to
+  // "wired via engine.dragon.from()" (proves the facade path is
+  // active), and a `mousedown` event on the row triggers a
+  // boost WITHOUT us having to set up a React `onPointerDown`
+  // handler.
+
+  it('uses dragon.from() when a facade is provided (P5 cutover)', () => {
+    const project = new Project(deepClone(SEED));
+    // Fake facade — we just need an object with a `from()` method
+    // that records the row element + the toDragObject callback.
+    const calls: Array<{ el: HTMLElement; toDragObject: (e: MouseEvent) => unknown }> = [];
+    const facade = {
+      from(el: HTMLElement, toDragObject: (e: MouseEvent) => unknown) {
+        calls.push({ el, toDragObject });
+        return () => undefined; // disposer
+      },
+    };
+    render(<ComponentPalette project={project} components={COMPONENTS} dragon={facade as never} />);
+    // Every row should have been wired through the facade.
+    expect(calls.length).toBe(3);
+    // The row title carries the "wired via engine.dragon.from()"
+    // suffix — observable proof the facade path is active.
+    expect(screen.getAllByTitle(/wired via engine\.dragon\.from\(\)/).length).toBe(3);
+  });
+
+  it('falls back to the legacy onPointerDown path when no facade is provided', () => {
+    const project = new Project(deepClone(SEED));
+    let captured: { componentName: string } | null = null;
+    project.dragon.events.on('startBoost', (e) => { captured = e.meta; });
+    render(<ComponentPalette project={project} components={COMPONENTS} />);
+    // The legacy title suffix is the canonical marker.
+    expect(screen.queryByTitle(/wired via engine\.dragon\.from\(\)/)).toBeNull();
+    // Triggering a pointerdown still boosts (legacy path active).
+    const buttonRow = screen.getByText('Button').closest('[title]') as HTMLElement;
+    fireEvent.pointerDown(buttonRow, { clientX: 10, clientY: 20 });
+    expect(captured).not.toBeNull();
+  });
 });
