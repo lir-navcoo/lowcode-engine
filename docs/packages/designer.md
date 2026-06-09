@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.22.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-3 ali-mirror done**
+> **Version**: 2.23.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-6 ali-mirror done**
 
 ## Purpose
 
@@ -143,6 +143,7 @@ Per `~/.claude/plans/dynamic-marinating-rabbit.md`:
 - **Phase D.I7b.2** ✅ done (real NodeSelector port using BaseUI Popover; +6 tests; designer 2.20.0 → 2.21.0; file renamed node-selector-stub.tsx → node-selector.tsx)
 - **Phase D.I7b.3** ✅ done (real BorderResizing port with 8-anchor handles reusing the existing DragResizeEngine; +6 tests; designer 2.21.0 → 2.22.0)
 - **Phase D.I7b.4** ✅ done in editor-skeleton (DefaultDesignerView replaces Overlays with BemTools; editor-skeleton 2.3.0 → 2.4.0; 11 legacy overlays tests removed)
+- **Phase D.I7b.6** ✅ done (BaseUI Tooltip replaces native `title` in border-selecting toolbar; ali-faithful delay=300/closeDelay=100; render prop keeps the `<div className="lc-borders-action">` shape. Also: BorderSelectingInstance now reads `hideSelectTools` via typed `getComponentMeta()`; BorderSelectingForNode synthesizes a single instance when `getComponentInstances` returns null; BorderSelectingRoot reads from `host.project.selectedIds` instead of `doc.selection.getNodes()` — single source of truth. +6 tests; designer 2.22.0 → 2.23.0)
 
 ## Out of scope (deferred from Phase D + D.I7b)
 
