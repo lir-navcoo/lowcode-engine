@@ -26,6 +26,7 @@ import {
 import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 
 import { createDefaultPreset, type Preset } from './preset';
+import { setTheme } from './theme';
 
 export interface InitOptions {
   /** The root schema the editor will load. */
@@ -110,6 +111,15 @@ export async function init(
   for (const plugin of preset.plugins) {
     engine.registerPlugin(plugin);
   }
+
+  // Phase D.I7b.17: apply the host's theme on boot. `options.theme`
+  // is in the InitOptions interface but the slim port was
+  // silently ignoring it (the demo worked around by calling
+  // setTheme('dark') after init). Ali-faithful: the theme
+  // should be active at boot, not a post-init workaround.
+  // The theme module is a module-level singleton (not on
+  // SapuEngine); the import is at the top of this file.
+  setTheme(options.theme ?? preset.theme);
 
   // Mount the project. From this point the engine is "live" and
   // listeners on `engineReady` (attached before this call) have
