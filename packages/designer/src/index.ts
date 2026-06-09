@@ -16,6 +16,7 @@
 
 export { DocumentModel } from './document';
 export type { DocumentEvents, IDocumentModel, IDocumentModelHost } from './document';
+export { Selection } from './selection';
 
 export { Node } from './node';
 

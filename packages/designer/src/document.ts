@@ -11,6 +11,7 @@
  */
 
 import { Emitter, Observable, uid, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
+import { Selection } from './selection';
 import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@monbolc/lowcode-types';
 
 import { Node } from './node';
@@ -111,6 +112,20 @@ export class DocumentModel implements IDocumentModel {
   get dropLocation(): unknown { return this._dropLocation.get(); }
   /** Set the current drop location. Slim consumers: `BuiltinSimulatorHost.handleMove`. */
   setDropLocation(loc: unknown): void { this._dropLocation.set(loc); }
+  /**
+   * Phase D.I7b-prep: per-document `Selection` proxy. The slim port
+   * instantiates it lazily on first access (the document constructor
+   * doesn't need a Selection at construction time; D.S4 + D.I7 didn't
+   * need one either). The ali-faithful constructor wires it eagerly;
+   * the slim port defers to avoid forcing the document's getNode
+   * helper before the node map is indexed.
+   */
+  private _selection: Selection | null = null;
+  /** Ali-faithful `doc.selection` getter. */
+  get selection(): Selection {
+    if (!this._selection) this._selection = new Selection(this);
+    return this._selection;
+  }
 
   constructor(root: IPublicTypeRootSchema) {
     this._root = root;

@@ -77,4 +77,24 @@ export class Node {
     }
     return segs.join('.');
   }
+
+  /**
+   * Phase D.I7b-prep: `contains(other)` — true if `other` is `this`
+   * or any descendant of `this`. Used by the new `Selection.containsNode`
+   * + `Selection.getTopNodes` (Phase D.I7b-prep). Ali-faithful: walks
+   * the schema children recursively.
+   */
+  contains(other: unknown): boolean {
+    if (other === this) return true;
+    if (!other || typeof other !== 'object') return false;
+    const oNode = other as Node;
+    if (oNode.parent === this) return true;
+    // Walk up `other.parent` to see if any ancestor is `this`
+    let p: Node | null = oNode.parent;
+    while (p) {
+      if (p === this) return true;
+      p = p.parent;
+    }
+    return false;
+  }
 }
