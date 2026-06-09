@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-editor-skeleton` (L4)
 
-> **Version**: 2.2.0 · **Uses `react-resizable-panels`** · **21 tests / 5 files** · **画布可替换 widget 抽象 (P2.2)**
+> **Version**: 2.4.0 · **Uses `react-resizable-panels`** · **10 tests / 4 files** · **画布可替换 widget 抽象 (P2.2) + Phase D.I7b.4 BemTools wiring**
 
 ## Purpose
 
@@ -93,18 +93,19 @@ import { Skeleton, BuiltinSimulatorHost, Simulator } from '@monbolc/lowcode-engi
 3. 在画布节点上挂 pointer 事件 → dragon（可以直接 `new BuiltinSimulatorHost(project, { canvas })`）
 
 **不要做什么**:
-- 不要把 `data-lce-id` 当私有 — `<Overlays>` 公开依赖它
+- 不要把 `data-lce-id` 当私有 — `<BemTools>` 公开依赖它
 - 不要假设有"中央 widget 注册表" — Sapu 立场是"组件级 prop 直接暴露"，`<Skeleton>` 的 `designerView` 就是那个出口
 
 ## Test coverage
 
-- 5 test files, 21 tests
+- 4 test files, 10 tests
 - `designer-view.test.tsx` (6) — `<DefaultDesignerView>` 独立行为：默认 class、override、Simulator mount、document events、project swap、BuiltinSimulatorHost 生命周期
-- `skeleton.test.tsx` (12) — 3-pane headers、Project 暴露、Overlays 不抛、leftArea 视图切换、controlled 模式、`designerView` slot 3 case（默认/host 接管/helpers 透传）
-- `overlays.test.tsx` (5+) — border / drag-ghost / ghost-cleared / insertion-indicator / MutationObserver 触发重画
+- `skeleton.test.tsx` (12) — 3-pane headers、Project 暴露、BemTools 不抛、leftArea 视图切换、controlled 模式、`designerView` slot 3 case（默认/host 接管/helpers 透传）
 - `settings-panel.test.tsx` (3) — empty hint、props visible、click-to-edit + Enter commits
 - `widgets.test.tsx` (~6) — `SapuModal` / `SapuFloatingPanel` / `SapuToaster` UI 原子
 - `e2e.test.tsx` (5) — L0–L4 端到端 mount + 选中 + edit cycle 持久化
+
+**Phase D.I7b.4 changed test count**: 21 → 10. The legacy `overlays.test.tsx` (11 tests for the P6 imperative `<Overlays>`) is removed; the slim test surface is now the `designer-view` tests (BemTools is fully covered by `@monbolc/lowcode-designer`'s own unit tests).
 
 ## External deps
 

@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.2.0 · **Uses adapter for React (does not import React)** · **180 unit tests / 13 files** · **0 typecheck errors** · **Phase A + Phase B ali-mirror done**
+> **Version**: 2.22.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-3 ali-mirror done**
 
 ## Purpose
 
@@ -129,16 +129,28 @@ interface IViewportLite {
 
 Per `~/.claude/plans/dynamic-marinating-rabbit.md`:
 - **Phase A** ✅ done (`packages/utils/src/observable-lite.ts` + `throttle.ts` + 22 tests; committed `d2bfb81`)
-- **Phase B** ✅ done (this doc; 8 utility files + 4 test files; +56 tests, 510 → 566)
-- **Phase C** (drag + viewport integration, `computeComponentInstanceRect` gap, sensor array union) — pending
-- **Phase D** (simulator + bem-tools + setting tree, ~5200 LoC) — pending
+- **Phase B** ✅ done (8 utility files + 4 test files; +56 tests, 510 → 566)
+- **Phase C.X** ✅ done (computeComponentInstanceRect gap closed; +27 tests)
+- **Phase C.Y** ✅ done (Viewport Observable-lite; +18 tests)
+- **Phase C.Z** ✅ done (locate axis helpers; +33 tests)
+- **Phase C.AA** ✅ done (OffsetObserver auto-subscribe; +8 tests)
+- **Phase C.AB** ✅ done (autorun/reaction shims; +12 tests)
+- **Phase C.AC** ✅ done (multi-instance rect union; +8 tests)
+- **Phase C.AD** ✅ done (Dragon.chooseSensor with lastSensor; +13 tests)
+- **Phase C.AE** ✅ done (HTML5 DnD branch; +10 tests). **Phase C COMPLETE.**
+- **Phase D** ✅ done (10 commits: D.S1 + D.S2 + D.S3 + D.S4 + D.I2 + D.I3 + D.I6 + D.I7 + D.I8 + D.I9 = setting tree + bem-tools + simulator, ~5000 LoC)
+- **Phase D.I7b.1** ✅ done (slim IDropLocation type + setDropLocation wiring in handleMove + real InsertionView port; +12 tests; designer 2.19.0 → 2.20.0)
+- **Phase D.I7b.2** ✅ done (real NodeSelector port using BaseUI Popover; +6 tests; designer 2.20.0 → 2.21.0; file renamed node-selector-stub.tsx → node-selector.tsx)
+- **Phase D.I7b.3** ✅ done (real BorderResizing port with 8-anchor handles reusing the existing DragResizeEngine; +6 tests; designer 2.21.0 → 2.22.0)
+- **Phase D.I7b.4** ✅ done in editor-skeleton (DefaultDesignerView replaces Overlays with BemTools; editor-skeleton 2.3.0 → 2.4.0; 11 legacy overlays tests removed)
 
-## Missing from upstream port
+## Out of scope (deferred from Phase D + D.I7b)
 
-- `SettingTopEntry`/`SettingField` — Phase D scope; setters are in `plugin-setters` (L2.5) and the `SettingTopEntry` tree is what the SettingsPanel will consume
-- `BuiltinSimulator` host.ts (1615 LoC) — Phase D scope; the existing `BuiltinSimulatorHost` (slim) is the stub that Phase D extends
-- `BemTools` (border-selecting, border-resizing, insertion, drag-ghost) — Phase D scope; uses `Detecting` + `OffsetObserver` (now ported in Phase B)
-- `ComponentMeta` parser, `LowCodePluginManager` (the designer's own plugin manager) — Phase D scope
+- **D.I7b.next**: NodeSelector click → `host.project.select(parentId)` (covered by e2e, not unit)
+- **D.I7b.next**: BaseUI Tooltip replacement (currently uses native `title` attribute)
+- **D.I7b.next**: Real `BorderContainer` reactive container (D.I9 stub; full ali-faithful port requires additional Phase E Asset work)
+- **Phase E**: full BaseUI Menu/Modal/Toast migration for plugin UIs (asset pipeline for icons)
+- **Phase E**: full iframe-mode simulator (sapu has no iframe; `create-simulator.ts` ali-faithful port is not on the slim roadmap)
 
 ## See also
 
