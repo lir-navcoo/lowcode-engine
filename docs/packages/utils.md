@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-utils` (L1)
 
-> **Version**: 2.0.2 · **React-free** · **Pure utilities** · **76 tests**
+> **Version**: 2.3.0 · **React-lite** · **Pure utilities + SapuIcon** · **116 tests**
 
 ## Purpose
 
@@ -43,6 +43,18 @@ Pure runtime helpers. Tree-shakeable functions plus two classes (`Emitter`, `Con
 ### Type guards (`guards.ts`)
 - `isJSONValue`, `isNodeSchema`, `isRootSchema`, `isNodeData`, `isComponentSchema`, `isFieldConfig`, `isEventConfig`, `isActionContent`, `isDataSource`
 
+### Inline-SVG icon shell (`icon.tsx`)
+- `SapuIcon(props: SapuIconProps): ReactElement` — 内联 SVG 函数组件,只做壳子(不内嵌具体 glyph)
+- Props:
+  - `type: string` — 图标类型名,透传为 `data-icon-type`;未知时静默渲染空 svg
+  - `size?: number | 'small' | 'medium' | 'large' | 'xl' | 'xxl' | 'xxxl'` — 默认 `medium`;preset 解析为 12/16/20/24/32/48 px
+  - `className?: string` — 透传 svg class
+  - `viewBox?: string` — 默认 `0 0 1024 1024`
+  - `fill?: string` — 默认 `currentColor`;缺 `style.color` 时映射到 `style.color`
+  - `style?: CSSProperties` — `style.color` 优先于 `fill`
+- 消费 `@monbolc/lowcode-types` 的 `IPublicTypeIconConfig.size` 预设名
+- 类型: `SapuIconProps`
+
 ## Implementation patterns
 
 - All utility functions are pure and tree-shakeable
@@ -51,8 +63,8 @@ Pure runtime helpers. Tree-shakeable functions plus two classes (`Emitter`, `Con
 
 ## Test coverage
 
-- 6 test files, 76 tests across `emitter`, `guards`, `id`, `logger`, `object`, `path`
-- Comprehensive: level filtering, child loggers, NaN equality, deep clone of Map/Set/Date/RegExp, path parsing edge cases (`a[0].b`, `a..b`, empty), all 8 type guards
+- 9 test files, 116 tests across `emitter`, `guards`, `icon`, `id`, `logger`, `object`, `observable-lite`, `path`, `throttle`
+- Comprehensive: level filtering, child loggers, NaN equality, deep clone of Map/Set/Date/RegExp, path parsing edge cases (`a[0].b`, `a..b`, empty), all 8 type guards, 6 档 size preset + fill/style.color 合并 + unknown type 静默渲染 (SapuIcon)
 
 ## External deps
 

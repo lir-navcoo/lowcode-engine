@@ -67,3 +67,12 @@ export type { ObservableEvents } from './observable-lite';
 // Ali-faithful algorithm (leading + trailing, RAF-aware); sapu
 // adds a `.dispose()` method for clean teardown.
 export { throttle } from './throttle';
+
+// --- inline-SVG icon shell ---
+// Pure-function React component that renders a size-typed inline
+// `<svg>`. The glyph itself is left to a downstream icon-pack
+// package; `SapuIcon` only decides the size / fill / viewBox shell.
+// Ali-faithful contract on size presets and `fill` → `style.color`
+// merging; no Fusion / runtime 类型校验 / class components.
+export { SapuIcon } from './icon';
+export type { SapuIconProps } from './icon';
