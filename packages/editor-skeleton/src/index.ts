@@ -19,6 +19,13 @@ export type { DesignerViewHelpers, DesignerViewProps } from './designer-view';
 export { ComponentPalette } from './component-palette';
 export type { ComponentPaletteProps } from './component-palette';
 
+// ---- Phase D.I9: re-export the new ali-faithful bem-tool tree ----
+// Consumers can import the slim `BuiltinSimulatorHostView` + `BemTools`
+// from designer and mount them inside the editor skeleton. The slim
+// `overlays.tsx` is the legacy hand-rolled DOM-tree; a follow-up
+// commit will replace it with `<BemTools host={host}/>`.
+export { BuiltinSimulatorHostView, BemTools } from '@monbolc/lowcode-designer';
+
 export {
   SapuToaster,
   createToastManager,
