@@ -12,6 +12,7 @@
 
 import { Emitter, Observable, uid, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
 import { Selection } from './selection';
+import type { History } from './history';
 import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@monbolc/lowcode-types';
 
 import { Node } from './node';
@@ -126,6 +127,32 @@ export class DocumentModel implements IDocumentModel {
     if (!this._selection) this._selection = new Selection(this);
     return this._selection;
   }
+  /**
+   * Phase E.2: optional `History` slot. When set, the document's
+   * mutation methods auto-record the new state via
+   * `history.recordCurrent(() => this.serialize())`. Ali-faithful:
+   * the DocumentModel exposes `history` as a constructor-injected
+   * History instance; the slim port uses a lazy setter so existing
+   * DocumentModel construction sites don't need to change.
+   */
+  private _history: History | null = null;
+  /** Wire the history (called by the host/project on construction). */
+  setHistory(h: History | null): void { this._history = h; }
+  /** Read the wired history (or `null` if not yet wired). */
+  getHistory(): History | null { return this._history; }
+  /** Ali-faithful `serialize()`: returns the current root schema. */
+  serialize(): IPublicTypeRootSchema { return this._root; }
+  /**
+   * Private helper: push the current state to history. Called after
+   * each mutation method's event emit. Ali-faithful: ali's DocumentModel
+   * calls `this.history.log()` directly; the slim port routes through
+   * `recordCurrent` (which respects the debounce window).
+   */
+  private _recordHistory(): void {
+    if (!this._history) return;
+    const snap = this._root;
+    this._history.recordCurrent(() => snap);
+  }
 
   constructor(root: IPublicTypeRootSchema) {
     this._root = root;
@@ -145,6 +172,7 @@ export class DocumentModel implements IDocumentModel {
     this._root = root;
     this.indexSubtree(root, null, 0);
     this.events.emit('rootChanged', { root });
+    this._recordHistory();
   }
 
   getNode(id: string): Node | undefined {
@@ -163,6 +191,7 @@ export class DocumentModel implements IDocumentModel {
     // `getNode(id)` returns a wrapper with the correct parent ref).
     const wrapped = this.registerNode(node, parent);
     this.events.emit('nodeAdded', { node: wrapped, parent, index: safeIndex });
+    this._recordHistory();
     return wrapped;
   }
 
@@ -174,6 +203,7 @@ export class DocumentModel implements IDocumentModel {
     parentSchema.children!.splice(idx, 1);
     this.unindexSubtree(node);
     this.events.emit('nodeRemoved', { node, parent });
+    this._recordHistory();
   }
 
   setProps(node: Node, patch: Record<string, JSONValue>): void {
@@ -183,6 +213,7 @@ export class DocumentModel implements IDocumentModel {
     if (changed.length === 0) return;
     node.schema.props = after;
     this.events.emit('nodePropsChanged', { node, changedKeys: changed });
+    this._recordHistory();
   }
 
   rename(node: Node, newName: string): void {
@@ -198,6 +229,7 @@ export class DocumentModel implements IDocumentModel {
     if (old === newName) return;
     node.schema.componentName = newName;
     this.events.emit('nodeRenamed', { node, oldName: old, newName });
+    this._recordHistory();
   }
 
   move(node: Node, newParent: Node | null, newIndex: number): void {
@@ -219,6 +251,7 @@ export class DocumentModel implements IDocumentModel {
     // is the actual new parent (B), not an outer wrapper of B.
     this.indexSubtree(node.schema, newParent, safeIndex);
     this.events.emit('nodeMoved', { node, oldParent, newParent, oldIndex, newIndex: safeIndex });
+    this._recordHistory();
   }
 
   // ---- internals ----
