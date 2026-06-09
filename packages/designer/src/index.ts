@@ -192,3 +192,21 @@ export type { EditingTarget, SpecificRule, SaveHandler } from './builtin-simulat
 export { DragGhost, default as DragGhostDefault } from './designer/drag-ghost';
 export type { DragGhostProps } from './designer/drag-ghost';
 export type { BorderDetectingProps, BorderDetectingInstanceProps } from './builtin-simulator/bem-tools/border-detecting';
+
+// ---- T2: Builtin component actions (context menu) ----
+export {
+  BUILTIN_COMPONENT_ACTIONS,
+  BUILTIN_ACTION_BY_NAME,
+  DEFAULT_ACTION_LABELS,
+  DEFAULT_ACTION_I18N_KEYS,
+  localizeAction,
+} from './actions/builtin-actions';
+export type {
+  BuiltinActionName,
+  IActionContext,
+  IActionDocument,
+  IActionNodeLike,
+  IContextClipboard,
+  ComponentAction,
+  ActionCondition,
+} from './actions/action-types';

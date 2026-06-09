@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.28.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-15 ali-mirror done**
+> **Version**: 2.29.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-15 ali-mirror done**
 
 ## Purpose
 
@@ -26,6 +26,77 @@ The heart of the editor's mutation layer.
 ### Commands
 - `InsertCommand`, `RemoveCommand`, `MoveCommand`, `SetPropCommand`, `RenameCommand`, `DetectingCommand`, `ScrollerCommand`, `ClipboardCommand`
 - All implement `ICommand` from `@monbolc/lowcode-plugin-command` and integrate with the `CommandManager`'s undo/redo
+
+## Component Actions
+
+8 个内置组件动作(rename / duplicate / remove / copy / cut / paste / moveUp / moveDown),供 L4 右键菜单(以及任何调用方)使用。沿用上游 alibaba v1.3.2 的 `component-actions.ts` + `context-menu-actions.ts` 概念,但 slim 重写:无第三方依赖,不直接调用 Fusion Menu,由 L4 用 BaseUI 自行适配 UI。
+
+### 公共契约
+
+```ts
+// packages/designer/src/actions/action-types.ts
+export type BuiltinActionName =
+  | 'rename' | 'duplicate' | 'remove'
+  | 'copy'   | 'cut'      | 'paste'
+  | 'moveUp' | 'moveDown';
+
+export interface IActionContext {
+  node: IPublicTypeNodeLike | null;
+  document: IActionDocument;
+  project: Pick<Project, 'events'>;
+  dragon?: unknown;
+  event?: MouseEvent;
+  clipboard: IContextClipboard;
+  t(key: string, fallback?: string): string;
+}
+
+export interface ComponentAction {
+  name: BuiltinActionName;
+  label: string;
+  condition?: (ctx: IActionContext) => boolean;
+  run: (ctx: IActionContext) => boolean | Promise<boolean>;
+}
+```
+
+### 8 个内置动作
+
+| 名字 | 行为 | 边界 |
+|---|---|---|
+| `rename` | 通过 `ctx.event.detail.newName` 取新名调用 `document.rename`(自动发 `nodeRenamed`) | 未提供新名返回 `false`(由 L4 弹窗) |
+| `duplicate` | 深拷贝节点,`document.insert` 到 sibling-after | 根节点返回 `false` |
+| `remove` | `document.remove`(自动发 `nodeRemoved`) | 根节点拒绝移除 |
+| `copy` | `clipboard.write(clone(node))`(深拷贝,不删源) | — |
+| `cut` | `clipboard.write(clone(node))`(不删源;由 L4 决定是否后续 Remove) | — |
+| `paste` | `clipboard.read()` 后 `document.insert` 到 sibling-after;`node=null` 时粘贴到根末尾 | 剪贴板空返回 `false` |
+| `moveUp` | `document.move` 与上一个 sibling 交换 | 已经是首个返回 `false` |
+| `moveDown` | `document.move` 与下一个 sibling 交换 | 已经是末个返回 `false` |
+
+### 导出
+
+- `BUILTIN_COMPONENT_ACTIONS` — 8 个动作的有序 `ReadonlyArray`
+- `BUILTIN_ACTION_BY_NAME` — `name → action` 快速查找表
+- `DEFAULT_ACTION_LABELS` / `DEFAULT_ACTION_I18N_KEYS` — 默认文案 + i18n key(供 L4 通过 `ctx.t(key)` 覆盖)
+- `localizeAction(action, ctx)` — 用 `ctx.t` 重写 label 返回新副本(不修改原对象)
+- 类型 `BuiltinActionName` / `IActionContext` / `IActionDocument` / `IActionNodeLike` / `IContextClipboard` / `ComponentAction` / `ActionCondition`
+
+### L4 接入示例
+
+```ts
+import {
+  BUILTIN_COMPONENT_ACTIONS,
+  localizeAction,
+  type ComponentAction,
+  type IActionContext,
+} from '@monbolc/lowcode-designer';
+
+function buildMenu(ctx: IActionContext): Array<ComponentAction> {
+  return BUILTIN_COMPONENT_ACTIONS
+    .filter((a) => (a.condition ? a.condition(ctx) : true))
+    .map((a) => localizeAction(a, ctx));
+}
+```
+
+L4 的具体 UI(BaseUI Menu / 自绘)由 L4 自行实现,本包只提供 pure-function 动作 + 文案 + i18n hook。
 
 ### Scroller / Viewport extensions
 - `Scroller.setSensitive(s)` / `getSensitive()` — Phase B ali-faithful; disable auto-scroll without tearing down
@@ -149,6 +220,7 @@ Per `~/.claude/plans/dynamic-marinating-rabbit.md`:
 - **Phase D.I7b.11** ✅ done (LiveEditing `apply()` flow's keydown handler now handles Escape + Enter, closing the pre-existing TODO. Enter (no Shift) → save + exit (preventDefault stops the newline; saveAndDispose called directly for happy-dom robustness). Shift+Enter → no-op (allow newline). Escape → discard + exit (set `_save = undefined` before blur so the focusout cascade doesn't re-save). Slim delta: direct-call pattern (not blur-based) is more reliable in jsdom / happy-dom. +3 tests; designer 2.25.0 → 2.26.0)
 - **Phase D.I7b.13** ✅ done (ResourceConsumer closes 2 pre-existing TODOs. (1) When `consume()` is called with a renderer but no ctor-supplied `consumer` function, slim port now throws `ReferenceError` (was silent no-op). Plain-function consumers are unaffected (throw is gated on the renderer path only). (2) The `consume()` autorun's `await consumer(data)` is now wrapped in try/catch + `console.error('[lowcode-designer] ResourceConsumer: consumer threw:', err)` + emits the error on the typed `error` channel (the Emitter is now typed as `Emitter<{ error: unknown }>`). +2 tests; designer 2.26.0 → 2.27.0)
 - **Phase D.I7b.15** ✅ done (SettingTopEntry now emits `valuechange` from ALL value-mutating methods — `setProps`, `mergeProps`, `setPropValue`, `clearPropValue`, `setExtraPropValue` — in addition to the existing `setValue` (D.I7b.9). The payload is `getValue()` after the mutation (canonical current-state shape). `setValue` refactored to bypass the now-emitting `setProps` to avoid double-emit. +6 tests; designer 2.27.0 → 2.28.0)
+- **T2 — Builtin component actions** ✅ done (8 default component actions — rename / duplicate / remove / copy / cut / paste / moveUp / moveDown — exposed as pure `(ctx) => boolean` functions via `BUILTIN_COMPONENT_ACTIONS` + `BUILTIN_ACTION_BY_NAME` + `localizeAction`. Each action consumes `IActionContext.document` (structural subset of DocumentModel, no class dependency) + `clipboard` + `t` for i18n. Cut/moveUp/moveDown at boundaries return `false` (no-op). All failures `console.warn('[designer] ...')`. +35 tests; designer 2.28.0 → 2.29.0)
 
 ## Out of scope (deferred from Phase D + D.I7b)
 
