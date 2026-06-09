@@ -6,7 +6,7 @@
 > focuses on the L0–L7 package state and the original
 > P0–P2 close-out.
 
-## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 685 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD done
+## Current state — L0–L7 done at 2.2.0, P0/P1/P2 mostly closed, 695 unit + 11 e2e tests passing, ali-mirror Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE done — **Phase C complete!**
 
 14 packages published to `@monbolc`:
 
@@ -27,7 +27,7 @@
 | L6 | `@monbolc/lowcode-shell` | 2.2.0 | ✅ shipped (31 tests, ~720 lines) |
 | **L7** | **`@monbolc/lowcode-engine`** | **2.2.0** | **✅ shipped (28 tests, ~430 lines — init + default-preset (4 plugins incl. document-commands) + theme)** |
 
-`yarn test` ✅ 685 unit tests + 1 skip / 61 files, all passing in ~3.7s.
+`yarn test` ✅ 695 unit tests + 1 skip / 62 files, all passing in ~3.9s.
 `yarn test:e2e` ✅ 11 e2e tests / 1 chromium project, all passing in ~1.7s.
 
 `yarn typecheck` ✅ 0 errors across all 14 packages + demo.
@@ -293,6 +293,29 @@ The old P1.5 ("BaseUI peerDep is misleading, use BaseUI in setters or drop it") 
   - The `cancel()` test was based on the wrong assumption (cancel() only does work with an active drag). Replaced with a `removeSensor` test that exercises the same `_lastSensor` clearing path.
   - Had to rebuild `@monbolc/lowcode-types` (`yarn workspace ... build`) so the designer's tsc reads the new `sensorAvailable` / `deactiveSensor` fields.
 - **Why P2.2i closed**: a sensor that holds external state (a highlight ring around a node, a hover indicator) stays "active" across a brief pointer-leave. Without lastSensor, the visual state flickers. With it, the user experience matches ali (and conventional editors like Figma).
+
+### P2.2j — Ali-mirror Phase C.AE Dragon HTML5 DnD branch — **DONE 2026-06-09 (120 LoC + 10 tests, 685 → 695)**
+
+- **Where**: `packages/designer/src/dragon.ts` (+120 LoC) + `tests/html5-dnd.test.ts` (NEW, 10 tests)
+- **Per**: `~/.claude/plans/dynamic-marinating-rabbit.md` (Phase C, last item)
+- **Resolution**: closes the last Phase C item. Ali's dragon has a `isBoostFromDragAPI` branch that handles browser-native HTML5 drags (e.g. a `<div draggable="true">` palette row dragging into the canvas via the native HTML5 drag API). Sapu's slim dragon was mouse-only. After this commit, a `DragEvent` passed to `boost(dragObject, e)` triggers the HTML5 path: sets `dataTransfer.effectAllowed` + `setData`, wires `drop` + `dragend` listeners, fires the same start/dragstart events the mouse path would. Ali-faithful port of `dragon.ts:500-525`.
+  - **`isDragEvent(e): e is DragEvent`** — module-level type-guard (ali-faithful, `dragon.ts:94`).
+  - **`boost` overload** now accepts `MouseEvent | DragEvent`.
+  - **`_beginGesture`** branches on `isDragEvent`:
+    - Mouse path: unchanged (mousemove / mouseup / keydown listeners on document).
+    - HTML5 path: `dataTransfer.effectAllowed = 'all'` + `setData('application/json', '{}')` (both wrapped in try/catch for sandboxed iframes / unsupported types), fires startBoost + dragstart, wires drop + dragend listeners on document (capture: true).
+  - **`_beginHtml5Gesture(dragObject, e)`** — private helper for the HTML5 path.
+  - **`_teardownHtml5()`** — symmetric teardown for the HTML5 listeners (called on drop OR dragend).
+  - **`_boundDrop` / `_boundDragEnd` / `_html5Bound`** — slim parallel to the existing `_boundMove` / `_boundUp` / `_boundKey` for the mouse path.
+  - The drop handler delegates to the existing `_handleMove` + `_handleUp` so the same commit/drop math runs (no duplication).
+  - The dragend handler cancels the gesture (cancelled=true path through `_endGesture`).
+- **Slim-scope notes**:
+  - Deliberately skip the `dragover` listener that ali wires. Ali's dragover updates the drop-target on every tick; the slim default (dropTarget updates on `drop` only) is sufficient for the demo's use cases. Phase D can add `dragover` if a plugin needs live drop-target updates.
+  - Skip `setNativeSelection(false)` (HTML5 doesn't need it — the browser handles the drag image natively).
+  - `boost(meta, x, y)` legacy overload unchanged — only `boost(dragObject, e)` takes a real event.
+- **Tests** (+10): `html5-dnd.test.ts` covers effectAllowed + setData on HTML5 boost, startBoost + dragstart events, drop + dragend listeners registered (capture: true), drop on document fires dropBoost, dragend (outside target) fires cancelBoost, drop then dragend no-op, mouse boost uses mouse path, effectAllowed / setData try/catch failures don't break dispatch, teardown after drop removes the listeners.
+- **Why P2.2j closed**: Phase C is now complete. A drag from any HTML5 draggable element (external file, palette div, etc.) can be handled by the same drop math as a mouse-based palette boost. The `boost(dragObject, e)` API surface is ali-faithful — plugins written for ali's HTML5 path work in sapu.
+- **What this commits to next**: Phase D (simulator + bem-tools) — biggest port, ~5200 LoC. Out of scope for any single PR. The foundation is now complete (Phase A: Observable-lite, Phase B: pure-helper mirror, Phase C: dragon/host/viewport/locate/document parity).
 
 ### P2.3 — L4 editor-skeleton needs more widgets — **DONE 2026-06-08 (4 widgets + 11 tests)**
 
