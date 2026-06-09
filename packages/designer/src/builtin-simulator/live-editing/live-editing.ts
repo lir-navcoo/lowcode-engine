@@ -60,7 +60,13 @@ function defaultSaveContent(content: string, prop: { setValue(v: unknown): void 
  * Ali-faithful `EditingTarget`: the live-editing entry point.
  */
 export interface EditingTarget {
-  node: { componentMeta?: { liveTextEditing?: Array<unknown> }; document?: { designer?: { editor?: { eventBus?: { emit: (e: string, p: unknown) => void } } } } };
+  /**
+   * Phase E.7: slim `Node` (with the typed `getComponentMeta()`).
+   * The slim port reads `node.getComponentMeta()?.liveTextEditing`
+   * via the typed surface. Ali-faithful typed this as a structural
+   * shape; the slim port uses the auto-wired slim Node directly.
+   */
+  node: import('../../node').Node;
   rootElement: HTMLElement;
   event: MouseEvent;
 }
@@ -162,10 +168,17 @@ export class LiveEditing {
   apply(target: EditingTarget): void {
     const { node, event, rootElement } = target;
     const targetElement = event.target as HTMLElement;
-    const liveTextEditing = (node.componentMeta?.liveTextEditing as Array<{ propTarget?: string; selector?: string; onSaveContent?: (c: string, p: { setValue(v: unknown): void }) => void; mode?: string }> | undefined) ?? [];
-    const editor = node.document?.designer?.editor;
-    const npm = (node as { componentMeta?: { npm?: { package?: string; componentName?: string } } }).componentMeta?.npm;
-    const selected = [npm?.package, npm?.componentName].filter(Boolean).join('-') || (node as { componentMeta?: { componentName?: string } }).componentMeta?.componentName || '';
+    // Phase E.7: read from node.getComponentMeta() (typed surface)
+    // instead of the structural-cast chain. The slim port also
+    // reads liveTextEditing from the typed meta. The `editor` slot
+    // is sourced from the structural cast on the slim Node's document
+    // (slim Node has no document yet — the editor lookup uses a
+    // typed cast that returns undefined when absent).
+    const meta = node.getComponentMeta();
+    const liveTextEditing = (meta?.liveTextEditing as Array<{ propTarget?: string; selector?: string; onSaveContent?: (c: string, p: { setValue(v: unknown): void }) => void; mode?: string }> | undefined) ?? [];
+    const editor = (node as unknown as { document?: { designer?: { editor?: { eventBus?: { emit: (e: string, p: unknown) => void } } } } }).document?.designer?.editor;
+    const npm = meta?.npm;
+    const selected = [npm?.package, npm?.componentName].filter(Boolean).join('-') || (meta as { componentName?: string } | null | undefined)?.componentName || '';
     editor?.eventBus?.emit('designer.builtinSimulator.liveEditing', { selected });
 
     let setterPropElement: HTMLElement | null = getSetterPropElement(targetElement, rootElement);

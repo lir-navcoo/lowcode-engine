@@ -122,12 +122,10 @@ class ToolbarRaw extends React.Component<{
     }
     const { node } = observed;
     const actions: React.ReactNode[] = [];
-    const cm = (node as { componentMeta?: { availableActions?: Array<{
-      important?: boolean;
-      condition?: ((n: unknown) => boolean | undefined) | boolean | undefined;
-      content: unknown;
-      name: string;
-    }> } }).componentMeta;
+    // Phase E.7: use the typed componentMeta (E.5 + E.6 auto-wire)
+    // instead of the structural cast. The slim port reads the
+    // availableActions from the typed meta.
+    const cm = (node as unknown as { getComponentMeta?: () => import('../../component-meta').IComponentMetaLite | null }).getComponentMeta?.();
     for (const action of cm?.availableActions ?? []) {
       const { important = true, condition, content, name } = action;
       if ((node as { isSlot?: () => boolean }).isSlot?.() && (name === 'copy' || name === 'remove')) continue;

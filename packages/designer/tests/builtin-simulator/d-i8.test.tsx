@@ -40,8 +40,14 @@ describe('LiveEditing (Phase D.I8)', () => {
 
   it('apply is a no-op when no setterPropElement matches (no setterProp key)', () => {
     const e = new LiveEditing();
+    // Phase E.7: the slim Node exposes componentMeta via the typed
+    // getComponentMeta() method. The mock below mirrors the typed
+    // surface so apply() can be called against a non-Node.
     const target = {
-      node: { componentMeta: {}, document: undefined },
+      node: {
+        getComponentMeta: () => ({ liveTextEditing: undefined }),
+        document: undefined,
+      },
       rootElement: document.createElement('div'),
       event: { target: document.createElement('span') } as unknown as MouseEvent,
     };
