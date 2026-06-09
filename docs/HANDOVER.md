@@ -1,11 +1,11 @@
 # SapuLowcodeEngine 交接文档
 
-> 截至 2026-06-09 的状态快照。接手人请先读这个文件 + [[ROADMAP.md]] 的 P0–P2 段 + `memory/sapu-lowcode-engine-status.md` 的最新 batch 历史，再看具体任务的 docs/packages/ 包级文档。
+> 截至 2026-06-09(本会话收官时)的状态快照。接手人请先读这个文件 + [[ROADMAP.md]] 的 P0–P2 段 + `memory/sapu-lowcode-engine-status.md` 的最新 batch 历史，再看具体任务的 docs/packages/ 包级文档。**TL;DR 全部 Phase 已收官(designer 2.28.0, 957 unit tests, 源码无 TODO);v2.2.0 publish 仍阻塞于 user 的 token 轮换。**
 
 ## TL;DR
 
 - **仓库**: https://github.com/lir-navcoo/lowcode-engine
-- **当前分支**: `main` @ `5b136ee` (干净，已推 origin)
+- **当前分支**: `main` @ `e5b9028` (干净，已推 origin)
 - **下次发布**: **2.2.0**，代码 + 测试 + 构建全部就绪，**但 npm publish 阻塞**（见下）
 - **测试**: 957 unit passed + 1 skipped (vitest 2.1, happy-dom) + 11 e2e (Playwright 1.60)
 - **Demo polish** (commit `5b3f2b1`): StatusBar (live engine state via createPortal), theme toggle (`setTheme` / `onThemeChange`), locale toggle (`engine.i18n.setLocale` + 10 registered keys), 4-preset schema picker. `yarn demo:build` 522KB / 156KB gzipped, 899ms.
@@ -109,21 +109,32 @@ sapu-lowcode-engine/
 - `actions/setup-node` 必须显式设 `registry-url`，否则 `NODE_AUTH_TOKEN` 不到 `.npmrc`，lerna 报 misleading E404 "Not found"
 - 本地 `yarn pub:minor` 走的是另一套本地 token，跟 GitHub Secret 无关
 
-## 下一步规划 (P2.5+)
+## 下一步规划 (接手人从这点接手)
 
-按 2026-06-08 的对话，候选任务（按优先级）：
+**已完成** (cron 驱动, 2026-06-09):
+- ✅ P2.5 demo Playwright 端到端测试 — 5 spec 文件 + 11 e2e test + CI workflow
+- ✅ P2.6 plugin SDK 文档化 — `docs/plugin-authoring.md` (IPlugin + IPluginContext contract, 6 patterns, publishing checklist, anti-patterns)
+- ✅ Phase A + B + C + D + D.I7b.1-15 ali-mirror plan 全部完成(designer 2.28.0, 957 unit tests)
+- ✅ D.I7b.4 已用 `<BemTools host={host}/>` 替代 P6 时代 `overlays.tsx` 庞然大物
+- ✅ D.I7b.6 用 BaseUI Tooltip 替代 native `title`
+- ✅ D.I7b.8 实现右键 context menu(7 default actions)
+- ✅ D.I7b.9 / .15 实现 SettingTopEntry `valuechange` 事件 + 全部 mutation 一致性
+
+**仍待办** (按优先级):
 
 | 候选 | 描述 | 估时 | 阻塞项 |
 |---|---|---|---|
-| P2.5 demo Playwright 端到端测试 | 拖拽 / 选中 / 改 prop / undo/redo / 多文档切换, 5 个交互路径 | 0.5–1 天 | Playwright 配置 + CI 集成 |
-| P2.6 plugin SDK 文档化 | "如何写一个 plugin" 实操指南 + IPluginContext 类型导览 | 1 天 | 无 |
+| Phase E Asset icon font pipeline | 替换 `<span data-icon>` 占位符为真实图标(ali 已有 icon font);bem-tool toolbar 的视觉反馈缺口 | 1–2 天 | 选定图标库 / 集成方式 |
+| D.I7b.3 BorderContainer reactive 真实 e2e 验证 | D.I9 代码已完成(159 LoC),但 demo 没启用 `enableReactiveContainer` flag,需要 e2e 测一下 | 半天 | 无 |
 | P2.7 公开 IPublicApi* facade | shell 包补 8–10 个 host-facing facade (engine/project/selection/event/setters/components/simulator/logger/hotkey/commonUI), 取代直接拿 SapuEngine | 2–3 天 | shell 重构 |
 | P3.0 setupReactRenderer 移除 | 删 `react-renderer` 出口, L7 init() 内联 `installReactRuntime + setRenderers(createReactRenderers())`, 推 3.0.0 | 半天 | createReactRenderers 需公开 + subpath export |
+| 阻塞 1: npm publish | v2.2.0 发布需要 user 轮换 npm + GitHub PAT token | 10 分钟 | user 操作 (见下) |
 
 **接手人建议**:
-- 如果要快速出可见成果 → **P2.5 Playwright**（出 e2e 截图 + CI 自动化）
-- 如果要服务外部用户 → **P2.6 文档**（写 plugin 指南）
-- 如果准备 3.0.0 → **P3.0 setupReactRenderer 移除**（小但需要协调 L3 + L7 边界）
+- 如果要快速出可见成果 → **Phase E Asset** (出 icon font + 完成 user 视觉反馈闭环)
+- 如果要服务外部用户 → **P2.7 IPublicApi\* facade** (让插件作者不必直接拿 SapuEngine)
+- 如果准备 3.0.0 → **P3.0 setupReactRenderer 移除**
+- 如果发布 2.2.0 → **阻塞 1**(找 user 轮换 token)
 
 ## 关键开发约定
 
@@ -147,7 +158,7 @@ yarn install
 # 构建 (14 个包)
 yarn build
 
-# 测试 (vitest, 481+ unit; playwright, 11 e2e)
+# 测试 (vitest, 957 unit; playwright, 11 e2e)
 yarn test
 yarn test:e2e
 
@@ -189,4 +200,4 @@ node -e "for (const p of require('fs').readdirSync('packages')) { try { require(
 
 ---
 
-最后更新: 2026-06-08 by lir-navcoo via Claude Code session `eeb2c997...`
+最后更新: 2026-06-09 by lir-navcoo via Claude Code session. Ali-mirror Phase A + B + C + D + D.I7b.1-15 全部完成(designer 2.28.0, 957 unit tests). 源码无未关闭 TODO。剩余 UX 缺口在 Phase E Asset 范围(icon font、iframe-mode simulator、plugin-extensible context menu registry)。v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换。
