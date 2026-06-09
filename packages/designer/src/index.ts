@@ -20,6 +20,15 @@ export { Selection } from './selection';
 export { History, Session } from './history';
 export type { Serialization, IDisposable } from './history';
 export { HistoryState } from './history';
+export { ComponentMetaLite, ComponentMetaRegistry } from './component-meta';
+export type {
+  IComponentMetaLite,
+  IComponentMetaAdvanced,
+  IComponentMetaNpmInfo,
+  IComponentMetaI18nData,
+  ILiveTextEditingConfig,
+  IActionContent,
+} from './component-meta';
 
 export { Node } from './node';
 
@@ -124,7 +133,6 @@ export {
 } from './designer/setting/setting-prop-entry';
 export type {
   ISettingPropEntry,
-  IComponentMetaLite,
   IPropEntryParent,
   IPublicTypeFieldExtraProps,
   IPublicTypeSetValueOptions,
