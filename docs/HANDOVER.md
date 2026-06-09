@@ -245,6 +245,20 @@ node -e "for (const p of require('fs').readdirSync('packages')) { try { require(
 - `yarn typecheck`: 已通过, 全部包 0 errors。
 - `yarn test`: 尚未收口。最近一次全量运行在 Node.js v24.15.0 下以 `MODULE_NOT_FOUND` 退出, 尾部没有暴露具体缺失模块路径。接手人下一步先重跑全量或定向 vitest 获取完整堆栈。
 
+## Ali 能力差异 — 用户感官优先级 (2026-06-09)
+
+完整表见 `docs/COMPARISON-WITH-ALI.md` 的 `User-perceived gap matrix`。当前最影响用户感官的差异按顺序是:
+
+1. **Setter / 表达式 / 事件 / 变量配置**: 简单 props 能改, 复杂物料配置不如 Ali 顺。
+2. **DataSource + JSExpression runtime**: 静态 schema 可渲染, 数据绑定和表达式重页面还不能达到 Ali 体验。
+3. **Workbench / Dock / Area 壳层**: sapu 是轻量三栏编辑器, Ali 更像完整 IDE。
+4. **Outline 行内管理**: 选择/展开/重命名已有, 搜索/隐藏/锁定/状态图标/复杂行操作还弱。
+5. **Canvas 复杂编辑**: 基础拖选可用, resize/live text/context action/placement 仍需收口。
+6. **iframe simulator + asset/icon pipeline**: 复杂页面隔离和图标视觉反馈不如 Ali 完整。
+7. **Ali 插件迁移 API**: sapu 原生插件走真实引用; Ali `IPublicApi*` / `IPublicModel*` / Fusion CommonUI 插件不能直接复制。
+
+推荐下一批不要先做大而全 shell proxy, 先按用户价值做: 收口全量测试 → setter/expression/event → DataSource/JSExpression runtime → outline/context menu/placement → Area/Dock/Popup/EventBus。
+
 ---
 
-最后更新: 2026-06-09 by lir-navcoo via Claude Code session. **v2.5.0 types 能力对齐代码已落地并准备推送**: T2.1–T2.7 类型面完成, typecheck 0 errors, 全量 test 仍需定位 `MODULE_NOT_FOUND`。后续推荐先收口测试, 再推进 E2.* → D2.* → COMPARISON 更新。v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换.
+最后更新: 2026-06-09 by lir-navcoo via Claude Code session. **v2.5.0 types 能力对齐代码已推送, Ali 用户感官差异矩阵已记录**: T2.1–T2.7 类型面完成, typecheck 0 errors, 全量 test 仍需定位 `MODULE_NOT_FOUND`。后续推荐先收口测试, 再按用户价值推进 setter/runtime/outline/canvas/shell。v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换.
