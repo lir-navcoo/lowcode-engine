@@ -126,10 +126,23 @@ function generateSessionId(nodes: ReadonlyArray<{ id: string }>): string {
 }
 
 /**
+ * Phase D.I7b.9: typed event surface for the SettingTopEntry. Ali
+ * uses an IEventBus for `valuechange` (fired by `setValue` after
+ * `setProps`); the slim port mirrors this via the typed `Emitter`
+ * with a `'valuechange'` event whose payload is the new value.
+ */
+type ISettingTopEntryEvents = {
+  /** Fired by `setValue` after `setProps(val)`. Payload: the new value. */
+  valuechange: unknown;
+  /** Ali-faithful: the `metadataChange` event (S4) — kept for back-compat. */
+  metadataChange: unknown;
+};
+
+/**
  * The `SettingTopEntry` class. Ali-faithful port (the 297-LoC ali class).
  */
 export class SettingTopEntry implements ISettingTopEntry {
-  private readonly _emitter = new Emitter<Record<string, unknown>>();
+  private readonly _emitter = new Emitter<ISettingTopEntryEvents>();
   private _items: Array<ISettingFieldFull | IPublicTypeCustomView> = [];
   private _componentMeta: IComponentMetaTopEntry | null = null;
   private _isSame = true;
@@ -254,12 +267,28 @@ export class SettingTopEntry implements ISettingTopEntry {
 
   /**
    * Ali-faithful `setValue` — bulk-set the prop values. Delegates to
-   * `setProps(val)` and would emit a valuechange event (TODO, not in
-   * the slim port's first cut).
+   * `setProps(val)` and emits a `valuechange` event with the new
+   * value so consumers (preview pane, canvas re-render listeners,
+   * plugin code) can react to the change.
    */
   setValue(val: unknown): void {
     this.setProps(val as Record<string, unknown>);
-    // TODO: emit value change
+    // Phase D.I7b.9: emit `valuechange` (ali-faithful). The slim
+    // port previously had a TODO here; the event was missing
+    // because the Emitter's payload type was `Record<string,
+    // unknown>` (untyped). Now properly typed via
+    // ISettingTopEntryEvents.
+    this._emitter.emit('valuechange', val);
+  }
+
+  /**
+   * Phase D.I7b.9: subscribe to the `valuechange` event. Returns
+   * a disposer (ali-faithful `IPublicModelSettingTopEntry.onValueChange`
+   * shape). Multiple subscribers are supported; each receives the
+   * new value when `setValue` is called.
+   */
+  onValueChange(fn: (val: unknown) => void): () => void {
+    return this._emitter.on('valuechange', (val) => fn(val));
   }
 
   /**

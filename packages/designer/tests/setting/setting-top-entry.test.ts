@@ -197,6 +197,68 @@ describe('setting/SettingTopEntry (Phase D.S4)', () => {
     expect(node.setProps).toHaveBeenCalledWith({ hello: 'sapu' });
   });
 
+  // Phase D.I7b.9: SettingTopEntry.setValue emits a 'valuechange'
+  // event with the new value. Ali-faithful: the valuechange event
+  // is the canonical hook for "a setting was changed via the
+  // settings panel" consumers (preview pane re-render, undo
+  // stack entry, analytics, etc.). The slim port previously had
+  // a TODO at this line; D.I7b.9 wires the emit.
+
+  it('setValue: emits valuechange with the new value (D.I7b.9)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    top.setValue({ foo: 'bar' });
+    expect(onChange).toHaveBeenCalledWith({ foo: 'bar' });
+  });
+
+  it('setValue: emits valuechange BEFORE the disposer is called (disposer is called once)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    const dispose = top.onValueChange(onChange);
+    top.setValue(1);
+    top.setValue(2);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenNthCalledWith(1, 1);
+    expect(onChange).toHaveBeenNthCalledWith(2, 2);
+    dispose();
+    top.setValue(3);
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('onValueChange: supports multiple subscribers (all fire)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const sub1 = vi.fn();
+    const sub2 = vi.fn();
+    top.onValueChange(sub1);
+    top.onValueChange(sub2);
+    top.setValue('hello');
+    expect(sub1).toHaveBeenCalledWith('hello');
+    expect(sub2).toHaveBeenCalledWith('hello');
+  });
+
+  it('setValue: forwards the value as-is (no clone / no transform)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    const value = { nested: { a: 1, b: [2, 3] } };
+    top.setValue(value);
+    // The slim port: pass-through (ali-faithful). The document
+    // mutation layer (SetPropCommand) handles the deep-clone.
+    expect(onChange).toHaveBeenCalledWith(value);
+  });
+
+  it('setValue: also calls node.setProps (regression: no behavior change)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    top.setValue({ x: 1 });
+    expect(node.setProps).toHaveBeenCalledWith({ x: 1 });
+  });
+
   it('isLocked reads from the first node', () => {
     const n = mkNode({ isLocked: true });
     const top = new SettingTopEntry(mkEditor() as never, [n]);
