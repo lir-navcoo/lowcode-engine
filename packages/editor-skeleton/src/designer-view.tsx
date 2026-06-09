@@ -6,21 +6,26 @@
  * JSX 出口) 全收进一个文件, 行为字节级一致.
  *
  * host 想完全替换画布时, 传 `designerView={(helpers) => <YourView />}` 给
- * `<Skeleton>`. 不传 → 用 `<DefaultDesignerView>` (Simulator + Overlays +
+ * `<Skeleton>`. 不传 → 用 `<DefaultDesignerView>` (Simulator + BemTools +
  * BuiltinSimulatorHost).
  *
  * 替换视图必须自行负责:
  *   1. 渲染 project.document.root (用 Simulator 或自己的渲染器)
- *   2. 给画布节点打 data-lce-id 属性 (Overlays 用它定位)
+ *   2. 给画布节点打 data-lce-id 属性 (BemTools 用它定位)
  *   3. 在画布节点上挂 pointer 事件 → dragon (BuiltinSimulatorHost 即可)
  * 详见 docs/packages/editor-skeleton.md "画布可替换" 节.
+ *
+ * Phase D.I7b.4: the legacy P6 `<Overlays>` (imperative DOM-tree)
+ * is replaced by the Phase D.I6 `<BemTools>` (React + observerHOC).
+ * The 4 features (selection border, hover-detecting border,
+ * insertion line, 8 resize handles) are ali-faithful in shape
+ * and the slim BemTools renders the same UX without a separate
+ * DragResizeEngine (BorderResizing constructs its own per-mount).
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { BuiltinSimulatorHost, DragResizeEngine, Project, Simulator } from '@monbolc/lowcode-designer';
-
-import { Overlays } from './overlays';
+import { BuiltinSimulatorHost, BemTools, Project, Simulator } from '@monbolc/lowcode-designer';
 
 /** host 自定义画布时, 通过 `designerView(helpers)` 拿到的 props 子集. */
 export interface DesignerViewHelpers {
@@ -40,8 +45,8 @@ export interface DesignerViewProps extends DesignerViewHelpers {
 const CN = {
   // 外层: 灰底 + padding + 滚动条
   canvas: 'flex-1 bg-slate-50 p-4 overflow-auto h-full',
-  // 内层: 白卡 + `relative` 是 load-bearing — Overlays 把自己 appendChild
-  // 进来, 失去 relative 定位会让 selection border 跑到 <body>.
+  // 内层: 白卡 + `relative` 是 load-bearing — BemTools 把自己 portal 进
+  // 画布容器, 失去 relative 定位会让 selection border 跑到 <body>.
   canvasInner: 'relative bg-white min-h-full p-4 border border-slate-200',
 } as const;
 
@@ -55,6 +60,11 @@ export function DefaultDesignerView(props: DesignerViewProps): ReactNode {
   // canvasEl 是 state (不是 ref) — 第三个 useEffect (mount BuiltinSimulatorHost)
   // 依赖它, 这样 React 真的把 DOM 节点挂上去了才会触发.
   const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null);
+  // Phase D.I7b.4: lift `host` to state so the render can pass it to
+  // <BemTools host={host}/>. The state is updated by the mount effect
+  // when the canvasEl is set; before that, host is null and the JSX
+  // renders nothing for the bem-tools slot.
+  const [host, setHost] = useState<BuiltinSimulatorHost | null>(null);
   const setCanvasRef = (el: HTMLDivElement | null): void => {
     canvasHost.current = el;
     setCanvasEl(el);
@@ -104,34 +114,25 @@ export function DefaultDesignerView(props: DesignerViewProps): ReactNode {
   // 挂 BuiltinSimulatorHost — 把 canvas DOM 的 pointer 事件桥接到 Dragon.
   // Host 自己不创建 DOM, 只挂监听, 所以 cleanup 极简.
   //
-  // P9.2: also create a DragResizeEngine per canvas mount and
-  // pass it to <Overlays>. The Overlays wire each resize
-  // handle's pointerdown → engine.start(id, anchor, e). The
-  // engine is per-mount (mirrors the BuiltinSimulatorHost
-  // lifecycle) and gets GC'd on unmount when the next mount
-  // re-creates it.
+  // Phase D.I7b.4: also lift `host` to state via setHost so the render
+  // can pass it to <BemTools host={host}/>. BorderResizing (D.I7b.3)
+  // constructs its own DragResizeEngine per mount — no separate engine
+  // wiring needed here.
   useEffect(() => {
     if (!canvasEl) return;
-    const host = new BuiltinSimulatorHost(props.project, { canvas: canvasEl });
-    host.mount();
-    const resizeEngine = new DragResizeEngine({ project: props.project, canvas: canvasEl });
-    setEngine(resizeEngine);
+    const h = new BuiltinSimulatorHost(props.project, { canvas: canvasEl });
+    h.mount();
+    setHost(h);
     return () => {
-      host.unmount();
-      resizeEngine.cancel();
-      setEngine(null);
+      h.unmount();
+      setHost(null);
     };
   }, [canvasEl, props.project]);
-
-  // P9.2: the engine is created in the mount effect, but <Overlays>
-  // needs a stable reference. State-ize it so React re-renders
-  // Overlays once the engine exists.
-  const [engine, setEngine] = useState<DragResizeEngine | null>(null);
 
   return (
     <div className={props.canvasClassName ?? CN.canvas}>
       <div className={props.canvasInnerClassName ?? CN.canvasInner} ref={setCanvasRef}>
-        <Overlays project={props.project} canvasContainer={canvasEl} resizeEngine={engine} />
+        {host ? <BemTools host={host} /> : null}
       </div>
     </div>
   );
