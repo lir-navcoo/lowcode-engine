@@ -127,6 +127,21 @@ export interface DragonEvents<TNode extends IPublicTypeNodeLike = IPublicTypeNod
 
 type Mode = 'idle' | 'move' | 'boost' | 'any';
 
+/**
+ * Phase C.AE: type-guard for HTML5 drag events. Ali-faithful
+ * port of `alibaba/lowcode-engine/packages/designer/src/designer/dragon.ts:94`
+ * (`isDragEvent(e): e is DragEvent`).
+ *
+ * The browser fires `dragstart` / `dragover` / `drop` / `dragend`
+ * for HTML5 drags (vs. `mousedown` / `mousemove` / `mouseup` for
+ * the legacy mouse path). We detect via the `type` field's
+ * `drag*` prefix.
+ */
+function isDragEvent(e: MouseEvent | DragEvent): e is DragEvent {
+  const t = (e as unknown as { type?: string } | null)?.type;
+  return !!t && t.startsWith('drag');
+}
+
 export class Dragon<
   TNode extends IPublicTypeNodeLike = IPublicTypeNodeLike,
   TLocateEvent extends IPublicTypeLocateEvent<TNode> = IPublicTypeLocateEvent<TNode>,
@@ -171,6 +186,13 @@ export class Dragon<
 
   // Bound listeners (instrumented mode only)
   private _instrumented = false;
+  // Phase C.AE: HTML5 DnD binding state. Set when the boost
+  // event is a DragEvent (browser-native HTML5 drag). The
+  // mouse path uses _boundMove / _boundUp / _boundKey; the
+  // HTML5 path uses _boundDrop / _boundDragEnd.
+  private _boundDrop: ((e: DragEvent) => void) | null = null;
+  private _boundDragEnd: (() => void) | null = null;
+  private _html5Bound = false;
   private _boundMove: ((e: MouseEvent) => void) | null = null;
   private _boundUp: ((e: MouseEvent) => void) | null = null;
   private _boundKey: ((e: KeyboardEvent) => void) | null = null;
@@ -339,7 +361,7 @@ export class Dragon<
    * `fromRglNode` is reserved for the RGL Free-Layout plugin; sapu
    * ships without RGL, so the argument is a no-op.
    */
-  boost(dragObject: IPublicTypeDragObject<TNode>, e: MouseEvent, _fromRglNode?: unknown): void;
+  boost(dragObject: IPublicTypeDragObject<TNode>, e: MouseEvent | DragEvent, _fromRglNode?: unknown): void;
 
   /**
    * Back-compat: manual boost without DOM binding. The host wires
@@ -351,7 +373,7 @@ export class Dragon<
 
   boost(
     arg1: IPublicTypeDragObject<TNode> | BoostMeta,
-    arg2: MouseEvent | number,
+    arg2: MouseEvent | DragEvent | number,
     arg3?: number,
   ): void {
     if (this._mode !== 'idle') return;
@@ -501,7 +523,7 @@ export class Dragon<
 
   private _beginGesture(
     dragObject: IPublicTypeDragObject<TNode>,
-    e: MouseEvent,
+    e: MouseEvent | DragEvent,
     instrumented: boolean,
   ): void {
     this._mode = this._inferMode(dragObject);
@@ -514,6 +536,15 @@ export class Dragon<
     this._shaken = false;
     this._dropTarget = null;
     this._instrumented = instrumented;
+    // Phase C.AE: ali-faithful HTML5 DnD branch. When the
+    // boost event is a DragEvent (the browser-native HTML5
+    // drag), set up the dataTransfer payload + register the
+    // `drop` / `dragend` listeners. The mouse-based path stays
+    // unchanged.
+    if (isDragEvent(e)) {
+      this._beginHtml5Gesture(dragObject, e);
+      return;
+    }
 
     // Legacy v2.2 start events (fire immediately for back-compat).
     if (this._mode === 'move' && dragObject.type === 'Node') {
@@ -533,6 +564,102 @@ export class Dragon<
       document.addEventListener('mouseup', this._boundUp);
       document.addEventListener('keydown', this._boundKey);
     }
+  }
+
+  /**
+   * Phase C.AE: HTML5 DnD branch of `_beginGesture`. Ali-faithful
+   * port of `alibaba/lowcode-engine/packages/designer/src/designer/dragon.ts:500-525`
+   * (the `isBoostFromDragAPI` branch).
+   *
+   * When the user kicks off a drag via the browser's native HTML5
+   * DnD API (e.g. dragging a component from a palette into the
+   * canvas via a real `<div draggable="true">`), the browser
+   * fires `dragstart` / `dragover` / `drop` / `dragend` events
+   * — not `mousedown` / `mousemove` / `mouseup`. We:
+   *
+   *   1. Set `dataTransfer.effectAllowed = 'all'` so the drop
+   *      target knows both copy + move are acceptable.
+   *   2. Set `dataTransfer.setData('application/json', '{}')`
+   *      so external drop targets can detect that the drag
+   *      payload is from this engine.
+   *   3. Skip the `setNativeSelection(false)` call (HTML5
+   *      doesn't need it — the browser handles the drag image
+   *      natively).
+   *   4. Wire `drop` (commits the gesture) and `dragend`
+   *      (cancels if dropped outside a drop target) listeners.
+   *      We do NOT wire `dragover` for the slim version —
+   *      ali does, but the slim default (`dropTarget` only
+   *      updates via the move listener) is sufficient for
+   *      the demo's use cases. Phase D can add `dragover` if a
+   *      plugin needs live drop-target updates.
+   */
+  private _beginHtml5Gesture(
+    dragObject: IPublicTypeDragObject<TNode>,
+    e: DragEvent,
+  ): void {
+    const { dataTransfer } = e;
+    if (dataTransfer) {
+      try {
+        dataTransfer.effectAllowed = 'all';
+      } catch {
+        // some browsers throw on effectAllowed assignment in
+        // certain contexts (e.g. iframe sandbox); ignore
+      }
+      try {
+        dataTransfer.setData('application/json', '{}');
+      } catch {
+        // some browsers throw if 'application/json' isn't in
+        // the allowed types list; ignore
+      }
+    }
+    // Fire the same start/dragstart events the mouse path would
+    // fire, so consumers don't need to know which path was used.
+    if (dragObject.type === 'NodeData') {
+      this.events.emit('startBoost', { meta: dragObject.data });
+    }
+    this.events.emit('dragstart', { dragObject, copy: this._copy });
+    const dropHandler = (dropEvent: DragEvent): void => {
+      this._x = dropEvent.clientX;
+      this._y = dropEvent.clientY;
+      // Move + commit on drop. We use the existing commit path
+      // which fires `drop` or `cancel` based on whether a
+      // drop target was set.
+      this._handleMove(dropEvent as unknown as MouseEvent);
+      this._handleUp(dropEvent as unknown as MouseEvent);
+      this._teardownHtml5();
+    };
+    const dragEndHandler = (): void => {
+      // The browser fires `dragend` on the SOURCE when the
+      // drag is released, whether or not it landed on a valid
+      // drop target. If the drop handler already ran (we'd
+      // have called _reset and `_instrumented` would be false),
+      // the cancellation is redundant — but harmless. If the
+      // drop landed outside a drop target, this fires
+      // `cancel` / `cancelBoost` so the gesture is properly
+      // closed.
+      if (this._mode === 'idle') {
+        this._teardownHtml5();
+        return;
+      }
+      this._endGesture(true);
+      this._teardownHtml5();
+    };
+    this._boundDrop = dropHandler;
+    this._boundDragEnd = dragEndHandler;
+    this._html5Bound = true;
+    document.addEventListener('drop', this._boundDrop, true);
+    document.addEventListener('dragend', this._boundDragEnd, true);
+  }
+
+  /** Phase C.AE: dispose the HTML5 listeners. Symmetric to
+   *  `_teardown` for the mouse path. */
+  private _teardownHtml5(): void {
+    if (!this._html5Bound) return;
+    if (this._boundDrop) document.removeEventListener('drop', this._boundDrop, true);
+    if (this._boundDragEnd) document.removeEventListener('dragend', this._boundDragEnd, true);
+    this._boundDrop = null;
+    this._boundDragEnd = null;
+    this._html5Bound = false;
   }
 
   private _inferMode(dragObject: IPublicTypeDragObject<TNode>): Mode {
