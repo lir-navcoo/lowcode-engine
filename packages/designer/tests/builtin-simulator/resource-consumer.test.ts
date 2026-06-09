@@ -56,7 +56,13 @@ describe('ResourceConsumer (Phase D.I3)', () => {
     rc.dispose();
   });
 
-  it('consume(renderer) without a ctor-supplied consumer is a silent no-op (ali TODO)', () => {
+  // Phase D.I7b.13: ali-faithful throw when a renderer is passed
+  // but no renderer consumer was registered. The slim port used
+  // to silently no-op (the pre-existing TODO). D.I7b.13 makes
+  // the misconfiguration explicit so the editor doesn't silently
+  // drop a renderer.
+
+  it('consume(renderer) without a ctor-supplied consumer throws ReferenceError (D.I7b.13)', () => {
     const sentinelRenderer = {
       isSimulatorRenderer: true as const,
       components: {},
@@ -64,9 +70,39 @@ describe('ResourceConsumer (Phase D.I3)', () => {
       getClientRects: () => [],
     };
     const rc = new ResourceConsumer<string>(() => 'x');
-    // No consumer ctor arg → `consume(renderer)` silently no-ops.
-    expect(() => rc.consume(sentinelRenderer)).not.toThrow();
+    // No consumer ctor arg → `consume(renderer)` throws.
+    expect(() => rc.consume(sentinelRenderer)).toThrow(ReferenceError);
+    expect(() => rc.consume(sentinelRenderer)).toThrow(/consumer/);
     rc.dispose();
+  });
+
+  it('consume(plain-fn) without a ctor consumer does NOT throw (D.I7b.13)', () => {
+    // Plain-function consumers are independent of the ctor's
+    // `consumer` slot; the throw is gated on the renderer path
+    // only.
+    const rc = new ResourceConsumer<string>(() => 'x');
+    expect(() => rc.consume(vi.fn())).not.toThrow();
+    rc.dispose();
+  });
+
+  it('consumer error is caught + reported (D.I7b.13)', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const consumerError = new Error('consumer-threw');
+      const rc = new ResourceConsumer<number>(() => 42);
+      rc.consume(() => {
+        throw consumerError;
+      });
+      // Wait for the autorun to fire.
+      await new Promise((r) => setTimeout(r, 0));
+      expect(errorSpy).toHaveBeenCalled();
+      // First call's first arg contains the error message.
+      const callArgs = errorSpy.mock.calls[0];
+      expect(String(callArgs?.[0])).toContain('ResourceConsumer');
+      rc.dispose();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('consume(plain-fn) uses the plain function as the consumer', () => {

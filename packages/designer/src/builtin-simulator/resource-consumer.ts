@@ -47,8 +47,9 @@ export type RendererConsumer<T> = (renderer: BuiltinSimulatorRenderer, data: T) 
  * the host coupling.
  */
 export class ResourceConsumer<T = unknown> {
-  /** Ali-faithful private Emitter (only used for the dispose cleanup). */
-  private readonly _emitter = new Emitter<Record<string, unknown>>();
+  /** Ali-faithful private Emitter (used for dispose + the new
+   *  D.I7b.13 `error` channel for consumer failures). */
+  private readonly _emitter = new Emitter<{ error: unknown }>();
 
   /**
    * Ali-faithful `@obx.ref private _data: T | typeof UNSET = UNSET`.
@@ -86,8 +87,16 @@ export class ResourceConsumer<T = unknown> {
     let consumer: (data: T) => unknown;
     if (isSimulatorRenderer(consumerOrRenderer)) {
       if (!this.consumer) {
-        // TODO: throw error (ali has a TODO too; slim keeps the silent no-op)
-        return;
+        // Phase D.I7b.13: ali-faithful throw. The slim port
+        // previously had a silent no-op (TODO). The error is
+        // a ReferenceError because the ctor's `consumer` param
+        // is missing — a programmer error (forgot to wire
+        // the renderer consumer), not a runtime issue.
+        throw new ReferenceError(
+          'ResourceConsumer.consume(): a renderer was passed but no `consumer` ' +
+          'function was registered at construction time. Pass a renderer consumer ' +
+          'to the ctor: `new ResourceConsumer({ provider, consumer })`.',
+        );
       }
       const rendererConsumer = this.consumer;
       consumer = (data) => rendererConsumer(consumerOrRenderer, data);
@@ -99,8 +108,26 @@ export class ResourceConsumer<T = unknown> {
       if (data === UNSET) {
         return;
       }
-      // Ali-faithful: catch-and-ignore; TODO: report errors
-      await consumer(data as T);
+      // Phase D.I7b.13: report consumer errors via console.error.
+      // Ali-faithful: catch-and-report. Without this, a thrown
+      // consumer error becomes an unhandled promise rejection
+      // and the editor stays in a broken state with no
+      // diagnostic. The slim port logs the error with a
+      // resource-consumer instance id (the autorun's `name`).
+      try {
+        await consumer(data as T);
+      } catch (err) {
+        // Ali-faithful: console.error for dev visibility; the
+        // autorun's host (this._emitter) is also notified
+        // for programmatic consumers.
+        // eslint-disable-next-line no-console
+        console.error(
+          '[lowcode-designer] ResourceConsumer: consumer threw:',
+          err,
+        );
+        this._emitter.emit('error', err);
+        return;
+      }
       if (this.resolveFirst) {
         this.resolveFirst();
       } else {
