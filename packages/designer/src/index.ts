@@ -137,5 +137,11 @@ export type {
   IPublicTypeDisposable,
 } from './designer/setting/setting-field';
 
-// S2 forward-decl of S4's class. S4 will replace this with the real class.
-export type { ISettingTopEntry } from './designer/setting/setting-top-entry';
+// ---- Phase D.S4 ali-mirror (setting tree — SettingTopEntry, the canonical entry point) ----
+export { SettingTopEntry } from './designer/setting/setting-top-entry';
+export type {
+  ISettingTopEntry,
+  IComponentMetaTopEntry,
+  ITopEntryNode,
+  ITopEntryEditor,
+} from './designer/setting/setting-top-entry';
