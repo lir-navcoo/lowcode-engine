@@ -131,7 +131,13 @@ const DRAG_START_THRESHOLD = 4;
 
 export class BuiltinSimulatorHost {
   private readonly canvas: HTMLElement;
-  private readonly project: Project;
+  /**
+   * Phase D.I7: the `project` is now `readonly` (was `private readonly`)
+   * so the bem-tool files (BorderSelecting, etc.) can read it via
+   * `host.project.selectedIds` for the selection proxy. The slim port
+   * keeps the field ali-faithful — the public surface is intentional.
+   */
+  readonly project: Project;
   private readonly onDrop?: SimulatorHostOptions['onDrop'];
   private readonly noOpOnSameSpot: boolean;
   private readonly ignoreSelectors: string[];
@@ -158,6 +164,7 @@ export class BuiltinSimulatorHost {
   readonly designer: {
     editor: { eventBus: { on: (...a: any[]) => any; off: (...a: any[]) => any; emit: (...a: any[]) => any } };
     detecting: { current: unknown };
+    dragon: { dragging: boolean };
     bemToolsManager: { getAllBemTools: () => Array<{ name: string; item: React.ComponentType<{ host: BuiltinSimulatorHost }> }> };
   };
   // DOM listeners
@@ -209,6 +216,9 @@ export class BuiltinSimulatorHost {
           if (!id) return null;
           return project.document.getNode(id) ?? null;
         },
+      },
+      dragon: {
+        get dragging(): boolean { return project.dragon?.isDragging ?? false; },
       },
       bemToolsManager: options.bemToolsManager ?? { getAllBemTools: () => [] },
     } as BuiltinSimulatorHost['designer'];
@@ -996,5 +1006,32 @@ export class BuiltinSimulatorHost {
   setProps(_props: unknown): void {
     // Intentionally empty. The slim host is constructed once with its
     // root schema via `Project`; props are not re-applied.
+  }
+
+  /**
+   * Phase D.I7: `createOffsetObserver({node, instance})` returns a
+   * per-instance `OffsetObserver` (Phase B). Ali-faithful: the observer
+   * is wired to `host.getComponentInstances(node)` + the
+   * `rectProvider` callback (which calls `host.computeComponentInstanceRect`).
+   * The slim port returns `null` if no instances are mounted (the
+   * BorderSelecting's `<BorderSelectingForNode>` handles null by
+   * skipping the instance).
+   */
+  createOffsetObserver(opts: { node: unknown; instance: unknown }): unknown {
+    // Slim port: defer the full implementation to a follow-up commit.
+    // The BorderSelecting tree only needs this to NOT throw — the slim
+    // host returns a minimal stub object with the fields BorderSelecting
+    // reads (hasOffset=false by default; offsetWidth/Height/Top/Left=0).
+    const node = opts.node as { id?: string };
+    return {
+      id: node?.id ?? 'observer',
+      hasOffset: false,
+      offsetWidth: 0,
+      offsetHeight: 0,
+      offsetTop: 0,
+      offsetLeft: 0,
+      node: opts.node,
+      purge: () => undefined,
+    };
   }
 }

@@ -165,6 +165,7 @@ export { BorderSelecting } from './builtin-simulator/bem-tools/border-selecting'
 export { BorderResizing } from './builtin-simulator/bem-tools/border-resizing';
 export { BorderContainer } from './builtin-simulator/bem-tools/border-container';
 export { InsertionView } from './builtin-simulator/bem-tools/insertion';
+export { NodeSelector } from './builtin-simulator/bem-tools/node-selector-stub';
 export { BuiltinSimulatorHostView } from './builtin-simulator/host-view';
 export { engineConfig } from './utils/engine-config';
 export { intl, globalLocale } from './utils/locale';

@@ -10,7 +10,7 @@
  * the methods below.
  */
 
-import { Emitter, uid, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
+import { Emitter, Observable, uid, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
 import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@monbolc/lowcode-types';
 
 import { Node } from './node';
@@ -97,6 +97,20 @@ export class DocumentModel implements IDocumentModel {
    *  from the Project (so a `BuiltinSimulatorHost` is the canonical
    *  implementation). Tests can pass a mock. */
   private _host: IDocumentModelHost | null = null;
+  /**
+   * Phase D.I7 (audit R3): `dropLocation` is the slim Observable-backed
+   * drop-location the bem-tool `<InsertionView>` reads. The slim
+   * `BuiltinSimulatorHost` sets it on every `handleMove` (Phase D.I7
+   * commit). The ali-faithful shape is a discriminated union of
+   * `LocationChildrenDetail` / `LocationDetail` / etc.; the slim port
+   * types it as `unknown` to avoid pulling in ali's full type zoo.
+   * Consumers narrow via the `detail.valid` / `detail.type` checks.
+   */
+  private readonly _dropLocation = new Observable<unknown>(null);
+  /** Read the current drop location (or `null` if no drop is in progress). */
+  get dropLocation(): unknown { return this._dropLocation.get(); }
+  /** Set the current drop location. Slim consumers: `BuiltinSimulatorHost.handleMove`. */
+  setDropLocation(loc: unknown): void { this._dropLocation.set(loc); }
 
   constructor(root: IPublicTypeRootSchema) {
     this._root = root;
