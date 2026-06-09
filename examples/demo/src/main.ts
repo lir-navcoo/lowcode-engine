@@ -43,6 +43,7 @@ import type { IPublicTypeDragObject, IPublicTypeNodeLike } from '@monbolc/lowcod
 import type { OutlinePane } from '@monbolc/lowcode-plugin-outline-pane';
 import {
   registerSetter,
+  unregisterSetter,
   type SetterComponent,
   type SetterProps,
 } from '@monbolc/lowcode-plugin-setters';
@@ -359,20 +360,13 @@ function App({ engine }: { engine: ISapuEngine }) {
   // (Re-)register / unregister the custom setter whenever the toggle
   // changes. The L4 panel consults the registry on every render, so
   // flipping the toggle and selecting `Sidebar` is enough to see the
-  // change immediately.
+  // change immediately. Phase D.I7b.16: the unregisterSetter API
+  // replaced the throw-sentinel workaround — cleaner + ali-faithful.
   useEffect(() => {
     if (customOn) {
       registerSetter('HexColor', HexColor);
     } else {
-      // Unregister: registerSetter with `null` would be cleaner, but
-      // the public API only exposes `registerSetter(name, comp)`. We
-      // override with a sentinel that throws if it ever runs — this
-      // way the panel's `pickSetter` falls back to 'Input' (which is
-      // the "use the default" behaviour we want when the toggle is
-      // off).
-      registerSetter('HexColor', () => {
-        throw new Error('HexColor is unregistered. Toggle it on in the toolbar.');
-      });
+      unregisterSetter('HexColor');
     }
     // Reflect the toggle state in the toolbar button label.
     const btn = document.getElementById('toggle-custom');
