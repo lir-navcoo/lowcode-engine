@@ -172,4 +172,10 @@ export { intl, globalLocale } from './utils/locale';
 export { Title } from './components/title';
 export type { ITitleProps } from './components/title';
 export type { BemToolsProps } from './builtin-simulator/bem-tools';
+
+// ---- Phase D.I8 ali-mirror (live-editing + drag-ghost) ----
+export { LiveEditing } from './builtin-simulator/live-editing/live-editing';
+export type { EditingTarget, SpecificRule, SaveHandler } from './builtin-simulator/live-editing/live-editing';
+export { DragGhost, default as DragGhostDefault } from './designer/drag-ghost';
+export type { DragGhostProps } from './designer/drag-ghost';
 export type { BorderDetectingProps, BorderDetectingInstanceProps } from './builtin-simulator/bem-tools/border-detecting';
