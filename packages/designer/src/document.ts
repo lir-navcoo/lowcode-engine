@@ -13,6 +13,7 @@
 import { Emitter, Observable, uid, autorun as _autorun, reaction as _reaction } from '@monbolc/lowcode-utils';
 import { Selection } from './selection';
 import type { History } from './history';
+import type { IDropLocation } from './drop-location';
 import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@monbolc/lowcode-types';
 
 import { Node } from './node';
@@ -106,14 +107,16 @@ export class DocumentModel implements IDocumentModel {
    * `BuiltinSimulatorHost` sets it on every `handleMove` (Phase D.I7
    * commit). The ali-faithful shape is a discriminated union of
    * `LocationChildrenDetail` / `LocationDetail` / etc.; the slim port
-   * types it as `unknown` to avoid pulling in ali's full type zoo.
-   * Consumers narrow via the `detail.valid` / `detail.type` checks.
+   * types it as the slim `IDropLocation` (Phase D.I7b.1a) — a
+   * structural subset that's enough for `<InsertionView>` to render
+   * the drop line. Ali-faithful: `target` + `detail` + `document`.
+   * `null` means "no drop in progress".
    */
-  private readonly _dropLocation = new Observable<unknown>(null);
+  private readonly _dropLocation = new Observable<IDropLocation | null>(null);
   /** Read the current drop location (or `null` if no drop is in progress). */
-  get dropLocation(): unknown { return this._dropLocation.get(); }
+  get dropLocation(): IDropLocation | null { return this._dropLocation.get(); }
   /** Set the current drop location. Slim consumers: `BuiltinSimulatorHost.handleMove`. */
-  setDropLocation(loc: unknown): void { this._dropLocation.set(loc); }
+  setDropLocation(loc: IDropLocation | null): void { this._dropLocation.set(loc); }
   /**
    * Phase D.I7b-prep: per-document `Selection` proxy. The slim port
    * instantiates it lazily on first access (the document constructor

@@ -27,7 +27,8 @@
 
 import type { Project } from './project';
 import type { DropTarget, Dragon } from './dragon';
-import type { Node } from './node';
+import { Node } from './node';
+import type { IDropLocation } from './drop-location';
 import { getHitInfo, findDOMNodes, type InstanceLike } from './dom';
 import { computeInsertLocation, type LocateChild } from './locate';
 import { Viewport } from './viewport';
@@ -616,6 +617,74 @@ export class BuiltinSimulatorHost {
     return node?.children?.length ?? 0;
   }
 
+  /**
+   * Phase D.I7b.1b: translate the slim `DropTarget` to a slim
+   * `IDropLocation` for the bem-tool `<InsertionView>`. Ali-faithful
+   * shape (`target` + `detail` + `document`); slim in `detail`
+   * payload (no `near.rect` / `near.align`).
+   *
+   * The slim port maps the legacy `placement` to `detail.near`:
+   *   - `'inside'` → drop into the target. No `near`; `index` is the
+   *     insert position. The InsertionView renders a `cover` rect
+   *     over the target (ali-faithful `coverRect = edge`).
+   *   - `'before'` → drop before the sibling at `index`. `near: { node: sibling, pos: 'before' }`.
+   *   - `'after'`  → drop after the sibling at `index - 1`. `near: { node: sibling, pos: 'after' }`.
+   *
+   * `parentId === null` means "drop into the document root" (the
+   * empty-canvas case from `computeDropTarget`). The slim port
+   * resolves `target` to the root's wrapper Node, falling back to
+   * `null` (which the InsertionView treats as a no-op render).
+   */
+  private _dropTargetToLocation(target: DropTarget): IDropLocation | null {
+    const document = this.project.document;
+    let parentNode: Node | null = null;
+    if (target.parentId) {
+      parentNode = document.getNode(target.parentId) ?? null;
+    } else {
+      // Drop into the root schema. The slim Node map is keyed by
+      // id; the root is a schema, not a Node, so we synthesize a
+      // Node wrapper (or return null if the document is empty).
+      const rootChildren = document.root.children ?? [];
+      if (rootChildren.length === 0 && target.placement !== 'inside') {
+        return null;
+      }
+      // The InsertionView only needs the rect of the target; a
+      // synthesized root wrapper with the root's children is enough.
+      parentNode = new Node(document.root as never, null);
+    }
+    if (!parentNode) return null;
+    if (target.placement === 'inside') {
+      return {
+        target: parentNode,
+        detail: { index: target.index },
+        document,
+      };
+    }
+    // 'before' | 'after': the slim port uses the sibling-at-index as
+    // the `near` node. For 'after', the sibling is at index-1; for
+    // 'before', at index.
+    const siblings = parentNode.children;
+    const nearIndex = target.placement === 'after' ? target.index - 1 : target.index;
+    const nearNode = siblings[nearIndex];
+    if (!nearNode) {
+      // Edge: out-of-range index. Fall back to a "cover the parent"
+      // render so the user still sees feedback.
+      return {
+        target: parentNode,
+        detail: { index: null },
+        document,
+      };
+    }
+    return {
+      target: parentNode,
+      detail: {
+        index: target.index,
+        near: { node: nearNode, pos: target.placement },
+      },
+      document,
+    };
+  }
+
   private _isInCenterBand(y: number, rect: DOMRect): boolean {
     const centerY = rect.top + rect.height / 2;
     // Within 1/3 of the rect's height of the center → "inside" the hit.
@@ -825,6 +894,17 @@ export class BuiltinSimulatorHost {
       this.scroller.scrolling(e);
       const target = this.computeDropTarget(e.clientX, e.clientY);
       this.project.dragon.move(e.clientX, e.clientY, target);
+      // Phase D.I7b.1b: publish the slim `IDropLocation` so the
+      // bem-tool `<InsertionView>` can render the drop line. Ali's
+      // host does this via `designer.setDropLocation(loc)` on every
+      // move; the slim port routes directly to the document (the
+      // bem-tool reads `host.currentDocument.dropLocation`).
+      if (target) {
+        const loc = this._dropTargetToLocation(target);
+        this.project.document.setDropLocation(loc);
+      } else {
+        this.project.document.setDropLocation(null);
+      }
       return;
     }
     // No active drag yet — promote a pending click past the threshold.
@@ -843,10 +923,18 @@ export class BuiltinSimulatorHost {
     this.project.dragon.start(pending.id, pending.x, pending.y, e);
     const target = this.computeDropTarget(pending.x, pending.y);
     this.project.dragon.move(pending.x, pending.y, target);
+    if (target) {
+      const loc = this._dropTargetToLocation(target);
+      this.project.document.setDropLocation(loc);
+    }
   }
 
   private handleUp(_e: PointerEvent): void {
     this.scroller.cancel();
+    // Phase D.I7b.1b: clear the drop-location on gesture end. The
+    // bem-tool `<InsertionView>` returns null when `dropLocation`
+    // is null (i.e. no drop in progress).
+    this.project.document.setDropLocation(null);
     // v2.3.2: clear the no-select on pointerup. If a drag
     // started, the Dragon's `drop` (or `cancel`) event will
     // also clear it — the refcount stays balanced (one add
