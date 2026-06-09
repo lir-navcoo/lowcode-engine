@@ -11,7 +11,7 @@
  * the key itself" behavior — important for host UIs that want to
  * keep rendering when a translation hasn't been added yet.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { ShellI18n } from '../src/i18n';
 
@@ -59,5 +59,47 @@ describe('ShellI18n (L6.5)', () => {
     // we leave the placeholder alone (typo-safe).
     expect(i18n.t('toast.hello', { name: 'X' })).toBe('Hello, X!');
     expect(i18n.t('toast.hello')).toBe('Hello, {name}!');
+  });
+
+  // Phase D.I7b.20: localeChanged event. Ali-faithful: i18n
+  // is reactive; the slim port pre-D.I7b.20 had no event
+  // surface at all (the doc comment at i18n.ts:33-37
+  // referenced `engine.i18n.events` which didn't exist).
+  // D.I7b.20 wires a typed `events: Emitter<{ localeChanged:
+  // { from, to } }>` and a convenience `onLocaleChange`
+  // subscription.
+
+  it('localeChanged: fires on setLocale with from/to (D.I7b.20)', () => {
+    const cb = vi.fn();
+    i18n.onLocaleChange(cb);
+    i18n.setLocale('en-US');
+    expect(cb).toHaveBeenCalledWith({ from: 'zh-CN', to: 'en-US' });
+  });
+
+  it('localeChanged: does NOT fire when the locale is unchanged (D.I7b.20)', () => {
+    const cb = vi.fn();
+    i18n.onLocaleChange(cb);
+    i18n.setLocale('zh-CN'); // same as default
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it('localeChanged: multiple subscribers all fire (D.I7b.20)', () => {
+    const a = vi.fn();
+    const b = vi.fn();
+    i18n.onLocaleChange(a);
+    i18n.onLocaleChange(b);
+    i18n.setLocale('en-US');
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenCalledTimes(1);
+  });
+
+  it('onLocaleChange: returned disposer stops the subscription (D.I7b.20)', () => {
+    const cb = vi.fn();
+    const dispose = i18n.onLocaleChange(cb);
+    i18n.setLocale('en-US');
+    expect(cb).toHaveBeenCalledTimes(1);
+    dispose();
+    i18n.setLocale('zh-CN');
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 });

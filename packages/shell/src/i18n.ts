@@ -12,6 +12,8 @@
  * `packages/shell/src/locale/index.ts` via `registerDefaultMessages`.
  */
 
+import { Emitter } from '@monbolc/lowcode-utils';
+
 export type SupportedLocale = 'en-US' | 'zh-CN';
 
 export interface I18nMessage {
@@ -24,25 +26,60 @@ export interface I18nMessage {
 
 export type I18nDictionary = Record<string, I18nMessage | string>;
 
+/**
+ * Phase D.I7b.20: typed event surface for ShellI18n. Ali-faithful
+ * has a getter-only locale + an EventBus that fires on every
+ * change. Slim port mirrors with a typed Emitter that
+ * notifies on `setLocale`.
+ */
+export type ShellI18nEvents = {
+  /** Fired after `setLocale` updates the active locale. */
+  localeChanged: { from: SupportedLocale; to: SupportedLocale };
+};
+
 export class ShellI18n {
   private _locale: SupportedLocale = 'zh-CN';
   private readonly _dict = new Map<string, I18nMessage>();
+  // Phase D.I7b.20: typed event emitter for localeChanged.
+  // The pre-D.I7b.20 doc comment at line 33-37 referenced
+  // `engine.i18n.events` (didn't exist); this is the
+  // implementation.
+  private readonly _events = new Emitter<ShellI18nEvents>();
 
   constructor() {
     // Default to zh-CN (sapu is built in China). Callers can flip
     // via `setLocale('en-US')` or pass `options.locale` to L7's
     // `init()`. The locale is plain string state — no mobx, no
-    // observer. Callers must re-render themselves (the L7 demo does
-    // this via a top-level `useState` + `useEffect` on
-    // `engine.i18n.events` if they want reactive locale changes).
+    // observer. Callers can subscribe to `events` for reactive
+    // locale changes (Phase D.I7b.20).
   }
 
   get locale(): SupportedLocale {
     return this._locale;
   }
 
+  /** Phase D.I7b.20: typed event surface. Ali-faithful. */
+  get events(): Emitter<ShellI18nEvents> {
+    return this._events;
+  }
+
   setLocale(locale: SupportedLocale): void {
+    // Phase D.I7b.20: skip the emit when the locale is
+    // unchanged (no-op optimization — matches the engineConfig
+    // onGot pattern of D.I7b.19).
+    if (this._locale === locale) return;
+    const from = this._locale;
     this._locale = locale;
+    this._events.emit('localeChanged', { from, to: locale });
+  }
+
+  /**
+   * Phase D.I7b.20: convenience subscription for the
+   * `localeChanged` event. Returns a disposer.
+   * Ali-faithful: `i18n.localeChanged(fn) → () => void`.
+   */
+  onLocaleChange(fn: (loc: { from: SupportedLocale; to: SupportedLocale }) => void): () => void {
+    return this._events.on('localeChanged', fn);
   }
 
   /**
