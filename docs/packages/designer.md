@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.27.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-13 ali-mirror done**
+> **Version**: 2.28.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-15 ali-mirror done**
 
 ## Purpose
 
@@ -148,6 +148,7 @@ Per `~/.claude/plans/dynamic-marinating-rabbit.md`:
 - **Phase D.I7b.9** ✅ done (SettingTopEntry `setValue` now emits `valuechange` event with the new value via the typed `Emitter<ISettingTopEntryEvents>`. New `onValueChange(fn) → disposer` subscription method on the public `ISettingTopEntry` surface. Closes the pre-existing TODO at the `setValue` line. The ali-faithful `metadataChange` event surface (S4) is preserved for back-compat. +5 tests; designer 2.24.0 → 2.25.0)
 - **Phase D.I7b.11** ✅ done (LiveEditing `apply()` flow's keydown handler now handles Escape + Enter, closing the pre-existing TODO. Enter (no Shift) → save + exit (preventDefault stops the newline; saveAndDispose called directly for happy-dom robustness). Shift+Enter → no-op (allow newline). Escape → discard + exit (set `_save = undefined` before blur so the focusout cascade doesn't re-save). Slim delta: direct-call pattern (not blur-based) is more reliable in jsdom / happy-dom. +3 tests; designer 2.25.0 → 2.26.0)
 - **Phase D.I7b.13** ✅ done (ResourceConsumer closes 2 pre-existing TODOs. (1) When `consume()` is called with a renderer but no ctor-supplied `consumer` function, slim port now throws `ReferenceError` (was silent no-op). Plain-function consumers are unaffected (throw is gated on the renderer path only). (2) The `consume()` autorun's `await consumer(data)` is now wrapped in try/catch + `console.error('[lowcode-designer] ResourceConsumer: consumer threw:', err)` + emits the error on the typed `error` channel (the Emitter is now typed as `Emitter<{ error: unknown }>`). +2 tests; designer 2.26.0 → 2.27.0)
+- **Phase D.I7b.15** ✅ done (SettingTopEntry now emits `valuechange` from ALL value-mutating methods — `setProps`, `mergeProps`, `setPropValue`, `clearPropValue`, `setExtraPropValue` — in addition to the existing `setValue` (D.I7b.9). The payload is `getValue()` after the mutation (canonical current-state shape). `setValue` refactored to bypass the now-emitting `setProps` to avoid double-emit. +6 tests; designer 2.27.0 → 2.28.0)
 
 ## Out of scope (deferred from Phase D + D.I7b)
 
