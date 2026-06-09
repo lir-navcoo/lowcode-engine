@@ -112,3 +112,19 @@ export type {
   IPublicApiSetters,
   IPublicModelEditor,
 } from './designer/setting/setting-entry-type';
+
+// ---- Phase D.S2 ali-mirror (setting tree — SettingPropEntry base class) ----
+export {
+  SettingPropEntry,
+  SETTING_NODE_PROP_CHANGE,
+} from './designer/setting/setting-prop-entry';
+export type {
+  ISettingPropEntry,
+  IComponentMetaLite,
+  IPropEntryParent,
+  IPublicTypeFieldExtraProps,
+  IPublicTypeSetValueOptions,
+} from './designer/setting/setting-prop-entry';
+
+// S2 forward-decl of S4's class. S4 will replace this with the real class.
+export type { ISettingTopEntry } from './designer/setting/setting-top-entry';

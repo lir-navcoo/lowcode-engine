@@ -50,7 +50,9 @@ export interface ISettingField {
   readonly id: string;
   readonly name: string | number;
   readonly path: string[];
+  readonly isSettingField?: boolean;
   internalToShellField?(): unknown;
+  valueChange?(options: { disableMutator?: boolean; fromSetHotValue?: boolean; [key: string]: unknown }): void;
 }
 
 /**
