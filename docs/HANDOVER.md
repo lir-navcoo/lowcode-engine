@@ -5,14 +5,14 @@
 ## TL;DR
 
 - **仓库**: https://github.com/lir-navcoo/lowcode-engine
-- **当前分支**: `main` @ `8d21686` (干净，已推 origin)
+- **当前分支**: `main` @ `f1fdd87` (干净，已推 origin)
 - **下次发布**: **2.2.0**，代码 + 测试 + 构建全部就绪，**但 npm publish 阻塞**（见下）
-- **测试**: 941 unit passed + 1 skipped (vitest 2.1, happy-dom) + 11 e2e (Playwright 1.60)
+- **测试**: 946 unit passed + 1 skipped (vitest 2.1, happy-dom) + 11 e2e (Playwright 1.60)
 - **Demo polish** (commit `5b3f2b1`): StatusBar (live engine state via createPortal), theme toggle (`setTheme` / `onThemeChange`), locale toggle (`engine.i18n.setLocale` + 10 registered keys), 4-preset schema picker. `yarn demo:build` 522KB / 156KB gzipped, 899ms.
 - **类型检查**: 0 errors (14 包 + demo)
-- **包版本**: 14 个 `@monbolc/*` 包 — designer 2.24.0 (D + D.I7b.1-8), editor-skeleton 2.4.0 (D.I7b.4), types 2.3.0 (D.I2), others 2.2.0
+- **包版本**: 14 个 `@monbolc/*` 包 — designer 2.25.0 (D + D.I7b.1-9), editor-skeleton 2.4.0 (D.I7b.4), types 2.3.0 (D.I2), others 2.2.0
 - **Post-v2.4 features** (代码已就绪, 都在 main 上): Dragon P1–P10 重构(ali-faithful) + P11 outline delete + P12 engine.commands + P14 键盘快捷键 + P15 plugin-authoring docs。详情见 `memory/sapu-lowcode-engine-status.md` 的 "Dragon refactor + P11–P18 follow-ups" 段。
-- **ali-mirror 计划**: Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D (10 commits, 5000+ LoC) + D.I7b.1-6 (InsertionView real + NodeSelector BaseUI Popover + BorderResizing real + BemTools wired + BaseUI Tooltip) 全部完成。**Phase D + D.I7b.1-6 收官**。Phase E (asset pipeline + icon font + iframe-mode simulator) 仍待办。详见 `~/.claude/plans/dynamic-marinating-rabbit.md` 和 `docs/ROADMAP.md`。
+- **ali-mirror 计划**: Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D (10 commits, 5000+ LoC) + D.I7b.1-9 (InsertionView real + NodeSelector BaseUI Popover + BorderResizing real + BemTools wired + BaseUI Tooltip + context menu + valuechange event) 全部完成。**Phase D + D.I7b.1-9 收官**。Phase E (asset pipeline + icon font + iframe-mode simulator) 仍待办。详见 `~/.claude/plans/dynamic-marinating-rabbit.md` 和 `docs/ROADMAP.md`。
 
 ## 仓库结构
 

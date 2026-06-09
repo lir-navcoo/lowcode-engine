@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.24.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-8 ali-mirror done**
+> **Version**: 2.25.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-9 ali-mirror done**
 
 ## Purpose
 
@@ -145,6 +145,7 @@ Per `~/.claude/plans/dynamic-marinating-rabbit.md`:
 - **Phase D.I7b.4** ✅ done in editor-skeleton (DefaultDesignerView replaces Overlays with BemTools; editor-skeleton 2.3.0 → 2.4.0; 11 legacy overlays tests removed)
 - **Phase D.I7b.6** ✅ done (BaseUI Tooltip replaces native `title` in border-selecting toolbar; ali-faithful delay=300/closeDelay=100; render prop keeps the `<div className="lc-borders-action">` shape. Also: BorderSelectingInstance now reads `hideSelectTools` via typed `getComponentMeta()`; BorderSelectingForNode synthesizes a single instance when `getComponentInstances` returns null; BorderSelectingRoot reads from `host.project.selectedIds` instead of `doc.selection.getNodes()` — single source of truth. +6 tests; designer 2.22.0 → 2.23.0)
 - **Phase D.I7b.8** ✅ done (slim context menu port using BaseUI Menu compound; 7 default actions — Copy / Paste after / Cut / Duplicate / Insert sibling above / Insert sibling below / Delete — each calling the slim DocumentCommands. BuiltinSimulatorHost adds a `contextmenu` DOM listener that opens the menu on right-click of a `[data-lce-id]` element; BemTools root renders `<ContextMenu host state onClose>`; state lives in `host.contextMenuState` (slim Observable). +8 tests; designer 2.23.0 → 2.24.0)
+- **Phase D.I7b.9** ✅ done (SettingTopEntry `setValue` now emits `valuechange` event with the new value via the typed `Emitter<ISettingTopEntryEvents>`. New `onValueChange(fn) → disposer` subscription method on the public `ISettingTopEntry` surface. Closes the pre-existing TODO at the `setValue` line. The ali-faithful `metadataChange` event surface (S4) is preserved for back-compat. +5 tests; designer 2.24.0 → 2.25.0)
 
 ## Out of scope (deferred from Phase D + D.I7b)
 
