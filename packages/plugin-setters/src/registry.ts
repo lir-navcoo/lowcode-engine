@@ -93,9 +93,29 @@ export function registerSetter(name: string, component: SetterComponent): void {
   registry.set(name, component);
 }
 
+/**
+ * Phase D.I7b.16: remove a previously-registered setter. Ali-faithful:
+ * the slim public API only exposed `registerSetter`; the demo
+ * worked around unregistration with a throw-sentinel so the
+ * panel's `pickSetter` would fall through to the inferred
+ * default. This API is the proper fix.
+ *
+ * Removing an unknown name is a no-op (matches the Map.delete
+ * behavior). The built-in setters are NOT removed (they're
+ * restored on the next `registerBuiltInSetters()` call).
+ */
+export function unregisterSetter(name: string): boolean {
+  return registry.delete(name);
+}
+
 /** Look up a setter by name. Returns undefined if not registered. */
 export function getSetter(name: string): SetterComponent | undefined {
   return registry.get(name);
+}
+
+/** Phase D.I7b.16: query whether a setter is registered. */
+export function hasSetter(name: string): boolean {
+  return registry.has(name);
 }
 
 /** Convenience: pick the right setter for a field. Falls back to "Input". */

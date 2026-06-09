@@ -8,6 +8,8 @@
 
 export {
   registerSetter,
+  unregisterSetter,
+  hasSetter,
   getSetter,
   pickSetter,
   resolveSetterName,
