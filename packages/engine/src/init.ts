@@ -133,7 +133,10 @@ export async function init(
   // Stash a back-reference to the host element so `destroy()`
   // can clear it. We also fire the `themeChanged` event for the
   // initial theme so subscribers can pick it up uniformly.
-  (engine as unknown as { _host: HTMLElement })._host = host;
+  // Phase D.I7b.18: use the typed setHost / getHost API
+  // (the old `engine as unknown as { _host: HTMLElement }` cast
+  // is gone).
+  engine.setHost(host);
 
   return engine;
 }
@@ -145,7 +148,9 @@ export async function init(
  * element's children.
  */
 export function destroy(engine: ISapuEngine): void {
-  const host = (engine as unknown as { _host?: HTMLElement })._host;
+  // Phase D.I7b.18: use the typed getHost() API (the old
+  // `engine as unknown as { _host?: HTMLElement }` cast is gone).
+  const host = engine.getHost();
   engine.destroy();
   if (host) {
     // Defensive: clear any rendered children. The host's React
