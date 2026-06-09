@@ -272,7 +272,12 @@ export class SettingTopEntry implements ISettingTopEntry {
    * plugin code) can react to the change.
    */
   setValue(val: unknown): void {
-    this.setProps(val as Record<string, unknown>);
+    // Phase D.I7b.15: bypass `this.setProps` (which now emits
+    // valuechange) and call the per-node setProps directly. The
+    // explicit emit at the end fires once per setValue call.
+    for (const node of this.nodes) {
+      (node as unknown as ITopEntryNode).setProps(val as Record<string, unknown>);
+    }
     // Phase D.I7b.9: emit `valuechange` (ali-faithful). The slim
     // port previously had a TODO here; the event was missing
     // because the Emitter's payload type was `Record<string,
@@ -317,6 +322,11 @@ export class SettingTopEntry implements ISettingTopEntry {
     for (const node of this.nodes) {
       (node as unknown as ITopEntryNode).setPropValue(key, value);
     }
+    // Phase D.I7b.15: emit valuechange for consistency with
+    // setValue. Ali-faithful: any value-mutating call should
+    // emit so subscribers (preview pane, undo stack, custom
+    // plugin code) react consistently.
+    this._emitter.emit('valuechange', this.getValue());
   }
 
   clearPropValue(propName: string | number): void {
@@ -324,6 +334,8 @@ export class SettingTopEntry implements ISettingTopEntry {
     for (const node of this.nodes) {
       (node as unknown as ITopEntryNode).clearPropValue(key);
     }
+    // Phase D.I7b.15: emit on clear too (the value changed).
+    this._emitter.emit('valuechange', this.getValue());
   }
 
   getPropValue(propName: string | number): unknown {
@@ -338,6 +350,8 @@ export class SettingTopEntry implements ISettingTopEntry {
     for (const node of this.nodes) {
       (node as unknown as ITopEntryNode).getExtraProp(propName, true)?.setValue(value);
     }
+    // Phase D.I7b.15: emit on extra-prop changes too.
+    this._emitter.emit('valuechange', this.getValue());
   }
 
   /** Bulk replace the prop values. */
@@ -345,6 +359,10 @@ export class SettingTopEntry implements ISettingTopEntry {
     for (const node of this.nodes) {
       (node as unknown as ITopEntryNode).setProps(data);
     }
+    // Phase D.I7b.15: emit on bulk replace. Payload: the new
+    // value (matches the setValue shape — consumers get one
+    // event per mutation regardless of the API used).
+    this._emitter.emit('valuechange', this.getValue());
   }
 
   /** Bulk merge into the prop values (existing keys are kept unless overridden). */
@@ -352,6 +370,10 @@ export class SettingTopEntry implements ISettingTopEntry {
     for (const node of this.nodes) {
       (node as unknown as ITopEntryNode).mergeProps(data);
     }
+    // Phase D.I7b.15: emit on bulk merge. Payload: the merged
+    // value (consumers can read `top.getValue()` to get the
+    // current state).
+    this._emitter.emit('valuechange', this.getValue());
   }
 
   private disposeItems(): void {

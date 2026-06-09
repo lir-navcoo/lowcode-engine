@@ -259,6 +259,78 @@ describe('setting/SettingTopEntry (Phase D.S4)', () => {
     expect(node.setProps).toHaveBeenCalledWith({ x: 1 });
   });
 
+  // Phase D.I7b.15: every value-mutating call should emit
+  // valuechange (consistency with setValue). Slim port now wires
+  // setProps / mergeProps / setPropValue / clearPropValue /
+  // setExtraPropValue to emit.
+
+  it('setProps: emits valuechange (D.I7b.15)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    top.setProps({ a: 1 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('mergeProps: emits valuechange (D.I7b.15)', () => {
+    const node = mkNode({ propsData: { existing: 'x' } });
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    top.mergeProps({ added: 'y' });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(node.mergeProps).toHaveBeenCalledWith({ added: 'y' });
+  });
+
+  it('setPropValue: emits valuechange (D.I7b.15)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    top.setPropValue('foo', 'bar');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(node.setPropValue).toHaveBeenCalledWith('foo', 'bar');
+  });
+
+  it('clearPropValue: emits valuechange (D.I7b.15)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    top.clearPropValue('foo');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(node.clearPropValue).toHaveBeenCalledWith('foo');
+  });
+
+  it('setExtraPropValue: emits valuechange (D.I7b.15)', () => {
+    const node = mkNode();
+    // mkNode's getExtraProp returns undefined by default — set up
+    // a sentinel that has both getValue + setValue.
+    const sentinel = { getValue: () => 'extra', setValue: vi.fn() };
+    (node as unknown as { getExtraProp: ReturnType<typeof vi.fn> }).getExtraProp = vi.fn(() => sentinel);
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    top.setExtraPropValue('extra-key', 'extra-val');
+    expect(sentinel.setValue).toHaveBeenCalledWith('extra-val');
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('valuechange fires once per mutation (no double-emit) (D.I7b.15)', () => {
+    const node = mkNode();
+    const top = new SettingTopEntry(mkEditor() as never, [node]);
+    const onChange = vi.fn();
+    top.onValueChange(onChange);
+    // setValue calls the per-node setProps directly (D.I7b.15
+    // refactor) to avoid double-emit. The bulk setProps emit
+    // only fires when setProps is called directly.
+    top.setValue({ a: 1 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    top.setProps({ a: 2 });
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
   it('isLocked reads from the first node', () => {
     const n = mkNode({ isLocked: true });
     const top = new SettingTopEntry(mkEditor() as never, [n]);
