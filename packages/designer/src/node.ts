@@ -12,15 +12,30 @@
  */
 
 import type { IPublicTypeNodeSchema, JSONValue } from '@monbolc/lowcode-types';
+import type { IComponentMetaLite } from './component-meta';
 
 export class Node {
   readonly schema: IPublicTypeNodeSchema;
   readonly parent: Node | null;
+  /**
+   * Phase E.5: typed `componentMeta` slot. Ali-faithful: every node
+   * reads `node.componentMeta` as a typed surface; the slim port
+   * previously used structural casts (BorderDetecting / BorderSelecting
+   * / BorderContainer all do `(node as any).componentMeta...`).
+   * The slim port now exposes the typed `IComponentMetaLite` so the
+   * bem-tool files can drop the casts.
+   */
+  private _componentMeta: IComponentMetaLite | null = null;
 
   constructor(schema: IPublicTypeNodeSchema, parent: Node | null) {
     this.schema = schema;
     this.parent = parent;
   }
+
+  /** Wire the component meta (typically called by the host/project after Node creation). */
+  setComponentMeta(meta: IComponentMetaLite | null): void { this._componentMeta = meta; }
+  /** Read the wired component meta (or `null` if not yet wired). */
+  getComponentMeta(): IComponentMetaLite | null { return this._componentMeta; }
 
   /** Stable id (the `key` field, or whatever DocumentModel assigned). */
   get id(): string {
