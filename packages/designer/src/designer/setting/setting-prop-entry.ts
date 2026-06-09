@@ -40,6 +40,7 @@ import type { Project } from '../../project';
 import type { Node } from '../../node';
 import type { ISettingField, ISettingEntry, IPublicApiSetters, IPublicModelEditor } from './setting-entry-type';
 import type { ISettingTopEntry } from './setting-top-entry';
+import { isJSExpression } from './is-js-expression';
 
 /** Slim event name for "a setting prop changed its value". */
 export const SETTING_NODE_PROP_CHANGE = 'setting.node.prop.change';
@@ -57,11 +58,6 @@ export interface IPublicTypeSetValueOptions {
   disableMutator?: boolean;
   fromSetHotValue?: boolean;
   [key: string]: unknown;
-}
-
-/** Slim re-implementation of `@alilc/lowcode-utils.isJSExpression`. */
-function isJSExpression(v: unknown): v is { type: 'JSExpression'; value: string; mock?: unknown } {
-  return !!v && typeof v === 'object' && (v as { type?: string }).type === 'JSExpression';
 }
 
 let _uidCounter = 0;
@@ -116,11 +112,24 @@ function isSettingField(x: unknown): x is ISettingField & { valueChange?: (o: IP
   return !!x && typeof x === 'object' && (x as { isSettingField?: unknown }).isSettingField === true;
 }
 
-/** `ISettingPropEntry` interface — the public contract S3 / S4 implement against. */
+/**
+ * `ISettingPropEntry` interface — the public contract S3 / S4 implement against.
+ * `parent` is typed as `unknown` to break the ISettingField ↔ ISettingPropEntry
+ * circular type (the slim class uses the concrete `ISettingTopEntry | ISettingField`
+ * internally; the interface stays minimal).
+ */
 export interface ISettingPropEntry extends ISettingEntry {
   readonly isGroup: boolean;
+  readonly type: 'field' | 'group';
+  readonly id: string;
+  readonly top: ISettingTopEntry;
+  readonly parent: unknown;
+  // Slim structural emitter type — the class uses `Emitter<{ valuechange: ... }>`
+  // (a richer typed Emitter) which is assignable to this.
+  readonly emitter: { on: (...a: any[]) => any; off: (...a: any[]) => any; emit: (...a: any[]) => any };
   get props(): ISettingTopEntry;
   get name(): string | number | undefined;
+  get path(): string[];
   valueChange(options?: IPublicTypeSetValueOptions): void;
   getKey(): string | number | undefined;
   setKey(key: string | number): void;
@@ -430,7 +439,7 @@ export class SettingPropEntry implements ISettingPropEntry {
 
   getVariableValue(): string {
     const v = this.getValue();
-    return isJSExpression(v) ? v.value : '';
+    return isJSExpression(v) ? String((v as { value?: unknown }).value ?? '') : '';
   }
 
   setVariableValue(value: string): void {

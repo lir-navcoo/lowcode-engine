@@ -108,7 +108,7 @@ export {
 export { Transducer } from './designer/setting/utils';
 export type {
   ISettingEntry,
-  ISettingField,
+  ISettingField as ISettingFieldSeed,
   IPublicApiSetters,
   IPublicModelEditor,
 } from './designer/setting/setting-entry-type';
@@ -125,6 +125,17 @@ export type {
   IPublicTypeFieldExtraProps,
   IPublicTypeSetValueOptions,
 } from './designer/setting/setting-prop-entry';
+
+// ---- Phase D.S3 ali-mirror (setting tree — SettingField extends SettingPropEntry) ----
+export { SettingField, isSettingField } from './designer/setting/setting-field';
+export type {
+  ISettingField,
+  IPublicTypeFieldConfig,
+  IPublicTypeCustomView,
+  IPublicTypeSetterType,
+  IPublicTypeDynamicSetter,
+  IPublicTypeDisposable,
+} from './designer/setting/setting-field';
 
 // S2 forward-decl of S4's class. S4 will replace this with the real class.
 export type { ISettingTopEntry } from './designer/setting/setting-top-entry';
