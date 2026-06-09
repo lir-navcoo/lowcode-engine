@@ -133,6 +133,15 @@ const DRAG_START_THRESHOLD = 4;
 export class BuiltinSimulatorHost {
   private readonly canvas: HTMLElement;
   /**
+   * Phase D.I7b.3: public `getCanvas()` accessor so the bem-tool
+   * `<BorderResizing>` can construct a `DragResizeEngine` (which
+   * needs the canvas to find the node's DOM element). The slim
+   * port keeps the field private (read-only externally via the
+   * accessor) to avoid accidental external mutation of the canvas
+   * element.
+   */
+  getCanvas(): HTMLElement { return this.canvas; }
+  /**
    * Phase D.I7: the `project` is now `readonly` (was `private readonly`)
    * so the bem-tool files (BorderSelecting, etc.) can read it via
    * `host.project.selectedIds` for the selection proxy. The slim port
@@ -1106,18 +1115,37 @@ export class BuiltinSimulatorHost {
    * skipping the instance).
    */
   createOffsetObserver(opts: { node: unknown; instance: unknown }): unknown {
-    // Slim port: defer the full implementation to a follow-up commit.
-    // The BorderSelecting tree only needs this to NOT throw — the slim
-    // host returns a minimal stub object with the fields BorderSelecting
-    // reads (hasOffset=false by default; offsetWidth/Height/Top/Left=0).
+    // Phase D.I7b.3: real port. The slim observer reads the rect
+    // from the canvas (via the same `[data-lce-id]` selector used
+    // by `getNodeRect`). Ali-faithful: ali's host queries the
+    // iframe contentDocument for the element; sapu has no iframe,
+    // so the slim version reads from the canvas directly.
     const node = opts.node as { id?: string };
+    const id = node?.id ?? 'observer';
+    const el = node?.id
+      ? this.canvas.querySelector(`[data-lce-id="${CSS.escape(node.id)}"]`) as HTMLElement | null
+      : null;
+    if (!el) {
+      return {
+        id,
+        hasOffset: false,
+        offsetWidth: 0,
+        offsetHeight: 0,
+        offsetTop: 0,
+        offsetLeft: 0,
+        node: opts.node,
+        purge: () => undefined,
+      };
+    }
+    const r = el.getBoundingClientRect();
+    const cr = this.canvas.getBoundingClientRect();
     return {
-      id: node?.id ?? 'observer',
-      hasOffset: false,
-      offsetWidth: 0,
-      offsetHeight: 0,
-      offsetTop: 0,
-      offsetLeft: 0,
+      id,
+      hasOffset: true,
+      offsetWidth: r.width,
+      offsetHeight: r.height,
+      offsetTop: r.top - cr.top,
+      offsetLeft: r.left - cr.left,
       node: opts.node,
       purge: () => undefined,
     };
