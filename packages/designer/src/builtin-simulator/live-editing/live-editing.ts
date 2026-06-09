@@ -229,9 +229,37 @@ export class LiveEditing {
       const keydown = (e: KeyboardEvent): void => {
         switch (e.code) {
           case 'Tab':
+            // Tab: save + exit (ali-faithful). Blur triggers
+            // focusout which calls saveAndDispose.
             setterPropElement?.blur();
             break;
-          // Escape + Enter: ali has TODO; slim port is silent.
+          case 'Enter':
+            // Enter (no Shift): same as Tab — save + exit.
+            // Shift+Enter: allow newline (do nothing).
+            // Ali has a TODO here; the slim port handles it
+            // (Phase D.I7b.11). The slim port invokes
+            // saveAndDispose() directly (not via blur) for
+            // robustness — happy-dom's blur on a non-focusable
+            // div doesn't always fire focusout, but the keydown
+            // is dispatched reliably.
+            if (!e.shiftKey) {
+              e.preventDefault();
+              this.saveAndDispose();
+            }
+            break;
+          case 'Escape':
+            // Escape: discard changes + exit. Skip the save
+            // call, just dispose. Ali-faithful: the save() is
+            // a no-op when the user explicitly cancels.
+            e.preventDefault();
+            // Set _save to undefined BEFORE calling dispose to
+            // prevent the focusout → saveAndDispose path from
+            // re-saving. (If blur fires, saveAndDispose would
+            // call _save() which is now undefined — a no-op.)
+            this._save = undefined;
+            setterPropElement?.blur();
+            this.dispose();
+            break;
         }
       };
       const focusout = (): void => { this.saveAndDispose(); };

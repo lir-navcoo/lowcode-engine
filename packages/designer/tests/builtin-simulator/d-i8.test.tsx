@@ -53,6 +53,87 @@ describe('LiveEditing (Phase D.I8)', () => {
     };
     expect(() => e.apply(target as never)).not.toThrow();
   });
+
+  // Phase D.I7b.11: live-editing Escape/Enter key handling. The
+  // slim port used to silently ignore these keys (the old TODO
+  // line). D.I7b.11 wires the expected ali-faithful behavior:
+  // Enter (no Shift) saves + exits; Escape discards + exits.
+  // The tests below mock a `LiveEditing` apply() target whose
+  // node has a `liveTextEditing` config with a saveContent spy.
+
+  it('Enter (no Shift) triggers save + exit (D.I7b.11)', () => {
+    const e = new LiveEditing();
+    const onSaveContent = vi.fn();
+    const node = {
+      getComponentMeta: () => ({
+        liveTextEditing: [{ propTarget: 'children', mode: 'plaintext', onSaveContent }],
+      }),
+      getProp: (_: string, __: boolean) => ({ setValue: vi.fn() }),
+      document: undefined,
+    };
+    const setterProp = document.createElement('div');
+    setterProp.setAttribute('data-setter-prop', 'children');
+    const rootElement = document.createElement('div');
+    rootElement.appendChild(setterProp);
+    e.apply({
+      node: node as never,
+      rootElement,
+      event: { target: setterProp } as unknown as MouseEvent,
+    } as never);
+    // Enter (no Shift) → save called once
+    const enterEvent = new KeyboardEvent('keydown', { code: 'Enter', shiftKey: false, bubbles: true });
+    setterProp.dispatchEvent(enterEvent);
+    expect(onSaveContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('Escape does NOT trigger save (D.I7b.11)', () => {
+    const e = new LiveEditing();
+    const onSaveContent = vi.fn();
+    const node = {
+      getComponentMeta: () => ({
+        liveTextEditing: [{ propTarget: 'children', mode: 'plaintext', onSaveContent }],
+      }),
+      getProp: (_: string, __: boolean) => ({ setValue: vi.fn() }),
+      document: undefined,
+    };
+    const setterProp = document.createElement('div');
+    setterProp.setAttribute('data-setter-prop', 'children');
+    const rootElement = document.createElement('div');
+    rootElement.appendChild(setterProp);
+    e.apply({
+      node: node as never,
+      rootElement,
+      event: { target: setterProp } as unknown as MouseEvent,
+    } as never);
+    const escEvent = new KeyboardEvent('keydown', { code: 'Escape', bubbles: true });
+    setterProp.dispatchEvent(escEvent);
+    // Escape → save NOT called (cancel, not commit)
+    expect(onSaveContent).not.toHaveBeenCalled();
+  });
+
+  it('Shift+Enter does nothing (allows newline) (D.I7b.11)', () => {
+    const e = new LiveEditing();
+    const onSaveContent = vi.fn();
+    const node = {
+      getComponentMeta: () => ({
+        liveTextEditing: [{ propTarget: 'children', mode: 'plaintext', onSaveContent }],
+      }),
+      getProp: (_: string, __: boolean) => ({ setValue: vi.fn() }),
+      document: undefined,
+    };
+    const setterProp = document.createElement('div');
+    setterProp.setAttribute('data-setter-prop', 'children');
+    const rootElement = document.createElement('div');
+    rootElement.appendChild(setterProp);
+    e.apply({
+      node: node as never,
+      rootElement,
+      event: { target: setterProp } as unknown as MouseEvent,
+    } as never);
+    const shiftEnter = new KeyboardEvent('keydown', { code: 'Enter', shiftKey: true, bubbles: true });
+    setterProp.dispatchEvent(shiftEnter);
+    expect(onSaveContent).not.toHaveBeenCalled();
+  });
 });
 
 describe('DragGhost (Phase D.I8)', () => {
