@@ -15,7 +15,12 @@ describe('@monbolc/lowcode-types exports', () => {
     // This catches regressions where a type is accidentally removed
     // and downstream consumers fail to compile.
     const fs = require('node:fs');
-    const src = fs.readFileSync(require('node:path').join(__dirname, '..', 'src', 'index.ts'), 'utf8');
+    const path = require('node:path');
+    const srcDir = path.join(__dirname, '..', 'src');
+    const src = fs.readdirSync(srcDir)
+      .filter((name: string) => name.endsWith('.ts'))
+      .map((name: string) => fs.readFileSync(path.join(srcDir, name), 'utf8'))
+      .join('\n');
     const expected = [
       'ID', 'Label', 'JSONValue', 'Unknown',
       'IPublicTypeNodeSchema', 'IPublicTypeNodeData', 'IPublicTypeRootSchema',
@@ -28,13 +33,20 @@ describe('@monbolc/lowcode-types exports', () => {
       'IPublicEngineOptions', 'IPublicApiEngine', 'IPublicApiDesigner',
       'IPublicTypeStyle', 'IPublicTypeBreakpoint', 'IPublicTypeResponsiveStyle',
       'IPublicTypeAsset',
-      'IPublicTypeProjectSchema', 'IPublicTypeProjectConfig',
+      'IPublicTypeProjectSchema', 'IPublicTypeProjectDocument', 'IPublicTypeLegacyProjectDocument', 'IPublicTypeProjectConfig',
       'IPublicTypeComponentCategory',
+      'IPublicTypeComponentInstance', 'IPublicTypeComponentMetadata',
+      'IPublicTypeJSExpression', 'IPublicTypeJSFunction', 'IPublicTypeJSBlock', 'IPublicTypeJSSlot',
+      'IPublicTypePropConfig', 'IPublicTypePropType', 'IPublicTypePropTypes',
+      'IPublicTypeConfigTransducer', 'IPublicTypeMetadataTransducer', 'IPublicTypePropsTransducer',
+      'IPublicTypePlugin', 'IPublicTypePluginConfig', 'IPublicTypePluginMeta',
+      'IPublicEnumContextMenuType', 'IPublicEnumDragObjectType', 'IPublicEnumPluginRegisterLevel', 'IPublicEnumTransformStage',
+      'IPublicTypeActionContentObject', 'IPublicTypeEditorView', 'IPublicTypeEditorViewConfig',
       'IPublicTypeCallback', 'IPublicTypeDisposable', 'IPublicTypeResult',
       'IPublicTypeClass',
     ];
     const missing = expected.filter(
-      (n) => !new RegExp(`\\b(export\\s+(type|interface)\\s+${n}\\b|export\\s+type\\s+\\{[^}]*\\b${n}\\b)`).test(src),
+      (n) => !new RegExp(`\\b(export\\s+(type|interface|enum)\\s+${n}\\b|export\\s+type\\s+\\{[^}]*\\b${n}\\b)`).test(src),
     );
     expect(missing, `types not exported: ${missing.join(', ')}`).toEqual([]);
     expect(expected.length).toBeGreaterThanOrEqual(30);

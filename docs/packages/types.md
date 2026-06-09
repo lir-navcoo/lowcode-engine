@@ -1,143 +1,135 @@
 # `@monbolc/lowcode-types` (L0)
 
-> **Version**: 2.4.0 · **React-free** · **Pure types** · **Zero runtime code**
+> **Version**: 2.5.0 · **React-free** · **Pure types** · **Zero runtime code**
 
 ## Purpose
 
-The single source of truth for the engine's public type system. Every other package depends on this. It is pure types (no runtime code) so it can never break at runtime and re-publishes are cheap.
+`@monbolc/lowcode-types` 是引擎公共类型系统的 L0 包。它只导出类型和 enum，不引入 React，不依赖运行时包，供插件作者、物料作者和上层包共享契约。
 
-## Public exports (re-exported from `src/index.ts`)
+## Public exports
 
-### Primitives
-- `ID` — identifier alias
-- `Label` — string alias
-- `JSONValue` — recursive JSON type
-- `Unknown` — opaque `unknown`
+### Primitive / schema core
 
-### Node schema
-- `IPublicTypeNodeSchema` — single node in the page tree
-- `IPublicTypeNodeData` — discriminated union (4 variants: `literal | expression | binding | variable`)
-- `IPublicTypeRootSchema` — extends `IPublicTypeNodeSchema`; adds `fileName, i18n, dataSources, meta`
+- `ID`, `Label`, `JSONValue`, `Unknown`
+- `IPublicTypeNodeSchema`, `IPublicTypeNodeData`, `IPublicTypeRootSchema`
+- `IPublicTypeComponentSchema`, `IPublicTypeNestingRule`, `IPublicTypeComponentConfigure`
+- `IPublicTypeFieldConfig`, `IPublicTypeSetterConfig`, `IPublicTypeEventConfig`, `IPublicTypeAdvancedConfig`, `IPublicTypeSlotConfig`
+- `IPublicTypeDataSource`, `IPublicTypeI18nMessage`
+- `IPublicTypeProjectConfig`, `IPublicTypeComponentCategory`
 
-### Components
-- `IPublicTypeComponentSchema` — component metadata
-- `IPublicTypeNestingRule` — `parentWhitelist, parentBlacklist, childWhitelist, childBlacklist, canBePageChild`
-- `IPublicTypeComponentConfigure` — `props, style, events, advanced, slots`
-- `IPublicTypeFieldConfig` — `name, title, description, setter, required, defaultValue, extraProps, condition, readOnly, group, order`
-- `IPublicTypeSetterConfig` — `componentName + props`
-- `IPublicTypeEventConfig` — `name, title, description, defaultAction, paramTypes`
-- `IPublicTypeAdvancedConfig` — `condition / loop / staticEnabled` toggles
-- `IPublicTypeSlotConfig` — `name, title, defaultSchema, isContainer, componentWhitelist`
+### 2.4.0 public surface
 
-### Actions & data
-- `IPublicTypeActionContent` — `method | link | script | reload | dialog | custom`
-- `IPublicTypeDataSource` — `id, title, handler, options, dataHandler, isInit, requestLifecycle`
+- `location.ts`: `IPublicTypeLocationDetailType`, `IPublicTypeLocationChildrenDetail`, `IPublicTypeLocationPropDetail`, `IPublicTypeLocationDetail`, `IPublicTypeLocationData<TNode>`
+- `setting.ts`: `IPublicTypeCommandHandlerArgs`, `IPublicTypeCommandParameter`, `IPublicTypeCommand`, `IPublicTypeHotkeyCallback`, `IPublicTypeHotkeyCallbackConfig`
+- `presentational.ts`: `IPublicTypeI18nData`, `IPublicTypeIconConfig`, `IPublicTypeIconType`, `IPublicTypeTitleConfig`, `IPublicTypeTitleContent`
+- `workspace.ts`: `IPublicTypeResourceType`, `IPublicResourceTypeConfig`
+- `simulator-renderer.ts`: simulator renderer contract
+- `drag.ts`: `IPublicTypeNodeLike`, `IPublicTypeBoostMeta`, `IPublicTypeDragObject`, `IPublicTypeLocateEvent`, `IPublicTypeLocation`, `IPublicTypeSensor<TNode>`, `IPublicModelDragon<TNode>`
 
-### Engine API
-- `IPublicEngineOptions` — `container, schema, components, theme, locale, designMode`
-- `IPublicApiEngine` — `init / destroy / ready / get / peek`
-- `IPublicApiDesigner` — `selection / isDragging / getNode / select / insert / remove / move / setProp / undo / redo`
+### 2.5.0 Ali-compatible slim ports
 
-### Styles & assets
-- `IPublicTypeStyle`, `IPublicTypeBreakpoint`, `IPublicTypeResponsiveStyle`
-- `IPublicTypeAsset` — `id, title, type (image|font|video|audio|icon|file), url, width, height, mimeType, hash`
+本轮 T2.1–T2.7 按 AliLowcodeEngine v1.3.2 能力 gap 补齐插件/物料作者最常用的 `IPublicType*` 类型名，但保持 sapu 的 L0 原则：不引入 React 类型、不引入 shell/model proxy zoo、不做弃用兼容层。
 
-### Project
-- `IPublicTypeProjectSchema`, `IPublicTypeProjectConfig`
-- `IPublicTypeComponentCategory`
+- `component-meta.ts`
+  - `IPublicTypeComponentInstance`
+  - `IPublicTypeComponentMetadata`
+  - `IPublicTypeComponentDescription`
+  - `IPublicTypeRemoteComponentDescription`
+  - `IPublicTypeComponentAction`
+  - `IPublicTypeComponentSort`
+- `js-block.ts`
+  - `IPublicTypeJSExpression`
+  - `IPublicTypeJSFunction`
+  - `IPublicTypeJSBlock`
+  - `IPublicTypeJSSlot`
+  - `IPublicTypeJSONValue`, `IPublicTypeJSONObject`, `IPublicTypeJSONArray`
+  - `IPublicTypeCompositeValue`, `IPublicTypeCompositeObject`, `IPublicTypeCompositeArray`
+- `plugin.ts`
+  - `IPublicTypePluginConfig`
+  - `IPublicTypePluginMeta`
+  - `IPublicTypePluginDeclarationProperty`
+  - `IPublicTypePluginDeclaration`
+  - `IPublicTypePluginRegisterOptions`
+  - `IPublicTypePluginCreater`
+  - `IPublicTypePlugin`
+- `enum.ts`
+  - `IPublicEnumContextMenuType`
+  - `IPublicEnumDragObjectType`
+  - `IPublicEnumEventNames`
+  - `IPublicEnumPluginRegisterLevel`
+  - `IPublicEnumPropValueChangedType`
+  - `IPublicEnumTransformStage`
+  - `IPublicEnumTransitionType`
+- `field-config.ts`
+  - `IPublicTypeSetterType`
+  - `IPublicTypeDynamicSetter`
+  - `IPublicTypeRegisteredSetter`
+  - `IPublicTypePropConfig`
+  - `IPublicTypePropType`
+  - `IPublicTypePropTypes`
+  - `IPublicTypeFieldExtraProps`
+- `transducer.ts`
+  - `IPublicTypeAdvanced`
+  - `IPublicTypeConfigure`
+  - `IPublicTypeSkeletonConfig`
+  - `IPublicTypeConfigTransducer`
+  - `IPublicTypeMetadataTransducer`
+  - `IPublicTypePropsTransducer`
+- `schema.ts`
+  - `IPublicTypePageSchema`
+  - `IPublicTypeBlockSchema`
+  - `IPublicTypeContainerSchema`
+  - `IPublicTypeSlotSchema`
+  - `IPublicTypeNpmInfo`
+  - `IPublicTypePackage`
+  - `IPublicTypeSnippet`
+  - `IPublicTypeProjectDocument`
+  - `IPublicTypeProjectSchema`
+- `action.ts`
+  - `IPublicTypeActionContentObject`
+- `editor.ts`
+  - `IPublicTypeEditorViewConfig`
+  - `IPublicTypeEditorView`
+  - `IPublicTypeEditorValueKey`
+  - `IPublicTypeEditorGetOptions`
+  - `IPublicTypeEditorGetResult<T>`
+  - `IPublicTypeEditorRegisterOptions`
+  - `IPublicTypeEditor`
 
-### Utility types
-- `IPublicTypeCallback<T>`, `IPublicTypeDisposable`, `IPublicTypeResult<T, E>`, `IPublicTypeClass<T>`
+## Naming decision: project schema
 
-### Drag-and-drop surface (re-exported from `./drag`)
-- `IPublicTypeNodeLike` — minimal `{ id, componentName, [key: string]: unknown }` shape
-- `IPublicTypeBoostMeta` — palette → canvas payload (`componentName + initialProps`)
-- `IPublicTypeDragObject` — discriminated union `Node | NodeData | Any`
-- `IPublicTypeLocateEvent`, `IPublicTypeLocation`
-- `IPublicTypeSensor<TNode>` — drop-target registration shape
-- `IPublicModelDragon<TNode>` — generic public Dragon wrapper
+此前 sapu 的 `IPublicTypeProjectSchema` 是薄项目文档类型。Ali 的 `IPublicTypeProjectSchema` 是 rich schema，包含 `componentsMap`, `componentsTree`, `i18n`, `utils`, `constants`, `css`, `dataSource`, `config`, `meta`。
 
-### Location / Setting / Presentational / Workspace (2.4.0)
+2.5.0 起采用以下命名：
 
-四个新文件从 ali v1.3.2 slim 端口过来,供 L2–L6 消费。**L0 纯类型层不引入 React 类型**;上游的 `ReactNode` / `ComponentType` 在 sapu 用 `unknown` 代替,消费方窄化。`IPublicTypeRect` 不在本包(已在 `@monbolc/lowcode-designer` 的 `simulator-host.ts` 定义,见 D.I2 阶段)。
+- `IPublicTypeProjectSchema`：Ali-compatible rich schema。
+- `IPublicTypeProjectDocument`：sapu 当前项目文档类型。
+- `IPublicTypeLegacyProjectDocument`：原 `src/index.ts` 里的旧薄项目文档类型，保留给内部迁移识别。
 
-- **Location**(`./location`)
-  - `IPublicTypeLocationDetailType` — `enum { Children, Prop }`,拖放位置类别
-  - `IPublicTypeLocationChildrenDetail` — `{ type, index?, valid?, edge?, near?, focus? }`,近邻节点用 `IPublicTypeNodeLike` 而非 `IPublicModelNode`
-  - `IPublicTypeLocationPropDetail` — `{ type, name, domNode? }`
-  - `IPublicTypeLocationDetail` — 上述两者的联合
-  - `IPublicTypeLocationData<TNode>` — 拖放定位事件负载,`target` 用 `TNode` 泛型,`event: unknown`
+## Implementation constraints
 
-- **Setting**(`./setting`)
-  - `IPublicTypeCommandHandlerArgs` — `Record<string, unknown>`
-  - `IPublicTypeCommandParameter` — `{ name, propType, description, defaultValue? }`(`propType` 在 sapu 简化为 `string`)
-  - `IPublicTypeCommand` — `{ name, parameters?, description?, handler }`
-  - `IPublicTypeHotkeyCallback` — `(e: KeyboardEvent, combo?) => unknown | false`
-  - `IPublicTypeHotkeyCallbackConfig` — `{ callback, modifiers, action, seq?, level?, combo? }`
-
-- **Presentational**(`./presentational`)
-  - `IPublicTypeI18nData` — `{ type: 'i18n', intl?, [key: string]: unknown }`
-  - `IPublicTypeIconConfig` — `{ type, size?, className? }`(size 可数字或预设字符串)
-  - `IPublicTypeIconType` — `string | unknown | IPublicTypeIconConfig`(`unknown` 占位上游的 React 组件)
-  - `IPublicTypeTitleConfig` — `{ label?, tip?, docUrl?, icon?, className? }`
-  - `IPublicTypeTitleContent` — 字符串 / i18n / 节点 / 配置四选一
-
-- **Workspace**(`./workspace`)
-  - `IPublicTypeResourceType` — 资源工厂签名(`(ctx, options) => IPublicResourceTypeConfig`),含 `resourceName` + `resourceType` 字段
-  - `IPublicResourceTypeConfig` — L0 薄壳:`description?, defaultTitle?, defaultViewName, editorViews`
-
-### Simulator renderer surface (re-exported from `./simulator-renderer`)
-- 内置模拟器渲染器契约(供 Phase D bem-tools / live-editing 消费)
-
-## Key types — 2-5 most important
-
-```ts
-interface IPublicTypeNodeSchema {
-  componentName: string;
-  props?: Record<string, JSONValue>;
-  children?: IPublicTypeNodeSchema[];
-  condition?: IPublicTypeNodeData;       // hide if expression is falsy
-  loop?: IPublicTypeNodeData;            // bind item/index to render a list
-  loopItemName?: string;                 // default "item"
-  loopIndexName?: string;                // default "index"
-  conditionGroup?: string;               // NEW in 2.0.2
-  loopArgs?: [string, string];           // NEW in 2.0.2
-  key?: string;                          // stable diffing key
-  meta?: Record<string, Unknown>;
-}
-
-type IPublicTypeNodeData =
-  | { type: 'literal'; value: JSONValue }
-  | { type: 'expression'; value: string }
-  | { type: 'binding'; value: string }
-  | { type: 'variable'; value: string; mock?: JSONValue };  // NEW in 2.0.2
-```
-
-## Implementation patterns
-
-- Pure types; **zero runtime code**
-- Heavy JSDoc on every declaration
-- `IPublicTypeNodeData` is a discriminated union by `type`; consumed via `isNodeData` guard (in `@monbolc/lowcode-utils`)
-- `IPublicTypeClass<T>` deliberately returns `new (...args) => T` ctor (used as DI key in `editor-core`)
+- L0 包不 import React。上游的 `ReactNode` / `ComponentType` / 实例对象在这里用 `unknown`, `Element | object` 或消费方窄化。
+- 不导出 Ali 的 `shell/api/*` 和 `shell/model/*` proxy zoo。sapu 的插件上下文继续走真类或真实引用。
+- 类型补齐优先保证插件/物料 authoring 编译面，不把 Ali 的旧运行时结构搬进 sapu。
 
 ## Test coverage
 
-- 2 files: `tests/types.test.ts` (4 tests), `tests/location-setting-presentational.test.ts` (12 tests)
-  - 第一文件 regex-greps `src/index.ts` 确认 ≥30 个核心类型名都在(防回归)
-  - 第一文件构造 `JSONValue` 字面量 + 拖放类型实例触发 typecheck
-  - 第二文件覆盖 4 个新模块的导出 + 关键签名(enum / 联合 / 泛型 / 可调用签名)
+- `tests/types.test.ts` 扫描 `src/*.ts`，检查核心 `export type` / `export interface` / `export enum` 类型名未丢失。
+- `tests/types.test.ts` 继续覆盖 `JSONValue`, drag public surface, `IPublicModelDragon<TNode>` 泛型编译面。
+- `tests/location-setting-presentational.test.ts` 覆盖 location / setting / presentational / workspace 关键签名。
+
+## Current validation status
+
+- `yarn typecheck`: 已通过，全部包 0 errors。
+- `yarn test`: 本轮全量测试尚未收口。最近一次全量运行在 Node.js v24.15.0 下以 `MODULE_NOT_FOUND` 退出，尾部没有暴露具体缺失模块路径；接手人下一步应先重跑全量或定向 vitest 获取完整堆栈。
 
 ## External deps
 
-- None (zero runtime deps)
-
-## Notes
-
-- **Uncommitted v2.0.2**: version bump 2.0.1 → 2.0.2 with new fields. Published to npm as 2.0.2 but local working tree has the bump uncommitted.
-- v2.0.1 added: ESM `.js` extension fix.
-- The upstream `ali-lowcode-engine/packages/types/` has 199+ public types; sapu is slimmed to what L0–L4 actually consumes. See [../COMPARISON-WITH-ALI.md](../COMPARISON-WITH-ALI.md) for the full list of dropped types.
+- None。包内没有 runtime dependencies。
 
 ## See also
 
-- [../ARCHITECTURE.md](../ARCHITECTURE.md) — L0/L1 design principles
-- [../ROADMAP.md](../ROADMAP.md) — current P0 (commit the v2.0.2 bump)
+- [../ARCHITECTURE.md](../ARCHITECTURE.md)
+- [../ROADMAP.md](../ROADMAP.md)
+- [../COMPARISON-WITH-ALI.md](../COMPARISON-WITH-ALI.md)
+- [../HANDOVER.md](../HANDOVER.md)

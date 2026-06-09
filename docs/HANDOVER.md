@@ -219,19 +219,32 @@ node -e "for (const p of require('fs').readdirSync('packages')) { try { require(
 
 | Task | 范围 | 估时 |
 |---|---|---|
-| T2.1 (#4) | types: component-meta.ts | 半天 |
-| T2.2 (#5) | types: js-block.ts | 半天 |
-| T2.3 (#6) | types: plugin.ts | 半天 |
-| T2.4 (#7) | types: enum.ts (8 IPublicEnum*) | 半天 |
-| T2.5 (#8) | types: transducer.ts + field-config.ts | 半天 |
-| T2.6 (#9) | types: schema.ts (5 子类型) + 命名冲突修正 | 半天 |
-| T2.7 (#10) | types: action.ts + editor.ts | 半天 |
+| T2.1 (#4) | types: component-meta.ts | 代码落地 2026-06-09; 全量 test 待定位 |
+| T2.2 (#5) | types: js-block.ts | 代码落地 2026-06-09; 全量 test 待定位 |
+| T2.3 (#6) | types: plugin.ts | 代码落地 2026-06-09; 全量 test 待定位 |
+| T2.4 (#7) | types: enum.ts (7 IPublicEnum*) | 代码落地 2026-06-09; 全量 test 待定位 |
+| T2.5 (#8) | types: transducer.ts + field-config.ts | 代码落地 2026-06-09; 全量 test 待定位 |
+| T2.6 (#9) | types: schema.ts + ProjectSchema 命名冲突修正 | 代码落地 2026-06-09; 全量 test 待定位 |
+| T2.7 (#10) | types: action.ts + editor.ts | 代码落地 2026-06-09; 全量 test 待定位 |
 | E2.1-E2.3 (#11) | editor-core: event-bus / command / hotkey 三件套 | 1 天 |
 | D2.1-D2.2 (#13) | designer: placement + setupContextMenu | 半天 |
 | R2.1-R2.2 (#12) | renderer-core: hoc + context (推迟) | 1 天 |
 | S2.1-S2.5 (#14) | editor-skeleton: createField + Area + ... (推迟) | 1 周 |
 | Sh2.1-Sh2.8 (#15) | shell: 8 host-only facade (推迟) | 1-2 周 |
 
+## v2.5.0 (2026-06-09) — types T2.1–T2.7 能力对齐
+
+**types 2.4.0 → 2.5.0**:
+- 新增 `component-meta.ts`, `js-block.ts`, `plugin.ts`, `enum.ts`, `field-config.ts`, `transducer.ts`, `schema.ts`, `action.ts`, `editor.ts` 9 个 L0 类型文件。
+- 补齐 AliLowcodeEngine v1.3.2 插件/物料 authoring 常用 public 类型名: ComponentMetadata / JSExpression / JSFunction / JSBlock / JSSlot / PropConfig / PropType / Transducer / Plugin / EditorView / ActionContentObject / IPublicEnum* 等。
+- 解决 `IPublicTypeProjectSchema` 命名冲突: 新 `IPublicTypeProjectSchema` 对齐 Ali rich schema; sapu 薄项目文档改为 `IPublicTypeProjectDocument`; 旧 index 内薄类型改名 `IPublicTypeLegacyProjectDocument`。
+- `tests/types.test.ts` 从只扫 `src/index.ts` 改成扫描 `src/*.ts`, regex 支持 `export enum`。
+- 包文档 `docs/packages/types.md` 已同步到 2.5.0。
+
+**验证状态**:
+- `yarn typecheck`: 已通过, 全部包 0 errors。
+- `yarn test`: 尚未收口。最近一次全量运行在 Node.js v24.15.0 下以 `MODULE_NOT_FOUND` 退出, 尾部没有暴露具体缺失模块路径。接手人下一步先重跑全量或定向 vitest 获取完整堆栈。
+
 ---
 
-最后更新: 2026-06-09 by lir-navcoo via Claude Code session. **v2.3.0 收尾 + 能力对齐启动**: P2.7 全部 8 facade 删除 (走 C 折中), shell/plugin-setters/editor-skeleton 升 minor, 1051 unit tests pass, typecheck 0 errors. 12 个能力对齐子任务建好, 推荐推进顺序 T2.* → E2.* → D2.* → 文档同步. v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换.
+最后更新: 2026-06-09 by lir-navcoo via Claude Code session. **v2.5.0 types 能力对齐代码已落地并准备推送**: T2.1–T2.7 类型面完成, typecheck 0 errors, 全量 test 仍需定位 `MODULE_NOT_FOUND`。后续推荐先收口测试, 再推进 E2.* → D2.* → COMPARISON 更新。v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换.

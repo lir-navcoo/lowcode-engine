@@ -14,9 +14,18 @@ export * from './location';
 export * from './setting';
 export * from './presentational';
 export * from './workspace';
-// Note: `IPublicTypeNodeInstance` / `Asset` / `IPublicTypeNodeSchema` are
-// imported transitively through `./index` exports above; the slim port
-// does NOT re-export ali's `shell/type/*` barrel.
+export * from './js-block';
+export * from './enum';
+export * from './field-config';
+export * from './transducer';
+export * from './schema';
+export * from './component-meta';
+export * from './plugin';
+export * from './action';
+export * from './editor';
+// Note: sapu still does not re-export ali's full `shell/api/*` and
+// `shell/model/*` proxy zoo. These files are slim `IPublicType*`
+// ports for plugin/component authoring only.
 
 // ---------- 1. Identifier & primitive helpers ----------
 
@@ -353,7 +362,7 @@ export interface IPublicTypeAsset {
 
 // ---------- 11. Project / Workspace state (read-only views) ----------
 
-export interface IPublicTypeProjectSchema {
+export interface IPublicTypeLegacyProjectDocument {
   /** Unique id. */
   id: ID;
   /** Project name. */
