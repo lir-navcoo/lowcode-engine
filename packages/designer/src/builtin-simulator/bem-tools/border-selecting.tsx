@@ -31,7 +31,7 @@ import * as React from 'react';
 import { Fragment } from 'react';
 import { observerHOC } from '../../observer-hoc';
 import { engineConfig } from '../../utils/engine-config';
-import { NodeSelector } from './node-selector-stub';
+import { NodeSelector } from './node-selector';
 import type { BuiltinSimulatorHost } from '../host';
 
 export interface BorderSelectingProps {
@@ -50,6 +50,9 @@ class BorderSelectingInstanceRaw extends React.Component<{
     offsetTop: number;
     offsetLeft: number;
     node: { componentMeta: { advanced?: { hideSelectTools?: boolean } } };
+    /** Phase D.I7b.2: host backref so the Toolbar can render the
+     *  NodeSelector (which needs `host.project.select()`). */
+    host?: unknown;
     purge(): void;
   };
   highlight?: boolean;
@@ -93,6 +96,8 @@ class ToolbarRaw extends React.Component<{
     viewport: { height: number; width: number };
     top: number; bottom: number; left: number; right: number; width: number;
     node: unknown;
+    /** Phase D.I7b.2: host backref for NodeSelector (host.project.select). */
+    host?: unknown;
   };
 }> {
   override render(): React.ReactNode {
@@ -136,7 +141,7 @@ class ToolbarRaw extends React.Component<{
     return (
       <div className="lc-borders-actions" style={style as React.CSSProperties}>
         {actions}
-        <NodeSelector node={node as never} />
+        <NodeSelector node={node as never} host={this.props.observed.host as never} />
       </div>
     );
   }
@@ -211,6 +216,9 @@ class BorderSelectingForNodeRaw extends React.Component<{ host: BuiltinSimulator
             createOffsetObserver: (opts: { node: unknown; instance: unknown }) => unknown;
           }).createOffsetObserver({ node, instance });
           if (!observed) return null;
+          // Phase D.I7b.2: attach the host backref so the Toolbar's
+          // NodeSelector can read `host.project`.
+          (observed as { host?: unknown }).host = this.host;
           return (
             <BorderSelectingInstance
               key={(observed as { id: string }).id}
