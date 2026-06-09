@@ -33,6 +33,7 @@ import { getHitInfo, findDOMNodes, type InstanceLike } from './dom';
 import { computeInsertLocation, type LocateChild } from './locate';
 import { Viewport } from './viewport';
 import { Scroller } from './scroller';
+import { Observable } from '@monbolc/lowcode-utils';
 import type {
   IPublicTypeBoostMeta,
   IPublicTypeDragObject,
@@ -181,8 +182,18 @@ export class BuiltinSimulatorHost {
   private readonly onDown = (e: PointerEvent) => this.handleDown(e);
   private readonly onMove = (e: PointerEvent) => this.handleMove(e);
   private readonly onUp = (e: PointerEvent) => this.handleUp(e);
+  // Phase D.I7b.8b: contextmenu listener (right-click on a canvas
+  // node opens the slim `<ContextMenu>`).
+  private readonly onContext = (e: MouseEvent) => this.handleContextMenu(e);
   // Click-vs-drag tracking
   private pendingClick: { id: string; x: number; y: number } | null = null;
+  // Phase D.I7b.8b: context-menu state. Slim Observable-backed so
+  // the bem-tool `<ContextMenu>` can subscribe via `observerHOC`.
+  private readonly _contextMenu = new Observable<{ nodeId: string; x: number; y: number } | null>(null);
+  /** Read the current context-menu state. */
+  getContextMenuState(): { nodeId: string; x: number; y: number } | null { return this._contextMenu.get(); }
+  /** Set the context-menu state (typically called by the context-menu component on close). */
+  setContextMenuState(s: { nodeId: string; x: number; y: number } | null): void { this._contextMenu.set(s); }
   // Viewport + scroller (new in v2.3)
   readonly viewport: Viewport;
   private readonly scroller: Scroller;
@@ -250,6 +261,7 @@ export class BuiltinSimulatorHost {
     this.bound = true;
     this.canvas.addEventListener('pointerdown', this.onDown);
     this.canvas.addEventListener('pointermove', this.onMove);
+    this.canvas.addEventListener('contextmenu', this.onContext);
     // Use window-level pointerup so a drop outside the canvas still
     // commits (the ghost might have drifted out).
     window.addEventListener('pointerup', this.onUp);
@@ -278,6 +290,7 @@ export class BuiltinSimulatorHost {
     this.bound = false;
     this.canvas.removeEventListener('pointerdown', this.onDown);
     this.canvas.removeEventListener('pointermove', this.onMove);
+    this.canvas.removeEventListener('contextmenu', this.onContext);
     window.removeEventListener('pointerup', this.onUp);
     this.pendingClick = null;
     this.scroller.cancel();
@@ -970,6 +983,33 @@ export class BuiltinSimulatorHost {
     const target = e.target as Element | null;
     if (!target) return false;
     return FORM_EVENT_TAGS.has(target.tagName);
+  }
+
+  /**
+   * Phase D.I7b.8b: handle the canvas's `contextmenu` event. The
+   * slim port opens a `<ContextMenu>` (BaseUI Menu) anchored at
+   * the cursor. Ali-faithful: preventDefault (no native menu),
+   * find the node under the cursor via the same `getNodeRect`-
+   * style `[data-lce-id]` selector used by the hit-test, set
+   * the contextMenuState.
+   */
+  private handleContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    // Find the node under the cursor. Walk up from the target
+    // looking for the closest element with `data-lce-id`.
+    const target = e.target as Element | null;
+    if (!target) return;
+    const tagged = target.closest('[data-lce-id]') as HTMLElement | null;
+    if (!tagged) return; // Right-click on empty canvas — no menu.
+    const id = tagged.getAttribute('data-lce-id');
+    if (!id) return;
+    // P8.3 lock-ancestor guard: ali-faithful UX — locked nodes
+    // can still be copied, but no mutations. Slim port keeps the
+    // menu open; the user can still pick Copy / Cut. The action
+    // callbacks (e.g. Delete) honor the `props.isLocked` check
+    // on the document mutation layer.
+    this.setContextMenuState({ nodeId: id, x: e.clientX, y: e.clientY });
   }
 
   private _isIgnored(e: PointerEvent): boolean {

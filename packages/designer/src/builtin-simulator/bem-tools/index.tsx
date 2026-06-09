@@ -29,6 +29,7 @@ import { BorderSelecting } from './border-selecting';
 import { BorderContainer } from './border-container';
 import { BorderResizing } from './border-resizing';
 import { InsertionView } from './insertion';
+import { ContextMenu } from '../context-menu';
 
 export interface BemToolsProps {
   host: BuiltinSimulatorHost;
@@ -66,6 +67,11 @@ export class BemToolsRaw extends React.Component<BemToolsProps> {
           const ToolsCls = tools.item;
           return <ToolsCls key={tools.name} host={host} />;
         })}
+        {/* Phase D.I7b.8c: the right-click `<ContextMenu>` is a
+            portal-only component (no DOM in the bem-tools root).
+            It reads `host.contextMenuState` and renders the BaseUI
+            Menu when the state is non-null. */}
+        <ContextMenu host={host} state={host.getContextMenuState()} onClose={() => host.setContextMenuState(null)} />
       </div>
     );
   }
