@@ -18,6 +18,7 @@ import type { IPublicTypeRootSchema } from '@monbolc/lowcode-types';
 import { DocumentModel, type DocumentEvents } from './document';
 import { Dragon, type DragonEvents } from './dragon';
 import { Node } from './node';
+import { ComponentMetaRegistry, type IComponentMetaLite } from './component-meta';
 
 export interface ProjectEvents extends Record<string, unknown>, DocumentEvents, DragonEvents {
   /** The selection changed. */
@@ -37,8 +38,26 @@ export class Project {
   readonly document: DocumentModel;
   readonly dragon: Dragon;
   readonly activeTracker = new ActiveTracker();
+  /**
+   * Phase E.4: per-Project `ComponentMetaRegistry` (E.3). The slim
+   * port instantiates the registry in the constructor; consumers
+   * (drag-ghost, BorderDetecting, BorderSelecting, etc.) call
+   * `project.getComponentMeta(name)` which delegates to the registry.
+   * Ali-faithful: `designer.componentMetasMap` is a Map indexed by
+   * component name; the slim port keeps the same shape.
+   */
+  readonly componentMetas: ComponentMetaRegistry = new ComponentMetaRegistry();
   private _selectedIds: string[] = [];
   private _detectingId: string | null = null;
+
+  /**
+   * Ali-faithful `designer.getComponentMeta(name)` shim — delegates to
+   * the registry. Returns `undefined` for absent names (slim: no
+   * auto-build; callers handle the missing case).
+   */
+  getComponentMeta(name: string): IComponentMetaLite | undefined {
+    return this.componentMetas.getComponentMeta(name);
+  }
 
   // ---------------------------------------------------------------------------
   // Phase C.AB: ali-faithful `autorun` / `reaction` shims
