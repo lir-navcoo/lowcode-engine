@@ -40,3 +40,33 @@ export type {
   SapuModalProps,
   SapuFloatingPanelProps,
 } from './widgets';
+
+// ---- Phase T3 (v2.3.0): L4 UI 基础设施 — settings / popup / field / material ----
+
+// Settings pane: tabs + breadcrumb + empty-state notices on top of
+// the L3 SettingTopEntry tree.
+export { SettingsPrimaryPane } from './settings/settings-primary-pane';
+export type { SettingsPrimaryPaneProps } from './settings/settings-primary-pane';
+
+// Popup: imperative registry + BaseUI Popover renderer.
+export { SapuPopupService, popupService } from './popup/service';
+export type {
+  PopupDescriptor,
+  PopupPlacement,
+  PopupOpenOptions,
+} from './popup/service';
+export { SapuPopup } from './popup/popup';
+
+// Setter field wrappers (used when editing a component's `configure`
+// meta — each wrapper is bound to one IPublicTypeFieldConfig).
+export {
+  ExtraPropsField,
+  TitleField,
+  DescriptionField,
+  SetterTypeField,
+  DefaultValueField,
+} from './field/field-wrappers';
+
+// Material pane: categorized + searchable components palette.
+export { MaterialPane } from './material/material-pane';
+export type { MaterialPaneProps } from './material/material-pane';

@@ -1,6 +1,8 @@
 # `@monbolc/lowcode-editor-skeleton` (L4)
 
-> **Version**: 2.4.0 · **Uses `react-resizable-panels`** · **10 tests / 4 files** · **画布可替换 widget 抽象 (P2.2) + Phase D.I7b.4 BemTools wiring**
+> **Version**: 2.5.0 · **Uses `react-resizable-panels`** · **14 tests / 8 files** · **画布可替换 widget 抽象 (P2.2) + Phase D.I7b.4 BemTools wiring + Phase T3 UI 基础设施 (SettingsPrimaryPane / SapuPopupService / FieldWrappers / MaterialPane)**
+>
+> **v2.5.0 (2026-06-09)**: 4 new L4 UI infrastructure components landed. None of them replace existing Pane / Skeleton / SettingsPanel — they sit on top and add tabbed settings, an imperative popup registry, generic setter field wrappers, and a categorized material palette. The new pieces use the same `h()()` resolver and BaseUI primitives as the rest of the package.
 
 ## Purpose
 
@@ -16,6 +18,16 @@ The 3-pane editor UI: left (Outline) / center (canvas) / right (Settings). The L
 
 ### Types
 - `DesignerViewHelpers` — what `designerView(helpers)` receives from the host-facing `Skeleton.designerView` prop
+- `SettingsPrimaryPane` + `SettingsPrimaryPaneProps` — **v2.5.0** tabbed settings shell (≤5 groups → Tabs, >5 → flat list). Built on top of the L3 `SettingTopEntry` tree, BaseUI `Tabs`, optional `t()` i18n. Renders empty / locked / mixed-type notices.
+- `MaterialPane` + `MaterialPaneProps` — **v2.5.0** categorized + searchable component palette. Reads the same `componentMeta` map as `<ComponentPalette>`, but groups by category and adds a search input.
+- `PopupDescriptor` / `PopupPlacement` / `PopupOpenOptions` — **v2.5.0** types for the `SapuPopupService` imperative registry.
+
+### Imperative popup (v2.5.0)
+- `SapuPopupService` (class) + `popupService` (singleton) — open/close/track popups declaratively. Underlying renderer is `<SapuPopup>` (BaseUI `Popover`). The service is **not** ali-faithful to upstream's `PopupPipe` (multi-instance event-bus popups) — sapu uses a single registry; complex multi-popup flows are deferred to v2.6 (see ROADMAP "shell 8 host-only facade").
+- `<SapuPopup>` — the renderer. Hosts usually don't need to render it directly; the service mounts it lazily into a portal.
+
+### Setter field wrappers (v2.5.0)
+- `ExtraPropsField` / `TitleField` / `DescriptionField` / `SetterTypeField` / `DefaultValueField` — five thin React wrappers, each bound to one `IPublicTypeFieldConfig`. Used when editing a component's `configure` meta (e.g. in `<SettingsPrimaryPane>`). **Not** a `createField` factory — the wrappers are explicit; a generic `createField(field => field.kind)` lands in v2.6 (see ROADMAP S2.1).
 
 ## Key types
 

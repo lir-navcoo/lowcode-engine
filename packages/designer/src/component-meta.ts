@@ -200,4 +200,12 @@ export class ComponentMetaRegistry {
     this._emitter.on('registered', fn);
     return () => this._emitter.off('registered', () => undefined);
   }
+
+  /**
+   * Ali-faithful `componentMetasMap` access (read-only view). L6 shell
+   * uses this to wrap the registry in `IMaterialFacade`.
+   */
+  getMap(): ReadonlyMap<string, IComponentMetaLite> {
+    return this._byName;
+  }
 }

@@ -1,8 +1,10 @@
 # `@monbolc/lowcode-shell` (L6)
 
-> **Version**: 2.2.0 · **31 tests / 6 files** · **~720 LoC** (vs upstream `engine-core` ~5,155)
+> **Version**: 2.3.0 · **~720 LoC** (vs upstream `engine-core` ~5,155)
 >
 > The host-facing facade. Sapu stance: **no proxies, no deprecation layer, no per-plugin scoped bus**. Plugins get a plain `IPluginContext` and the real engine references.
+>
+> **v2.3.0 (2026-06-09)**: retired the 8 experimental v2.3 facade slots (skeleton / material / project / hotkey / setters / plugins / logger / config). The engine now exposes the underlying L3 / L2.5 / utils classes directly (`engine.project` → `Project`, `engine.material` → `ComponentMetaRegistry`, `engine.setters` → `ISettersRegistry`, `engine.plugins` → `ReadonlyArray<IPlugin>`, `engine.logger` → `Logger`). Slots that have no real class yet (skeleton / hotkey / config) are deferred to v2.4 (see ROADMAP P2.7 follow-up). See HANDOVER "C 折中 P1" for the rationale.
 
 ## Purpose
 
@@ -31,10 +33,16 @@ export interface IPlugin {
   destroy?(): void;                     // optional, idempotent
 }
 export interface IPluginContext {
-  project: Project;
   workspace?: Workspace;
   events: EngineEventBus;
   i18n: ShellI18n;
+  commands: ICommandManager;            // L2 command manager
+  dragon: PublicDragon | IPublicModelDragon<IPublicTypeNodeLike>;
+  project: Project;                     // v2.3.0: was IProjectFacade, now real L3 class
+  material: ComponentMetaRegistry;      // v2.3.0: was IMaterialFacade, now real L3 class
+  setters: ISettersRegistry;            // v2.3.0: was ISettersFacade, now slim registry
+  plugins: ReadonlyArray<IPlugin>;      // v2.3.0: was IPluginsFacade, now plain array
+  logger: Logger;                       // v2.3.0: was ILoggerFacade, now real utils Logger
   registerPlugin(plugin: IPlugin): void;
   unregisterPlugin(name: string): void;
   t(key: string, vars?: Record<string, string | number>): string;
@@ -49,11 +57,17 @@ export type EngineEventName =
 export type EngineEvents = { /* see events.ts */ };
 export class EngineEventBus { /* typed Emitter wrapper */ };
 
-// Engine
+// Engine (v2.3.0: re-exports of real classes instead of facade proxies)
 export class SapuEngine implements ISapuEngine {
   readonly events: EngineEventBus;
   readonly i18n: ShellI18n;
-  get plugins(): ReadonlyArray<IPlugin>;
+  readonly commands: ICommandManager;
+  readonly setters: ISettersRegistry;
+  readonly logger: Logger;
+  get project(): Project;                          // v2.3.0: real L3 class
+  get material(): ComponentMetaRegistry;           // v2.3.0: real L3 class
+  get plugins(): ReadonlyArray<IPlugin>;           // v2.3.0: plain array
+  get dragon(): PublicDragon;
   getProject(): Project;
   mount(options: MountOptions): Project;
   destroy(): void;

@@ -8,12 +8,27 @@
  * for DX (lets plugin authors write `definePlugin({ ... })` to
  * make their intent explicit) but does no runtime magic.
  *
+ * v2.3.0 (2026-06-09): the 8 experimental v2.3 facade slots
+ * (skeleton / material / project / hotkey / setters / plugins /
+ * logger / config) are removed. The context now exposes plain
+ * references to the underlying L3 / L2.5 / utils classes:
+ *   - `project` → L3 `Project` class
+ *   - `material` → L3 `ComponentMetaRegistry` (alias of project.componentMetas)
+ *   - `setters` → L2.5 `ISettersRegistry`
+ *   - `plugins` → ReadonlyArray<IPlugin>
+ *   - `logger`  → utils `Logger`
+ * Slots that don't have a real class yet (skeleton / hotkey / config)
+ * are deferred — they will land in the v2.4 host-only facade plan
+ * (see ROADMAP P2.7 follow-up). The `workspace` slot is unchanged.
+ *
  * Full implementation lands in L6.4.
  */
 
-import type { Project } from '@monbolc/lowcode-designer';
+import type { Project, ComponentMetaRegistry } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
 import type { ICommandManager } from '@monbolc/lowcode-plugin-command';
+import type { ISettersRegistry } from '@monbolc/lowcode-plugin-setters';
+import type { Logger } from '@monbolc/lowcode-utils';
 import type { IPublicModelDragon, IPublicTypeNodeLike } from '@monbolc/lowcode-types';
 
 import type { EngineEventBus } from './events';
@@ -33,8 +48,6 @@ import type { PublicDragon } from './dragon';
  * authored against the right shape.
  */
 export interface IPluginContext {
-  /** The active editing project. */
-  project: Project;
   /** The L5 workspace (may be undefined for single-doc hosts). */
   workspace?: Workspace;
   /** The engine event bus — typed payloads per `EngineEvents`. */
@@ -50,6 +63,22 @@ export interface IPluginContext {
    * or wire DOM elements as drag sources via `dragon.from`.
    */
   dragon: PublicDragon | IPublicModelDragon<IPublicTypeNodeLike>;
+  /**
+   * The active editing project (same reference as `engine.project`).
+   * Throws if accessed before `mount()`.
+   */
+  project: Project;
+  /**
+   * The component-metadata registry (same reference as
+   * `engine.material` and `project.componentMetas`).
+   */
+  material: ComponentMetaRegistry;
+  /** The setters registry (same reference as `engine.setters`). */
+  setters: ISettersRegistry;
+  /** Snapshot of registered plugins, in insertion order. */
+  plugins: ReadonlyArray<IPlugin>;
+  /** The shared logger (same reference as `engine.logger`). */
+  logger: Logger;
   /** Register another plugin from inside this one. */
   registerPlugin(plugin: IPlugin): void;
   /** Unregister a previously-registered plugin by name. */

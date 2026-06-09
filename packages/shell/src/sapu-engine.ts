@@ -18,9 +18,18 @@
  * The engine is React-free at the class level. L7's `init()` is
  * what mounts the React tree (Skeleton) into a container; this
  * class just owns the project + plugins.
+ *
+ * v2.3.0 (2026-06-09): the experimental v2.3 facade layer
+ * (skeleton / material / project / hotkey / setters / plugins /
+ * logger / config) is **retired**. These slots are now thin
+ * re-exports of the real classes from their owning packages, in
+ * line with the HANDOVER stance "no proxies, plugin author calls
+ * the real classes". New host-only facades (Selection / Event /
+ * Command / Common / Canvas / Workspace / CommonUI / SimulatorHost)
+ * are planned for v2.4 (see ROADMAP P2.7 follow-up).
  */
 
-import { Project } from '@monbolc/lowcode-designer';
+import { Project, ComponentMetaRegistry } from '@monbolc/lowcode-designer';
 import type { Workspace } from '@monbolc/lowcode-workspace';
 import type {
   IPublicModelDragon,
@@ -28,6 +37,8 @@ import type {
   IPublicTypeRootSchema,
 } from '@monbolc/lowcode-types';
 import { CommandManager, type ICommandManager } from '@monbolc/lowcode-plugin-command';
+import { getLogger, type Logger } from '@monbolc/lowcode-utils';
+import { getRegisteredSetterNames, type ISettersRegistry } from '@monbolc/lowcode-plugin-setters';
 
 import { EngineEventBus } from './events';
 import type { IPlugin, IPluginContext } from './plugin';
@@ -47,7 +58,6 @@ export interface MountOptions {
 export interface ISapuEngine {
   readonly events: EngineEventBus;
   readonly i18n: ShellI18n;
-  readonly plugins: ReadonlyArray<IPlugin>;
   /**
    * The L2 command manager — host code can `await engine.commands.execute(name, ...args)`
    * and `engine.commands.undo()` / `redo()`. Plugins get the same
@@ -69,6 +79,26 @@ export interface ISapuEngine {
    * `onX` subscriptions.
    */
   readonly dragon: IPublicModelDragon<IPublicTypeNodeLike>;
+  /**
+   * The L3 `Project` class reference. Read-only; the canonical
+   * accessor is `getProject()`. Available from `mount()` onward.
+   */
+  readonly project: Project;
+  /**
+   * The L3 `ComponentMetaRegistry` (alias of `Project.componentMetas`).
+   * Re-exported as a convenience for plugins that need to look up
+   * component metadata without reaching into the project.
+   */
+  readonly material: ComponentMetaRegistry;
+  /**
+   * The plugin-setters registry (L2.5). Same instance the host
+   * uses to register custom setters via `registerSetter()`.
+   */
+  readonly setters: ISettersRegistry;
+  /** Snapshot of registered plugins, in insertion order. */
+  readonly plugins: ReadonlyArray<IPlugin>;
+  /** The shared logger. Defaults to the utils `ConsoleLogger`. */
+  readonly logger: Logger;
   getProject(): Project;
   mount(options: MountOptions): Project;
   destroy(): void;
@@ -82,11 +112,23 @@ export class SapuEngine implements ISapuEngine {
   readonly events = new EngineEventBus();
   readonly i18n = new ShellI18n();
   readonly commands: ICommandManager = new CommandManager();
+  readonly setters: ISettersRegistry = {
+    list: getRegisteredSetterNames,
+  };
+  readonly logger: Logger = getLogger();
 
   private readonly _plugins = new Map<string, IPlugin>();
   private _project: Project | null = null;
   private _publicDragon: PublicDragon | null = null;
   private _destroyed = false;
+
+  get project(): Project {
+    return this.getProject();
+  }
+
+  get material(): ComponentMetaRegistry {
+    return this.getProject().componentMetas;
+  }
 
   get plugins(): ReadonlyArray<IPlugin> {
     return Array.from(this._plugins.values());
@@ -212,18 +254,24 @@ export class SapuEngine implements ISapuEngine {
    * so a plugin author can chain `ctx.registerPlugin(otherPlugin)`
    * from inside their own init().
    *
-   * v2.3: the public Dragon is exposed here. Plugins that need
-   * to register sensors or subscribe to `dragstart` / `drag` /
-   * `dragend` go through `ctx.dragon` — same instance as
-   * `engine.dragon`, no shim.
+   * v2.3.0: the 8 experimental facade slots are removed. The
+   * canonical services are exposed as plain references (project,
+   * material, setters, plugins, logger) — the plugin author can
+   * also import the underlying classes directly from
+   * `@monbolc/lowcode-designer` / `@monbolc/lowcode-utils` /
+   * `@monbolc/lowcode-plugin-setters`.
    */
   private _buildContext(): IPluginContext {
     return {
-      project: this.getProject(),
       events: this.events,
       i18n: this.i18n,
       commands: this.commands,
       dragon: this.dragon,
+      project: this.getProject(),
+      material: this.material,
+      setters: this.setters,
+      plugins: this.plugins,
+      logger: this.logger,
       registerPlugin: (p) => this.registerPlugin(p),
       unregisterPlugin: (name) => { this.unregisterPlugin(name); },
       t: (key, vars) => this.i18n.t(key, vars),

@@ -9,11 +9,13 @@
 export {
   registerSetter,
   getSetter,
+  getRegisteredSetterNames,
   pickSetter,
   resolveSetterName,
   withLabel,
   BUILT_IN_SETTERS,
 } from './registry';
 export type { SetterComponent, SetterProps, SetterDescriptor, SetterType } from './registry';
+export type { ISettersRegistry } from './types';
 
 export { registerBuiltInSetters, Input, TextArea, Number, Switch, Select, ColorPicker, Slider } from './built-in';

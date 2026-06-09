@@ -98,6 +98,11 @@ export function getSetter(name: string): SetterComponent | undefined {
   return registry.get(name);
 }
 
+/** Snapshot the registered setter names. Sorted alphabetically. */
+export function getRegisteredSetterNames(): string[] {
+  return Array.from(registry.keys()).sort();
+}
+
 /** Convenience: pick the right setter for a field. Falls back to "Input". */
 export function pickSetter(field: IPublicTypeFieldConfig): SetterComponent | undefined {
   const name = typeof field.setter === 'string' ? field.setter : field.setter?.componentName;

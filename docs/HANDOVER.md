@@ -198,6 +198,40 @@ node -e "for (const p of require('fs').readdirSync('packages')) { try { require(
 - **未决 issue**: 无
 - **未决 token 旋转**: 旧 token `npm_FyNT...` 仍生效（host 撤销它之前），新 publish 走 GitHub Secret
 
+## v2.3.0 (2026-06-09) — P2.7 收尾 + C 折中 P1 + 能力对齐启动
+
+**收尾改动** (P2.7 全部 8 facade 删除, 走 "no proxies" 立场):
+- shell 2.2.0 → **2.3.0**: 8 facade (skeleton / material / project / hotkey / setters / plugins / logger / config) 全部删除, 改 re-export 真类引用. `ISapuEngine` + `IPluginContext` 字段类型从 `I*Facade` 改为真类 (`Project` / `ComponentMetaRegistry` / `ISettersRegistry` / `ReadonlyArray<IPlugin>` / `Logger`). 没真类的 (skeleton / hotkey / config) 暂删, 留 TODO (v2.4 host-only facade plan).
+- plugin-setters 2.2.0 → **2.3.0**: 加 `getRegisteredSetterNames()` + `ISettersRegistry` slim facade (types.ts).
+- editor-skeleton 2.4.0 → **2.5.0**: 4 个 L4 UI 基础设施组件落地 — `SettingsPrimaryPane` (tabbed + breadcrumb + empty/locked/mixed 提示) / `SapuPopupService` (imperative popup registry + `<SapuPopup>` 渲染器) / 5 个 setter field wrapper (`ExtraPropsField` / `TitleField` / `DescriptionField` / `SetterTypeField` / `DefaultValueField`) / `MaterialPane` (categorized + searchable palette).
+
+**质量数据**:
+- 1051 unit tests pass + 1 skipped (从 957 → 1051, 加 94 个 widget test)
+- typecheck 0 errors
+- 删 5 个临时 `_patch_*.js` 脚本 + 1 个 debug test + 1 个 `facades/_patch_engine_full.js`
+- 2 个文件 (editor-skeleton/src/index.ts, plugin-setters/src/registry.ts) 被纯缩进污染, 已 revert + re-apply 真改动
+
+**能力对齐 (P2.7 后续 + alimirror)**:
+- 4 个 Agent 并行扫描了 alimirror 包 (shell / types / editor-core / renderer-core / editor-skeleton / designer), 出了 12 个 [A 必做] gap + 5 个 [B 选做] + 故意 drop 列表
+- 已建 12 个分子任务 (见下表), 推荐先做 T2.1–T2.7 (7 个 type 文件) + E2.1–E2.3 (editor-core 三件套) + D2.1–D2.2 (designer 2 件) + 文档同步
+
+**子任务清单** (按 [A 必做] 优先, 估时见 task 编号 #4–#15):
+
+| Task | 范围 | 估时 |
+|---|---|---|
+| T2.1 (#4) | types: component-meta.ts | 半天 |
+| T2.2 (#5) | types: js-block.ts | 半天 |
+| T2.3 (#6) | types: plugin.ts | 半天 |
+| T2.4 (#7) | types: enum.ts (8 IPublicEnum*) | 半天 |
+| T2.5 (#8) | types: transducer.ts + field-config.ts | 半天 |
+| T2.6 (#9) | types: schema.ts (5 子类型) + 命名冲突修正 | 半天 |
+| T2.7 (#10) | types: action.ts + editor.ts | 半天 |
+| E2.1-E2.3 (#11) | editor-core: event-bus / command / hotkey 三件套 | 1 天 |
+| D2.1-D2.2 (#13) | designer: placement + setupContextMenu | 半天 |
+| R2.1-R2.2 (#12) | renderer-core: hoc + context (推迟) | 1 天 |
+| S2.1-S2.5 (#14) | editor-skeleton: createField + Area + ... (推迟) | 1 周 |
+| Sh2.1-Sh2.8 (#15) | shell: 8 host-only facade (推迟) | 1-2 周 |
+
 ---
 
-最后更新: 2026-06-09 by lir-navcoo via Claude Code session. Ali-mirror Phase A + B + C + D + D.I7b.1-15 全部完成(designer 2.28.0, 957 unit tests). 源码无未关闭 TODO。剩余 UX 缺口在 Phase E Asset 范围(icon font、iframe-mode simulator、plugin-extensible context menu registry)。v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换。
+最后更新: 2026-06-09 by lir-navcoo via Claude Code session. **v2.3.0 收尾 + 能力对齐启动**: P2.7 全部 8 facade 删除 (走 C 折中), shell/plugin-setters/editor-skeleton 升 minor, 1051 unit tests pass, typecheck 0 errors. 12 个能力对齐子任务建好, 推荐推进顺序 T2.* → E2.* → D2.* → 文档同步. v2.2.0 publish 仍阻塞于 user 的 npm + GitHub PAT 轮换.

@@ -1,23 +1,28 @@
 # `@monbolc/lowcode-plugin-setters` (L2.5)
 
-> **Version**: 2.0.0 · **BaseUI peer (required, MUST be used)** · **⚠️ typecheck broken** · **0 tests** · **Entire package untracked in git**
+> **Version**: 2.3.0 · **BaseUI peer (required, MUST be used)** · **typecheck 0 errors** · **v2.3.0 adds `getRegisteredSetterNames` + `ISettersRegistry`**
 
 ## Purpose
 
 The setter registry. The upstream gets default setters from the **external** package `@alilc/lowcode-engine-ext` (not vendored in the open-source repo). Sapu ships its own setters in-repo, and per `feedback-react19-and-baseui` they **must** use BaseUI components.
 
-Currently in flux: the typecheck is broken (8 errors) and the 7 built-in setters use raw `<input>` / `<button>` / `<select>` / `<textarea>` / `<input type="color|range">` HTML elements rather than BaseUI primitives — that violates the BaseUI directive.
+The P0.1 typecheck break was fixed in earlier releases; the 7 built-in setters now return hyperscript descriptors whose `type` is a BaseUI component name (`'Field'`, `'Switch'`, etc.) — see "BaseUI mapping" below.
 
 ## Public exports
 
 ### Registry (`registry.ts`)
 - `registerSetter(name, component)` — register a named setter
 - `getSetter(name)` — look up a registered setter
+- `getRegisteredSetterNames()` — **v2.3.0** snapshot the registered setter names (sorted alphabetically). Used by `SapuEngine.setters.list` and the L4 settings panel to enumerate available setters.
 - `pickSetter(field)` — pick a setter for a field config; falls back to `Input`
 - `resolveSetterName(field)` — resolve the setter name from a field
 - `withLabel(label, control)` — vertical label+control composition helper
 - `BUILT_IN_SETTERS` — const array: `['Input', 'TextArea', 'Number', 'Switch', 'Select', 'ColorPicker', 'Slider']`
-- Types: `SetterComponent`, `SetterProps`, `BuiltInSetter`
+- Types: `SetterComponent`, `SetterProps`, `SetterDescriptor`, `SetterType`
+
+### Slim facade (`types.ts`, v2.3.0)
+- `ISettersRegistry` — the slim re-export the L6 `SapuEngine.setters` and `IPluginContext.setters` expose. Currently a single `list(): string[]` method. Mutation goes through `registerSetter()` from this package (the registry's internal `Map` is not directly exposed).
+- Re-export: `SetterComponent` (so consumers can `import type` from the slim facade).
 
 ### Built-in setters (`built-in.tsx`)
 - `registerBuiltInSetters()` — idempotent registration (guarded by `_registered` boolean)
@@ -82,23 +87,9 @@ type SetterComponent = (props: SetterProps) => {
 - `tailwindcss` (devDep — Tailwind v4 for setter styling, per `feedback-baseui-with-tailwind`)
 - `react`, `react-dom`, `@base-ui-components/react`, `@types/react`, `@types/react-dom` (dev)
 
-## ⚠️ Known issues
-
-### P0.1 — typecheck broken (8 errors) + must use BaseUI (elevated from P1.5)
-
-`SetterComponent` type is `ComponentType<SetterProps>` (React.FC), but `built-in.tsx` writes setters using hyperscript descriptors — TypeScript rejects the descriptor output as not-a-function. Also missing `key` props on the descriptor shapes.
-
-Errors at `built-in.tsx:18, 40, 57, 77, 102, 127, 144` (7) + `registry.ts:73` (1).
-
-**Two paths to fix (both require BaseUI)**:
-- **(a)** Change `SetterComponent` to accept hyperscript descriptor. Keep the setters as-is but **change `type` to a BaseUI component name** (e.g. `'Field'` instead of `'input'`). Matches the "framework-agnostic setters" principle.
-- **(b)** Rewrite `built-in.tsx` to proper `React.FC<SetterProps>` returning JSX with **BaseUI components** (not raw `<input>`). Cleaner types, but L4 settings panel must also use proper React (not h()).
-
-**Recommendation**: (a) with BaseUI. The L4 settings panel maintains a BaseUI lookup table; setters stay portable.
-
 ## Untracked
 
-- The whole `packages/plugin-setters/` directory is untracked. P1.4: `git add packages/plugin-setter*`.
+- Resolved: `packages/plugin-setters/` is tracked since 2026-06-07 (P0.1 P1.4 P1.5 lock-in).
 
 ## See also
 
