@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-shell` (L6)
 
-> **Version**: 2.3.0 · **34 tests / 6 files** · **~730 LoC** (vs upstream `engine-core` ~5,155)
+> **Version**: 2.4.0 · **38 tests / 6 files** · **~750 LoC** (vs upstream `engine-core` ~5,155)
 >
 > The host-facing facade. Sapu stance: **no proxies, no deprecation layer, no per-plugin scoped bus**. Plugins get a plain `IPluginContext` and the real engine references.
 
