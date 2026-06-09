@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-plugin-setters` (L2.5)
 
-> **Version**: 2.3.0 · **BaseUI peer (required, MUST be used)** · **typecheck 0 errors** · **v2.3.0 adds `getRegisteredSetterNames` + `ISettersRegistry`**
+> **Version**: 2.5.0 · **BaseUI peer (required, MUST be used)** · **typecheck 0 errors** · **v2.3.0 adds `getRegisteredSetterNames` + `ISettersRegistry` + v2.4.0 adds `unregisterSetter` + `hasSetter` (D.I7b.16)**
 
 ## Purpose
 
@@ -12,6 +12,8 @@ The P0.1 typecheck break was fixed in earlier releases; the 7 built-in setters n
 
 ### Registry (`registry.ts`)
 - `registerSetter(name, component)` — register a named setter
+- `unregisterSetter(name)` (D.I7b.16) — remove a previously-registered setter; returns `true` on first call (entry was present), `false` on second call (no-op)
+- `hasSetter(name)` (D.I7b.16) — query whether a setter is registered
 - `getSetter(name)` — look up a registered setter
 - `getRegisteredSetterNames()` — **v2.3.0** snapshot the registered setter names (sorted alphabetically). Used by `SapuEngine.setters.list` and the L4 settings panel to enumerate available setters.
 - `pickSetter(field)` — pick a setter for a field config; falls back to `Input`

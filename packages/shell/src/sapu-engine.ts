@@ -102,6 +102,20 @@ export interface ISapuEngine {
   getProject(): Project;
   mount(options: MountOptions): Project;
   destroy(): void;
+  /**
+   * Phase D.I7b.18: set the host HTMLElement (the container
+   * `init()` was called with). L7 `init()` stashes this so
+   * `destroy()` can clean the host's rendered children.
+   * Ali-faithful: a proper typed API instead of the old
+   * `engine as unknown as { _host: HTMLElement }` cast.
+   */
+  setHost(host: HTMLElement | null): void;
+  /**
+   * Phase D.I7b.18: read the host HTMLElement stashed by
+   * `setHost`. Returns `null` if not set (e.g. the engine
+   * was created directly without going through L7 `init()`).
+   */
+  getHost(): HTMLElement | null;
   registerPlugin(plugin: IPlugin): void;
   unregisterPlugin(name: string): boolean;
   hasPlugin(name: string): boolean;
@@ -121,6 +135,7 @@ export class SapuEngine implements ISapuEngine {
   private _project: Project | null = null;
   private _publicDragon: PublicDragon | null = null;
   private _destroyed = false;
+  private _host: HTMLElement | null = null;
 
   get project(): Project {
     return this.getProject();
@@ -132,6 +147,21 @@ export class SapuEngine implements ISapuEngine {
 
   get plugins(): ReadonlyArray<IPlugin> {
     return Array.from(this._plugins.values());
+  }
+
+  // Phase D.I7b.18: typed host accessors. L7 `init()` calls
+  // setHost(host) after constructing the engine; `destroy()`
+  // calls getHost() to clear the host's children. The
+  // pre-D.I7b.18 implementation cast `engine as unknown as
+  // { _host: HTMLElement }` to stash the field; the new
+  // API removes the cast and exposes a clean public surface.
+
+  setHost(host: HTMLElement | null): void {
+    this._host = host;
+  }
+
+  getHost(): HTMLElement | null {
+    return this._host;
   }
 
   get dragon(): PublicDragon {

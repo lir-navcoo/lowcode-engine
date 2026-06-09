@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-designer` (L3)
 
-> **Version**: 2.29.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-15 ali-mirror done**
+> **Version**: 2.29.0 · **Uses adapter for React (does not import React)** · **300+ unit tests / 30+ files** · **0 typecheck errors** · **Phase A + B + C.X + C.Y + C.Z + C.AA + C.AB + C.AC + C.AD + C.AE + D + D.I7b.1-19 ali-mirror done**
 
 ## Purpose
 

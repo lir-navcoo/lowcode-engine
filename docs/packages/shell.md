@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-shell` (L6)
 
-> **Version**: 2.3.0 · **~720 LoC** (vs upstream `engine-core` ~5,155)
+> **Version**: 2.5.0 · **~750 LoC** (vs upstream `engine-core` ~5,155) · **v2.3.0 删 8 facade + v2.4.0 加 setHost/getHost (D.I7b.18)**
 >
 > The host-facing facade. Sapu stance: **no proxies, no deprecation layer, no per-plugin scoped bus**. Plugins get a plain `IPluginContext` and the real engine references.
 >

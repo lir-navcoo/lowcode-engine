@@ -94,4 +94,33 @@ describe('SapuEngine (L6.3)', () => {
     expect(engine.hasPlugin('crashy')).toBe(true);
     expect(okInit).toHaveBeenCalledTimes(1);
   });
+
+  // Phase D.I7b.18: setHost / getHost API. L7 init() stashes the
+  // host HTMLElement on the engine so destroy() can clean the
+  // host's rendered children. The pre-D.I7b.18 implementation
+  // cast `engine as unknown as { _host: HTMLElement }` to stash
+  // the field; the new API removes the cast and exposes a
+  // clean public surface.
+
+  it('setHost + getHost: round-trip (D.I7b.18)', () => {
+    const engine = new SapuEngine();
+    expect(engine.getHost()).toBeNull();
+    const host = document.createElement('div');
+    engine.setHost(host);
+    expect(engine.getHost()).toBe(host);
+  });
+
+  it('setHost(null) clears the host (D.I7b.18)', () => {
+    const engine = new SapuEngine();
+    const host = document.createElement('div');
+    engine.setHost(host);
+    expect(engine.getHost()).toBe(host);
+    engine.setHost(null);
+    expect(engine.getHost()).toBeNull();
+  });
+
+  it('getHost() returns null on a fresh engine (D.I7b.18)', () => {
+    const engine = new SapuEngine();
+    expect(engine.getHost()).toBeNull();
+  });
 });

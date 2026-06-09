@@ -6,9 +6,10 @@
  *   2. Container that doesn't exist throws
  *   3. engineReady fires on mount (synchronously, before init returns)
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { init, detectLocale, destroy } from '../src/init';
+import { getTheme } from '../src/theme';
 
 const sampleSchema = { componentName: 'Page' };
 
@@ -68,6 +69,28 @@ describe('init (L7.2)', () => {
     destroy(engine);
     expect(destroyed).toHaveBeenCalledTimes(1);
     expect(() => engine.getProject()).toThrow(/mount/);
+  });
+
+  // Phase D.I7b.17: init() applies options.theme on boot. The
+  // slim port previously had a TODO at this line - the theme
+  // was declared in the InitOptions interface but never
+  // applied. The demo worked around by calling setTheme('dark')
+  // AFTER init. D.I7b.17 closes the gap.
+
+  it('init({ theme: "dark" }) applies the dark theme on boot (D.I7b.17)', async () => {
+    const engine = await init(host, {
+      schema: sampleSchema,
+      components: {},
+      theme: 'dark',
+    });
+    expect(getTheme()).toBe('dark');
+    destroy(engine);
+  });
+
+  it('init({}) defaults to the preset theme ("light") (D.I7b.17)', async () => {
+    const engine = await init(host, { schema: sampleSchema, components: {} });
+    expect(getTheme()).toBe('light');
+    destroy(engine);
   });
 
   it('detectLocale defaults to zh-CN for non-English languages', () => {

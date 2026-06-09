@@ -10,6 +10,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
   registerSetter,
+  unregisterSetter,
+  hasSetter,
   getSetter,
   pickSetter,
   resolveSetterName,
@@ -32,6 +34,39 @@ describe('registerSetter / getSetter', () => {
 
   it('returns undefined for an unregistered name', () => {
     expect(getSetter('DoesNotExist')).toBeUndefined();
+  });
+
+  it('hasSetter: true after register, false after unregister (D.I7b.16)', () => {
+    const custom: SetterComponent = () => ({ type: 'input', props: { className: 'x' } });
+    expect(hasSetter('MyToggle')).toBe(false);
+    registerSetter('MyToggle', custom);
+    expect(hasSetter('MyToggle')).toBe(true);
+    unregisterSetter('MyToggle');
+    expect(hasSetter('MyToggle')).toBe(false);
+    expect(getSetter('MyToggle')).toBeUndefined();
+  });
+
+  it('unregisterSetter: returns true on first call (entry removed), false on second (no-op) (D.I7b.16)', () => {
+    const custom: SetterComponent = () => ({ type: 'input', props: { className: 'x' } });
+    registerSetter('MyDisposable', custom);
+    expect(unregisterSetter('MyDisposable')).toBe(true);
+    // Second call: name not present anymore, no-op.
+    expect(unregisterSetter('MyDisposable')).toBe(false);
+  });
+
+  it('unregisterSetter of an unknown name is a no-op (D.I7b.16)', () => {
+    expect(unregisterSetter('NeverRegistered')).toBe(false);
+    expect(hasSetter('NeverRegistered')).toBe(false);
+  });
+
+  it('after unregister, pickSetter falls back to the inferred default (D.I7b.16)', () => {
+    const custom: SetterComponent = () => ({ type: 'input', props: { className: 'x' } });
+    registerSetter('MyCustom', custom);
+    const f = { name: 'foo', setter: 'MyCustom' } as never;
+    expect(pickSetter(f)).toBe(custom);
+    unregisterSetter('MyCustom');
+    // Falls back to Input (the default).
+    expect(pickSetter(f)).toBe(getSetter('Input'));
   });
 });
 
