@@ -16,6 +16,7 @@ import type { History } from './history';
 import type { IPublicTypeNodeSchema, IPublicTypeRootSchema, JSONValue } from '@monbolc/lowcode-types';
 
 import { Node } from './node';
+import type { Project } from './project';
 
 /**
  * Rect shape returned by `DocumentModel.computeRect` /
@@ -142,6 +143,17 @@ export class DocumentModel implements IDocumentModel {
   getHistory(): History | null { return this._history; }
   /** Ali-faithful `serialize()`: returns the current root schema. */
   serialize(): IPublicTypeRootSchema { return this._root; }
+  /**
+   * Phase E.6: the slim Project (the one that owns this document).
+   * Stored as a back-reference so `indexSubtree` can look up
+   * `project.componentMetas.getComponentMeta(name)` for the
+   * auto-wiring (E.5). The Project sets this in its constructor.
+   */
+  private _project: Project | null = null;
+  /** Phase E.6: wire the Project back-reference. */
+  setProject(project: Project | null): void { this._project = project; }
+  /** Read the wired Project (or `null` if not yet wired). */
+  getProject(): Project | null { return this._project; }
   /**
    * Private helper: push the current state to history. Called after
    * each mutation method's event emit. Ali-faithful: ali's DocumentModel
@@ -271,6 +283,17 @@ export class DocumentModel implements IDocumentModel {
     schema.key = id;
     const wrapped = new Node(schema, parent);
     this._nodes.set(id, wrapped);
+    // Phase E.6: auto-wire the typed componentMeta (E.5 slot) by
+    // looking up the Project's componentMetas registry for this
+    // schema's componentName. The slim port keeps the lookup 1:1
+    // with the ali-faithful designer.getComponentMeta(name) — the
+    // Project wires itself in its constructor, so by the time
+    // DocumentModel.indexSubtree runs, the registry is already
+    // populated with the host's registered metas.
+    if (this._project) {
+      const meta = this._project.componentMetas.getComponentMeta(schema.componentName);
+      if (meta) wrapped.setComponentMeta(meta);
+    }
     (schema.children ?? []).forEach((child, i) => {
       this.indexSubtree(child, wrapped, i);
     });

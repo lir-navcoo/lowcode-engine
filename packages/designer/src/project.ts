@@ -115,6 +115,7 @@ export class Project {
 
   constructor(root: IPublicTypeRootSchema) {
     this.document = new DocumentModel(root);
+    this.document.setProject(this);  // Phase E.6: wire the back-reference
     this.dragon = new Dragon();
     this.wireDocument();
     this.wireActiveTracker();
