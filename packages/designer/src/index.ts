@@ -103,3 +103,12 @@ export {
   parseMetadata,
   type PropConfig,
 } from './builtin-simulator/utils/parse-metadata';
+
+// ---- Phase D.S1 ali-mirror (setting tree — pure helpers) ----
+export { Transducer } from './designer/setting/utils';
+export type {
+  ISettingEntry,
+  ISettingField,
+  IPublicApiSetters,
+  IPublicModelEditor,
+} from './designer/setting/setting-entry-type';
