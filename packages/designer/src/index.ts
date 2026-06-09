@@ -17,6 +17,9 @@
 export { DocumentModel } from './document';
 export type { DocumentEvents, IDocumentModel, IDocumentModelHost } from './document';
 export { Selection } from './selection';
+export { History, Session } from './history';
+export type { Serialization, IDisposable } from './history';
+export { HistoryState } from './history';
 
 export { Node } from './node';
 

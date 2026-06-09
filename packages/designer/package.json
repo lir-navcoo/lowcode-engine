@@ -1,6 +1,6 @@
 {
   "name": "@monbolc/lowcode-designer",
-  "version": "2.12.0",
+  "version": "2.13.0",
   "description": "Document model, Project state, Dragon, Simulator for SapuLowcodeEngine (L3)",
   "license": "MIT",
   "main": "lib/index.js",
