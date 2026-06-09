@@ -8,6 +8,12 @@
  * type signatures; minor means additive types.
  */
 
+export * from './simulator-renderer';
+export * from './drag';
+// Note: `IPublicTypeNodeInstance` / `Asset` / `IPublicTypeNodeSchema` are
+// imported transitively through `./index` exports above; the slim port
+// does NOT re-export ali's `shell/type/*` barrel.
+
 // ---------- 1. Identifier & primitive helpers ----------
 
 /** Globally unique identifier (uuid v4 in practice). */

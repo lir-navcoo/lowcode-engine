@@ -145,3 +145,11 @@ export type {
   ITopEntryNode,
   ITopEntryEditor,
 } from './designer/setting/setting-top-entry';
+
+// ---- Phase D.I2 ali-mirror (infra: observerHOC + bem-tools manager + simulator context + renderer) ----
+export { observerHOC, useObserved } from './observer-hoc';
+export { BemToolsManager } from './builtin-simulator/bem-tools/manager';
+export type { BemToolsData } from './builtin-simulator/bem-tools/manager';
+export { SimulatorContext } from './builtin-simulator/context';
+export { isSimulatorRenderer } from './builtin-simulator/renderer';
+export type { BuiltinSimulatorRenderer } from './builtin-simulator/renderer';
