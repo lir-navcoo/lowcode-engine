@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-types` (L0)
 
-> **Version**: 2.0.2 (uncommitted bump from 2.0.1; new fields added) · **React-free** · **Pure types** · **Zero runtime code**
+> **Version**: 2.4.0 · **React-free** · **Pure types** · **Zero runtime code**
 
 ## Purpose
 
@@ -49,6 +49,46 @@ The single source of truth for the engine's public type system. Every other pack
 ### Utility types
 - `IPublicTypeCallback<T>`, `IPublicTypeDisposable`, `IPublicTypeResult<T, E>`, `IPublicTypeClass<T>`
 
+### Drag-and-drop surface (re-exported from `./drag`)
+- `IPublicTypeNodeLike` — minimal `{ id, componentName, [key: string]: unknown }` shape
+- `IPublicTypeBoostMeta` — palette → canvas payload (`componentName + initialProps`)
+- `IPublicTypeDragObject` — discriminated union `Node | NodeData | Any`
+- `IPublicTypeLocateEvent`, `IPublicTypeLocation`
+- `IPublicTypeSensor<TNode>` — drop-target registration shape
+- `IPublicModelDragon<TNode>` — generic public Dragon wrapper
+
+### Location / Setting / Presentational / Workspace (2.4.0)
+
+四个新文件从 ali v1.3.2 slim 端口过来,供 L2–L6 消费。**L0 纯类型层不引入 React 类型**;上游的 `ReactNode` / `ComponentType` 在 sapu 用 `unknown` 代替,消费方窄化。`IPublicTypeRect` 不在本包(已在 `@monbolc/lowcode-designer` 的 `simulator-host.ts` 定义,见 D.I2 阶段)。
+
+- **Location**(`./location`)
+  - `IPublicTypeLocationDetailType` — `enum { Children, Prop }`,拖放位置类别
+  - `IPublicTypeLocationChildrenDetail` — `{ type, index?, valid?, edge?, near?, focus? }`,近邻节点用 `IPublicTypeNodeLike` 而非 `IPublicModelNode`
+  - `IPublicTypeLocationPropDetail` — `{ type, name, domNode? }`
+  - `IPublicTypeLocationDetail` — 上述两者的联合
+  - `IPublicTypeLocationData<TNode>` — 拖放定位事件负载,`target` 用 `TNode` 泛型,`event: unknown`
+
+- **Setting**(`./setting`)
+  - `IPublicTypeCommandHandlerArgs` — `Record<string, unknown>`
+  - `IPublicTypeCommandParameter` — `{ name, propType, description, defaultValue? }`(`propType` 在 sapu 简化为 `string`)
+  - `IPublicTypeCommand` — `{ name, parameters?, description?, handler }`
+  - `IPublicTypeHotkeyCallback` — `(e: KeyboardEvent, combo?) => unknown | false`
+  - `IPublicTypeHotkeyCallbackConfig` — `{ callback, modifiers, action, seq?, level?, combo? }`
+
+- **Presentational**(`./presentational`)
+  - `IPublicTypeI18nData` — `{ type: 'i18n', intl?, [key: string]: unknown }`
+  - `IPublicTypeIconConfig` — `{ type, size?, className? }`(size 可数字或预设字符串)
+  - `IPublicTypeIconType` — `string | unknown | IPublicTypeIconConfig`(`unknown` 占位上游的 React 组件)
+  - `IPublicTypeTitleConfig` — `{ label?, tip?, docUrl?, icon?, className? }`
+  - `IPublicTypeTitleContent` — 字符串 / i18n / 节点 / 配置四选一
+
+- **Workspace**(`./workspace`)
+  - `IPublicTypeResourceType` — 资源工厂签名(`(ctx, options) => IPublicResourceTypeConfig`),含 `resourceName` + `resourceType` 字段
+  - `IPublicResourceTypeConfig` — L0 薄壳:`description?, defaultTitle?, defaultViewName, editorViews`
+
+### Simulator renderer surface (re-exported from `./simulator-renderer`)
+- 内置模拟器渲染器契约(供 Phase D bem-tools / live-editing 消费)
+
 ## Key types — 2-5 most important
 
 ```ts
@@ -82,9 +122,10 @@ type IPublicTypeNodeData =
 
 ## Test coverage
 
-- 1 file: `tests/types.test.ts` (2 tests)
-  - regex-greps `src/index.ts` to confirm ≥30 expected type names are present (anti-regression)
-  - constructs a `JSONValue` literal to force a typecheck
+- 2 files: `tests/types.test.ts` (4 tests), `tests/location-setting-presentational.test.ts` (12 tests)
+  - 第一文件 regex-greps `src/index.ts` 确认 ≥30 个核心类型名都在(防回归)
+  - 第一文件构造 `JSONValue` 字面量 + 拖放类型实例触发 typecheck
+  - 第二文件覆盖 4 个新模块的导出 + 关键签名(enum / 联合 / 泛型 / 可调用签名)
 
 ## External deps
 

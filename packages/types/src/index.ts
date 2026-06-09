@@ -10,6 +10,10 @@
 
 export * from './simulator-renderer';
 export * from './drag';
+export * from './location';
+export * from './setting';
+export * from './presentational';
+export * from './workspace';
 // Note: `IPublicTypeNodeInstance` / `Asset` / `IPublicTypeNodeSchema` are
 // imported transitively through `./index` exports above; the slim port
 // does NOT re-export ali's `shell/type/*` barrel.

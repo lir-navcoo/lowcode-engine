@@ -12,7 +12,7 @@
 
 | Layer | Package | Version | Status |
 |---|---|---|---|
-| L0 | `@monbolc/lowcode-types` | 2.2.0 | ✅ shipped |
+| L0 | `@monbolc/lowcode-types` | 2.4.0 | ✅ shipped (+11 IPublicType* slim ports: location/setting/presentational/workspace) |
 | L0 | `@monbolc/lowcode-ignitor` | 2.2.0 | ⚠️ **DEPRECATED** in 2.2.0; removed in 2.3.0 |
 | L1 | `@monbolc/lowcode-utils` | 2.2.0 | ✅ shipped |
 | L2 | `@monbolc/lowcode-editor-core` | 2.2.0 | ✅ shipped |
