@@ -2,7 +2,7 @@
  * @monbolc/lowcode-designer — D.I6 shim tests
  * Tests for `engineConfig`, `intl` / `globalLocale`, and `<Title>`.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { engineConfig } from '../../src/utils/engine-config';
 import { intl, globalLocale } from '../../src/utils/locale';
@@ -33,6 +33,63 @@ describe('engineConfig (Phase D.I6)', () => {
     engineConfig.set('b', 2);
     engineConfig.clear();
     expect(engineConfig.get('a')).toBeUndefined();
+  });
+
+  // Phase D.I7b.19: onGot subscription API. Ali-faithful
+  // behavior: onGot fires the callback immediately with the
+  // current value (or undefined if unset), then on every
+  // subsequent set() call. Returns a disposer.
+
+  it('onGot: fires immediately with the current value (D.I7b.19)', () => {
+    engineConfig.set('flag', 'on');
+    const cb = vi.fn();
+    engineConfig.onGot('flag', cb);
+    expect(cb).toHaveBeenCalledWith('on');
+  });
+
+  it('onGot: fires immediately with undefined if the key is unset (D.I7b.19)', () => {
+    const cb = vi.fn();
+    engineConfig.onGot('unset-key', cb);
+    expect(cb).toHaveBeenCalledWith(undefined);
+  });
+
+  it('onGot: fires on subsequent set() (D.I7b.19)', () => {
+    const cb = vi.fn();
+    engineConfig.onGot('live', cb);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenLastCalledWith(undefined);
+    engineConfig.set('live', true);
+    expect(cb).toHaveBeenCalledTimes(2);
+    expect(cb).toHaveBeenLastCalledWith(true);
+    engineConfig.set('live', false);
+    expect(cb).toHaveBeenCalledTimes(3);
+    expect(cb).toHaveBeenLastCalledWith(false);
+  });
+
+  it('onGot: multiple subscribers all fire (D.I7b.19)', () => {
+    const a = vi.fn();
+    const b = vi.fn();
+    engineConfig.onGot('shared', a);
+    engineConfig.onGot('shared', b);
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenCalledTimes(1);
+    engineConfig.set('shared', 'v');
+    expect(a).toHaveBeenCalledTimes(2);
+    expect(b).toHaveBeenCalledTimes(2);
+    expect(a).toHaveBeenLastCalledWith('v');
+    expect(b).toHaveBeenLastCalledWith('v');
+  });
+
+  it('onGot: returned disposer stops the subscription (D.I7b.19)', () => {
+    const cb = vi.fn();
+    const dispose = engineConfig.onGot('temp', cb);
+    expect(cb).toHaveBeenCalledTimes(1);
+    engineConfig.set('temp', 1);
+    expect(cb).toHaveBeenCalledTimes(2);
+    dispose();
+    engineConfig.set('temp', 2);
+    // Still 2 — the disposer removed the callback.
+    expect(cb).toHaveBeenCalledTimes(2);
   });
 });
 
