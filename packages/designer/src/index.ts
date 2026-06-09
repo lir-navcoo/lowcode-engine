@@ -153,3 +153,7 @@ export type { BemToolsData } from './builtin-simulator/bem-tools/manager';
 export { SimulatorContext } from './builtin-simulator/context';
 export { isSimulatorRenderer } from './builtin-simulator/renderer';
 export type { BuiltinSimulatorRenderer } from './builtin-simulator/renderer';
+
+// ---- Phase D.I3 ali-mirror (simulator resource-consumer, the autorun bridge) ----
+export { ResourceConsumer } from './builtin-simulator/resource-consumer';
+export type { MasterProvider, RendererConsumer } from './builtin-simulator/resource-consumer';
