@@ -157,3 +157,18 @@ export type { BuiltinSimulatorRenderer } from './builtin-simulator/renderer';
 // ---- Phase D.I3 ali-mirror (simulator resource-consumer, the autorun bridge) ----
 export { ResourceConsumer } from './builtin-simulator/resource-consumer';
 export type { MasterProvider, RendererConsumer } from './builtin-simulator/resource-consumer';
+
+// ---- Phase D.I6 ali-mirror (bem-tools root + host-view + BorderDetecting + shims) ----
+export { BemTools } from './builtin-simulator/bem-tools';
+export { BorderDetecting, BorderDetectingInstance } from './builtin-simulator/bem-tools/border-detecting';
+export { BorderSelecting } from './builtin-simulator/bem-tools/border-selecting';
+export { BorderResizing } from './builtin-simulator/bem-tools/border-resizing';
+export { BorderContainer } from './builtin-simulator/bem-tools/border-container';
+export { InsertionView } from './builtin-simulator/bem-tools/insertion';
+export { BuiltinSimulatorHostView } from './builtin-simulator/host-view';
+export { engineConfig } from './utils/engine-config';
+export { intl, globalLocale } from './utils/locale';
+export { Title } from './components/title';
+export type { ITitleProps } from './components/title';
+export type { BemToolsProps } from './builtin-simulator/bem-tools';
+export type { BorderDetectingProps, BorderDetectingInstanceProps } from './builtin-simulator/bem-tools/border-detecting';

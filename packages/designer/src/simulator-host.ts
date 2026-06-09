@@ -88,6 +88,12 @@ export interface SimulatorHostOptions {
   /** Drop event hook. Called once per successful commit. */
   onDrop?: (info: { kind: 'move' | 'boost'; target: DropTarget; meta?: IPublicTypeBoostMeta; nodeId?: string }) => void;
   /**
+   * Phase D.I6: optional pre-built `bemToolsManager` (use the D.I2
+   * `BemToolsManager` class). If absent, the slim host defaults to a
+   * no-op manager (renders no custom bem-tools).
+   */
+  bemToolsManager?: { getAllBemTools: () => Array<{ name: string; item: React.ComponentType<{ host: BuiltinSimulatorHost }> }> };
+  /**
    * If true, ignore drops that would target the same parent+index
    * the dragged node is already at. Default true — avoids the
    * "drag a node where it already is" footgun.
@@ -131,6 +137,29 @@ export class BuiltinSimulatorHost {
   private readonly ignoreSelectors: string[];
   private readonly componentMeta: Record<string, ComponentMoveHooks>;
   private bound = false;
+  // ==== Phase D.I6 bem-tool slots (additive) ====
+  // The slim bem-tool files (BorderDetecting / BorderSelecting / etc.)
+  // read these fields. Slim defaults: empty style + no class + no
+  // device, no-op setProps / mountViewport / mountContentFrame, a
+  // minimal `liveEditing.editing` flag, a `designer` slot exposing
+  // `editor.eventBus` + `detecting` (use the existing slim Detecting
+  // via `Project.designer.detecting` slot) + `bemToolsManager` (D.I2
+  // BemToolsManager instance). Real device-mode + iframe-mode +
+  // live-editing are Phase D.I6+ follow-ups.
+  readonly designMode: 'design' | 'live' | 'preview' = 'design';
+  readonly deviceStyle: { canvas?: React.CSSProperties; viewport?: React.CSSProperties } = {};
+  readonly deviceClassName: string = '';
+  readonly device: string | undefined = undefined;
+  readonly liveEditing: { editing: boolean } = { editing: false };
+  /** Alias for `project.document` (ali-faithful surface). */
+  get currentDocument() { return this.project.document; }
+  // Minimal `designer` slot mirroring the slim facade. The slim port
+  // wires this in the constructor.
+  readonly designer: {
+    editor: { eventBus: { on: (...a: any[]) => any; off: (...a: any[]) => any; emit: (...a: any[]) => any } };
+    detecting: { current: unknown };
+    bemToolsManager: { getAllBemTools: () => Array<{ name: string; item: React.ComponentType<{ host: BuiltinSimulatorHost }> }> };
+  };
   // DOM listeners
   private readonly onDown = (e: PointerEvent) => this.handleDown(e);
   private readonly onMove = (e: PointerEvent) => this.handleMove(e);
@@ -160,6 +189,29 @@ export class BuiltinSimulatorHost {
     this.componentMeta = options.componentMeta ?? {};
     this.viewport = new Viewport({ canvas: options.canvas });
     this.scroller = new Scroller({ viewport: this.viewport });
+    // Phase D.I6: wire the `designer` slot. The slim `Project` exposes
+    // `events` (the Emitter) + `setDetecting` / `getDetecting`; the
+    // bem-tool files read `designer.detecting.current` (the currently
+    // hovered node) and `designer.editor.eventBus`. Sapu doesn't have
+    // an ali-faithful `Editor` class yet; the slim facade is a
+    // structural slot ali-faithful enough for the bem-tool port.
+    this.designer = {
+      editor: {
+        eventBus: {
+          on: project.events.on.bind(project.events),
+          off: project.events.off.bind(project.events),
+          emit: project.events.emit.bind(project.events),
+        },
+      },
+      detecting: {
+        get current(): unknown {
+          const id = project.getDetecting();
+          if (!id) return null;
+          return project.document.getNode(id) ?? null;
+        },
+      },
+      bemToolsManager: options.bemToolsManager ?? { getAllBemTools: () => [] },
+    } as BuiltinSimulatorHost['designer'];
     // Phase C: register this host as the document's `IDocumentModelHost`
     // so `document.computeRect(node)` / `getNodeInstancesRect(node)` route
     // through `getComponentInstances` + `computeComponentInstanceRect`.
@@ -919,5 +971,30 @@ export class BuiltinSimulatorHost {
       meta: { componentName: result.meta.componentName, initialProps },
     });
     this.project.select(inserted.id);
+  }
+
+  // ==== Phase D.I6: bem-tool / host-view no-op stubs ====
+  // The slim bem-tool files (BorderDetecting etc.) + the slim
+  // BuiltinSimulatorHostView (host-view.tsx) call these methods. Ali
+  // used them to wire an iframe's contentDocument into the host;
+  // sapu has no iframe simulator, so the slim port keeps the same
+  // method shape (per audit: "future-proof; no-op for no-iframe").
+
+  /** Phase D.I6 no-op: ali-faithful surface; slim has no iframe content frame. */
+  mountContentFrame(_frame: HTMLIFrameElement | null): void {
+    // Intentionally empty. The slim canvas is mounted directly in
+    // the host's render, not inside an iframe.
+  }
+
+  /** Phase D.I6 no-op: ali-faithful surface; slim has no separate viewport mount. */
+  mountViewport(_elmt: HTMLElement | null): void {
+    // Intentionally empty. The slim viewport is derived from the
+    // canvas itself via the Viewport class.
+  }
+
+  /** Phase D.I6 no-op: ali-faithful surface; slim doesn't apply props to the host at runtime. */
+  setProps(_props: unknown): void {
+    // Intentionally empty. The slim host is constructed once with its
+    // root schema via `Project`; props are not re-applied.
   }
 }
