@@ -13,7 +13,11 @@
  *
  * Slim translations applied:
  *   - `@observer` decorator → wrapped with `observerHOC` (D.I2)
- *   - `<Tip>` from `@alilc/lowcode-editor-core` → native `title` attribute
+ *   - `<Tip>` from `@alilc/lowcode-editor-core` → BaseUI `Tooltip` compound
+ *     (Phase D.I7b.6). The `Tooltip.Trigger` uses a `render` prop to keep
+ *     the existing `<div className="lc-borders-action">` shape; the
+ *     hover-open / close-on-out semantics replace the native HTML
+ *     `title` attribute. delay=300 / closeDelay=100 (ali-faithful UX).
  *   - `createIcon` from `@alilc/lowcode-utils` → ali-faithful: reads
  *     `icon.type` / `icon.props`; for the slim port, the icon name is
  *     rendered as a plain `<span data-icon={icon.name}>` (the real
@@ -29,6 +33,7 @@
  */
 import * as React from 'react';
 import { Fragment } from 'react';
+import { Tooltip } from '@base-ui-components/react/tooltip';
 import { observerHOC } from '../../observer-hoc';
 import { engineConfig } from '../../utils/engine-config';
 import { NodeSelector } from './node-selector';
@@ -67,7 +72,13 @@ class BorderSelectingInstanceRaw extends React.Component<{
     if (!observed.hasOffset) return null;
     const { offsetWidth, offsetHeight, offsetTop, offsetLeft } = observed;
     const className = `lc-borders lc-borders-selecting ${highlight ? 'highlight' : ''} ${dragging ? 'dragging' : ''}`.trim();
-    const { hideSelectTools } = observed.node.componentMeta.advanced ?? {};
+    // Phase D.I7b.6: read hideSelectTools via the typed
+    // getComponentMeta() (Phase E.5 + E.6 auto-wire). The structural
+    // `node.componentMeta.advanced` access is no longer valid — the
+    // slim Node exposes the meta via `getComponentMeta()`. Fall
+    // back to `false` if the meta is missing.
+    const node = observed.node as { getComponentMeta?: () => { advanced?: { hideSelectTools?: boolean } } | null };
+    const hideSelectTools = node.getComponentMeta?.()?.advanced?.hideSelectTools ?? false;
     if (hideSelectTools) return null;
     const hideComponentAction = engineConfig.get('hideComponentAction') as boolean | undefined;
     return (
@@ -173,23 +184,44 @@ function createAction(
   }
   if (content && typeof content === 'object' && 'action' in (content as Record<string, unknown>)) {
     const c = content as { action?: (n: unknown) => void; title?: string; icon?: { name: string } };
+    // Phase D.I7b.6: BaseUI Tooltip replaces the native `title`
+    // attribute. The Trigger's `render` prop keeps the existing
+    // `<div className="lc-borders-action">` element shape; the
+    // Tooltip wraps it in hover-open / close-on-out semantics.
+    // No `title` attribute is set on the action div anymore.
     return (
-      <div
-        key={key}
-        className="lc-borders-action"
-        onClick={() => {
-          c.action?.(node.internalToShellNode?.());
-          const editor = node.document?.designer?.editor;
-          const npm = node.componentMeta?.npm;
-          const selected = [npm?.package, npm?.componentName].filter(Boolean).join('-') ||
-            node.componentMeta?.componentName ||
-            '';
-          editor?.eventBus?.emit('designer.border.action', { name: key, selected });
-        }}
-        title={c.title}
-      >
-        {c.icon ? <span data-icon={c.icon.name} /> : null}
-      </div>
+      <Tooltip.Root key={key}>
+        <Tooltip.Trigger
+          delay={300}
+          closeDelay={100}
+          render={
+            <div
+              className="lc-borders-action"
+              data-testid={`border-action-${key}`}
+              onClick={() => {
+                c.action?.(node.internalToShellNode?.());
+                const editor = node.document?.designer?.editor;
+                const npm = node.componentMeta?.npm;
+                const selected = [npm?.package, npm?.componentName].filter(Boolean).join('-') ||
+                  node.componentMeta?.componentName ||
+                  '';
+                editor?.eventBus?.emit('designer.border.action', { name: key, selected });
+              }}
+            />
+          }
+        >
+          {c.icon ? <span data-icon={c.icon.name} /> : null}
+        </Tooltip.Trigger>
+        {c.title ? (
+          <Tooltip.Portal>
+            <Tooltip.Positioner sideOffset={6}>
+              <Tooltip.Popup className="lc-borders-action-tooltip">
+                {c.title}
+              </Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        ) : null}
+      </Tooltip.Root>
     );
   }
   return null;
@@ -202,13 +234,21 @@ function createAction(
 class BorderSelectingForNodeRaw extends React.Component<{ host: BuiltinSimulatorHost; node: unknown }> {
   get host(): BuiltinSimulatorHost { return this.props.host; }
   get dragging(): boolean { return this.host.designer.dragon?.dragging ?? false; }
-  get instances(): unknown[] | null {
-    return (this.host as unknown as { getComponentInstances: (n: unknown) => unknown[] | null }).getComponentInstances(this.props.node);
-  }
   override render(): React.ReactNode {
     const { node } = this.props;
-    const instances = this.instances;
-    if (!instances || instances.length < 1) return null;
+    // Phase D.I7b.3 slim: if `getComponentInstances` returns null
+    // (the slim port doesn't have an instance map populated by
+    // the host until components mount), synthesize a single
+    // instance from the node itself. The slim
+    // `createOffsetObserver` reads the rect from the canvas via
+    // `[data-lce-id]` (Phase D.I7b.3 upgrade), so a synthetic
+    // instance works for the bem-tool tree.
+    let instances: unknown[] | null = (this.host as unknown as {
+      getComponentInstances: (n: unknown) => unknown[] | null;
+    }).getComponentInstances(node);
+    if (!instances || instances.length < 1) {
+      instances = [node];
+    }
     return (
       <Fragment key={(node as { id: string }).id}>
         {instances.map((instance) => {
@@ -219,6 +259,11 @@ class BorderSelectingForNodeRaw extends React.Component<{ host: BuiltinSimulator
           // Phase D.I7b.2: attach the host backref so the Toolbar's
           // NodeSelector can read `host.project`.
           (observed as { host?: unknown }).host = this.host;
+          // Phase D.I7b.6: attach the viewport (for Toolbar's
+          // position math). The slim `observed` doesn't carry the
+          // viewport (OffsetObserver is DOM-only); the Toolbar
+          // reads it from the host backref.
+          (observed as { viewport?: unknown }).viewport = this.host.viewport;
           return (
             <BorderSelectingInstance
               key={(observed as { id: string }).id}
@@ -248,8 +293,26 @@ class BorderSelectingRaw extends React.Component<BorderSelectingProps> {
     const doc = this.host.currentDocument;
     if (!doc) return null;
     if ((this.host as unknown as { liveEditing: { editing: boolean } }).liveEditing?.editing) return null;
-    const selection = (doc as unknown as { selection: { getNodes: () => unknown[]; getTopNodes: () => unknown[] } }).selection;
-    return this.dragging ? selection.getTopNodes() : selection.getNodes();
+    // Phase D.I7b.6 slim: read from `host.project.selectedIds` (the
+    // project-level proxy; slim Selection is a parallel state that
+    // is populated by the editor skeleton's click handlers, not
+    // the bem-tool tree). The slim port unifies on project-level
+    // selection — same UX, single source of truth.
+    const ids = this.host.project.selectedIds;
+    if (!ids || ids.length < 1) return null;
+    const nodes = ids
+      .map((id) => doc.getNode(id))
+      .filter((n): n is NonNullable<typeof n> => n !== undefined);
+    return this.dragging ? nodes.filter((n) => !this._hasAncestorInSet(n, new Set(ids))) : nodes;
+  }
+  private _hasAncestorInSet(n: { parent: unknown }, ids: Set<string>): boolean {
+    let p: { parent: unknown } | null = n;
+    while (p) {
+      const pp = p.parent as { id?: string } | null;
+      if (pp && ids.has(pp.id ?? '')) return true;
+      p = pp as { parent: unknown } | null;
+    }
+    return false;
   }
   override render(): React.ReactNode {
     const selecting = this.selecting;
