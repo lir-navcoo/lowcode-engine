@@ -1,6 +1,6 @@
 # SapuLowcodeEngine Documentation
 
-> **From-scratch rewrite** of `alibaba/lowcode-engine` v1.3.2 under the `@monbolc` npm scope. 14 packages, L0–L7 complete, 927 tests passing, zero `@alilc`/`@alifd`/`@supu` references in source.
+> **From-scratch rewrite** of `alibaba/lowcode-engine` v1.3.2 under the `@monbolc` npm scope. 14 packages, L0–L7 complete, 941 tests passing, zero `@alilc`/`@alifd`/`@supu` references in source.
 
 ## Index
 
@@ -41,7 +41,7 @@ This folder is the **primary source of truth for sapu-lowcode-engine**. Memory f
 - **React version**: 19.2.7 (peerDependency, optional; only L3+)
 - **TypeScript**: 5.4
 - **Build**: `tsc -p tsconfig.json` (CJS) + `tsc -p tsconfig.esm.json && node ../../scripts/add-js-extensions.mjs es` (ESM with `.js` extensions)
-- **Test**: `yarn test` (vitest 2.1, happy-dom, @testing-library/react 16) — **927 tests / 84 files, 0 failures**
+- **Test**: `yarn test` (vitest 2.1, happy-dom, @testing-library/react 16) — **941 tests / 85 files, 0 failures**
 - **Typecheck**: `yarn typecheck` — **0 errors** across all 14 packages + demo
 - **Reference upstream** (for context, not active development): `../ali-lowcode-engine/`
 
