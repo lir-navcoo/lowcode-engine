@@ -1,6 +1,6 @@
 # `@monbolc/lowcode-plugin-setters` (L2.5)
 
-> **Version**: 2.0.0 · **BaseUI peer (required, MUST be used)** · **⚠️ typecheck broken** · **0 tests** · **Entire package untracked in git**
+> **Version**: 2.3.0 · **BaseUI peer (required, MUST be used)** · **0 typecheck errors** · **53 tests / 2 files** · **Phase D.I7b.16 (unregisterSetter) done**
 
 ## Purpose
 
@@ -12,6 +12,8 @@ Currently in flux: the typecheck is broken (8 errors) and the 7 built-in setters
 
 ### Registry (`registry.ts`)
 - `registerSetter(name, component)` — register a named setter
+- `unregisterSetter(name)` (D.I7b.16) — remove a previously-registered setter; returns `true` on first call (entry was present), `false` on second call (no-op)
+- `hasSetter(name)` (D.I7b.16) — query whether a setter is registered
 - `getSetter(name)` — look up a registered setter
 - `pickSetter(field)` — pick a setter for a field config; falls back to `Input`
 - `resolveSetterName(field)` — resolve the setter name from a field
